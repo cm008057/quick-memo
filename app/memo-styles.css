@@ -682,12 +682,13 @@ input, textarea {
 
     .memo-text {
         font-size: 15px;
-        margin: 0 0 8px 0;
+        margin: 0 0 15px 0;
         width: 19em;
         max-width: 100%;
         word-wrap: break-word;
         overflow-wrap: break-word;
         white-space: pre-wrap;
+        padding: 0 8px 0 0;
     }
 }
 
@@ -703,7 +704,8 @@ input, textarea {
 
     .memo-content {
         width: 100%;
-        margin-bottom: 10px;
+        margin-bottom: 15px;
+        padding: 8px 12px;
     }
 
     .memo-actions {
