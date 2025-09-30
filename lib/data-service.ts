@@ -35,9 +35,9 @@ export const dataService = {
 
     // 新しいメモを挿入（暗号化して保存）
     if (memos.length > 0) {
-      const memoEntries = memos.map(memo => {
+      const memoEntries = await Promise.all(memos.map(async memo => {
         // メモを暗号化
-        const encryptedMemo = encryptMemo({...memo}, user.id)
+        const encryptedMemo = await encryptMemo({...memo}, user.id)
         return {
           id: memo.id,
           text: encryptedMemo.text,
@@ -47,7 +47,7 @@ export const dataService = {
           user_id: user.id,
           is_encrypted: true
         }
-      })
+      }))
 
       const { error } = await supabase.from('memos').insert(memoEntries)
       if (error) throw error
@@ -68,7 +68,7 @@ export const dataService = {
     if (error) throw error
 
     // メモを復号化して返す
-    return data?.map(item => {
+    const memos = await Promise.all((data || []).map(async item => {
       const memo: Memo = {
         id: item.id,
         text: item.text,
@@ -80,7 +80,7 @@ export const dataService = {
 
       // 暗号化されている場合は復号
       if (item.is_encrypted) {
-        const decrypted = decryptMemo({...memo}, user.id)
+        const decrypted = await decryptMemo({...memo}, user.id)
         return {
           ...memo,
           text: decrypted.text,
@@ -89,7 +89,9 @@ export const dataService = {
       }
 
       return memo
-    }) || []
+    }))
+
+    return memos
   },
 
   async saveCategories(categories: { [key: string]: Category }, categoryOrder: string[]) {
@@ -102,9 +104,9 @@ export const dataService = {
     await supabase.from('categories').delete().eq('user_id', user.id)
 
     // 新しいカテゴリを挿入（暗号化して保存）
-    const categoryEntries = Object.entries(categories).map(([id, cat], index) => {
+    const categoryEntries = await Promise.all(Object.entries(categories).map(async ([id, cat], index) => {
       // カテゴリ名を暗号化
-      const encryptedCat = encryptCategory({...cat}, user.id)
+      const encryptedCat = await encryptCategory({...cat}, user.id)
       return {
         id,
         name: encryptedCat.name,
@@ -114,7 +116,7 @@ export const dataService = {
         user_id: user.id,
         is_encrypted: true
       }
-    })
+    }))
 
     if (categoryEntries.length > 0) {
       const { error } = await supabase.from('categories').insert(categoryEntries)
@@ -141,7 +143,7 @@ export const dataService = {
     const categories: { [key: string]: Category } = {}
     const categoryOrder: string[] = []
 
-    data?.forEach(cat => {
+    for (const cat of data || []) {
       let category: Category = {
         name: cat.name,
         icon: cat.icon,
@@ -151,7 +153,7 @@ export const dataService = {
 
       // 暗号化されている場合は復号
       if (cat.is_encrypted) {
-        const decrypted = decryptCategory({...category}, user.id)
+        const decrypted = await decryptCategory({...category}, user.id)
         category = {
           ...category,
           name: decrypted.name,
@@ -161,7 +163,7 @@ export const dataService = {
 
       categories[cat.id] = category
       categoryOrder.push(cat.id)
-    })
+    }
 
     return { categories, categoryOrder }
   },
