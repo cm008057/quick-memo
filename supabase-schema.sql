@@ -39,13 +39,47 @@ ALTER TABLE public.memos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.memo_orders ENABLE ROW LEVEL SECURITY;
 
--- Create policies (for future user authentication)
--- For now, we'll allow all operations for demo purposes
-CREATE POLICY "Allow all operations for authenticated users" ON public.memos
-    FOR ALL USING (true);
+-- Drop existing policies first (if they exist)
+DROP POLICY IF EXISTS "Allow all operations for authenticated users" ON public.memos;
+DROP POLICY IF EXISTS "Allow all operations for authenticated users" ON public.categories;
+DROP POLICY IF EXISTS "Allow all operations for authenticated users" ON public.memo_orders;
 
-CREATE POLICY "Allow all operations for authenticated users" ON public.categories
-    FOR ALL USING (true);
+-- Create proper RLS policies for user data separation
+-- Memos table policies
+CREATE POLICY "Users can view own memos" ON public.memos
+    FOR SELECT USING (auth.uid()::text = user_id);
 
-CREATE POLICY "Allow all operations for authenticated users" ON public.memo_orders
-    FOR ALL USING (true);
+CREATE POLICY "Users can insert own memos" ON public.memos
+    FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can update own memos" ON public.memos
+    FOR UPDATE USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can delete own memos" ON public.memos
+    FOR DELETE USING (auth.uid()::text = user_id);
+
+-- Categories table policies
+CREATE POLICY "Users can view own categories" ON public.categories
+    FOR SELECT USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can insert own categories" ON public.categories
+    FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can update own categories" ON public.categories
+    FOR UPDATE USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can delete own categories" ON public.categories
+    FOR DELETE USING (auth.uid()::text = user_id);
+
+-- Memo orders table policies
+CREATE POLICY "Users can view own memo orders" ON public.memo_orders
+    FOR SELECT USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can insert own memo orders" ON public.memo_orders
+    FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can update own memo orders" ON public.memo_orders
+    FOR UPDATE USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can delete own memo orders" ON public.memo_orders
+    FOR DELETE USING (auth.uid()::text = user_id);

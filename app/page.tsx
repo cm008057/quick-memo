@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { createClient } from '@/lib/supabase'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import AuthModal from '@/components/AuthModal'
+import { authService } from '@/lib/auth'
+import { dataService } from '@/lib/data-service'
 import './memo-styles.css'
 
 // 型定義
@@ -94,6 +96,13 @@ export default function QuickMemoApp() {
   const [editText, setEditText] = useState<string>('')
   const [showCategoryMenu, setShowCategoryMenu] = useState<number | null>(null)
 
+  // 認証関連のstate
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [user, setUser] = useState<any>(null)
+  const [showAuthModal, setShowAuthModal] = useState<boolean>(false)
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [hasLocalData, setHasLocalData] = useState<boolean>(false)
+
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
 
@@ -117,9 +126,8 @@ export default function QuickMemoApp() {
     return ordered
   }
 
-  // 初期化
-  useEffect(() => {
-    // LocalStorageからデータを読み込み
+  // LocalStorageからデータを読み込み
+  const loadDataFromLocalStorage = () => {
     const storedCategories = localStorage.getItem('categories')
     const storedCategoryOrder = localStorage.getItem('categoryOrder')
     const storedMemos = localStorage.getItem('quickMemos')
@@ -145,8 +153,110 @@ export default function QuickMemoApp() {
 
     // 初期選択カテゴリーを設定
     setSelectedCategory(Object.keys(defaultCategories)[0])
+  }
 
-    // 音声認識の初期化
+  // Supabaseからデータを読み込み
+  const loadDataFromSupabase = useCallback(async () => {
+    try {
+      const { categories: dbCategories, categoryOrder: dbCategoryOrder } = await dataService.loadCategories()
+      const dbMemos = await dataService.loadMemos()
+      const dbMemoOrder = await dataService.loadMemoOrder()
+
+      // データがある場合はそれを使用、ない場合はデフォルト
+      if (Object.keys(dbCategories).length > 0) {
+        setCategories(dbCategories)
+        setCategoryOrder(dbCategoryOrder)
+      } else {
+        setCategories(defaultCategories)
+        setCategoryOrder(Object.keys(defaultCategories))
+      }
+
+      setMemos(dbMemos)
+      setMemoOrder(dbMemoOrder)
+      setSelectedCategory(Object.keys(dbCategories)[0] || Object.keys(defaultCategories)[0])
+
+      // LocalStorageからの移行チェック
+      await migrateLocalDataIfNeeded()
+    } catch (error) {
+      console.error('データの読み込みに失敗:', error)
+    }
+  }, [])
+
+  // 認証状態の監視と初期化
+  useEffect(() => {
+    const { data: { subscription } } = authService.onAuthStateChange(async (user) => {
+      console.log('Auth state changed:', user ? 'ログイン中' : '未ログイン')
+      setUser(user)
+      setIsLoading(false)
+
+      if (user) {
+        // ログイン済み：Supabaseからデータを読み込み
+        try {
+          await loadDataFromSupabase()
+          console.log('Supabaseからデータを読み込みました')
+        } catch (error) {
+          console.error('Supabaseデータの読み込みに失敗:', error)
+          // フォールバック：LocalStorageからデータを読み込み
+          loadDataFromLocalStorage()
+        }
+      } else {
+        // 未ログイン：LocalStorageからデータを読み込み
+        loadDataFromLocalStorage()
+        checkForLocalData()
+      }
+    })
+
+    return () => subscription?.unsubscribe?.()
+  }, [loadDataFromSupabase])
+
+  // LocalStorageにデータがあるかチェック
+  const checkForLocalData = () => {
+    const hasData = localStorage.getItem('quickMemos') || localStorage.getItem('categories')
+    setHasLocalData(!!hasData)
+  }
+
+  // LocalStorageからSupabaseへの自動移行
+  const migrateLocalDataIfNeeded = async () => {
+    const storedMemos = localStorage.getItem('quickMemos')
+    const storedCategories = localStorage.getItem('categories')
+
+    if (storedMemos || storedCategories) {
+      try {
+        // LocalStorageのデータをSupabaseに保存
+        if (storedMemos) {
+          const localMemos = JSON.parse(storedMemos)
+          await dataService.saveMemos(localMemos)
+        }
+
+        if (storedCategories) {
+          const localCategories = JSON.parse(storedCategories)
+          const localCategoryOrder = JSON.parse(localStorage.getItem('categoryOrder') || '[]')
+          await dataService.saveCategories(localCategories, localCategoryOrder)
+        }
+
+        const localMemoOrder = JSON.parse(localStorage.getItem('memoOrder') || '[]')
+        if (localMemoOrder.length > 0) {
+          await dataService.saveMemoOrder(localMemoOrder)
+        }
+
+        // 移行後、LocalStorageをクリア
+        localStorage.removeItem('quickMemos')
+        localStorage.removeItem('categories')
+        localStorage.removeItem('categoryOrder')
+        localStorage.removeItem('memoOrder')
+
+        // データを再読み込み
+        await loadDataFromSupabase()
+
+        alert('LocalStorageのデータをクラウドに移行しました！')
+      } catch (error) {
+        console.error('データ移行に失敗:', error)
+      }
+    }
+  }
+
+  // 音声認識の初期化
+  useEffect(() => {
     if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const SpeechRecognitionConstructor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
@@ -171,15 +281,40 @@ export default function QuickMemoApp() {
     }
   }, [])
 
-  // データ保存
-  const saveMemos = () => {
-    localStorage.setItem('quickMemos', JSON.stringify(memos))
-    localStorage.setItem('memoOrder', JSON.stringify(memoOrder))
+  // データ保存（認証状態に応じて自動選択）
+  const saveMemos = async () => {
+    if (user) {
+      try {
+        await dataService.saveMemos(memos)
+        await dataService.saveMemoOrder(memoOrder)
+      } catch (error) {
+        console.error('メモの保存に失敗:', error)
+        // フォールバック：LocalStorageに保存
+        localStorage.setItem('quickMemos', JSON.stringify(memos))
+        localStorage.setItem('memoOrder', JSON.stringify(memoOrder))
+      }
+    } else {
+      // 未ログイン：LocalStorageに保存
+      localStorage.setItem('quickMemos', JSON.stringify(memos))
+      localStorage.setItem('memoOrder', JSON.stringify(memoOrder))
+    }
   }
 
-  const saveCategories = () => {
-    localStorage.setItem('categories', JSON.stringify(categories))
-    localStorage.setItem('categoryOrder', JSON.stringify(categoryOrder))
+  const saveCategories = async () => {
+    if (user) {
+      try {
+        await dataService.saveCategories(categories, categoryOrder)
+      } catch (error) {
+        console.error('カテゴリの保存に失敗:', error)
+        // フォールバック：LocalStorageに保存
+        localStorage.setItem('categories', JSON.stringify(categories))
+        localStorage.setItem('categoryOrder', JSON.stringify(categoryOrder))
+      }
+    } else {
+      // 未ログイン：LocalStorageに保存
+      localStorage.setItem('categories', JSON.stringify(categories))
+      localStorage.setItem('categoryOrder', JSON.stringify(categoryOrder))
+    }
   }
 
   // メモを追加
@@ -497,9 +632,51 @@ export default function QuickMemoApp() {
   const counts = getCounts()
   const orderedCategories = getOrderedCategories()
 
+  // ローディング中の表示
+  if (isLoading) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        flexDirection: 'column',
+        gap: '20px'
+      }}>
+        <div style={{
+          width: '50px',
+          height: '50px',
+          border: '3px solid #f3f3f3',
+          borderTop: '3px solid #3b82f6',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }}></div>
+        <p style={{ color: '#666' }}>データを読み込み中...</p>
+        <style jsx>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    )
+  }
+
   return (
     <div>
       <h1>クイックメモ 📝</h1>
+
+      {/* ユーザー情報表示 */}
+      {user && (
+        <div style={{
+          fontSize: '14px',
+          color: '#666',
+          marginBottom: '10px',
+          textAlign: 'right'
+        }}>
+          ✅ {user.email} でログイン中（データはクラウドに自動保存されます）
+        </div>
+      )}
 
       <div className="input-area">
         <div className="category-section">
@@ -524,6 +701,26 @@ export default function QuickMemoApp() {
               <button className="manage-btn" onClick={() => setShowCategoryModal(true)}>
                 カテゴリー管理
               </button>
+              {user ? (
+                <button
+                  className="manage-btn"
+                  onClick={async () => {
+                    await authService.signOut()
+                    alert('ログアウトしました')
+                  }}
+                  title="ログアウト"
+                >
+                  👤 ログアウト
+                </button>
+              ) : (
+                <button
+                  className="manage-btn"
+                  onClick={() => setShowAuthModal(true)}
+                  title="ログイン・アカウント作成"
+                >
+                  🔒 ログイン
+                </button>
+              )}
               <button className="export-btn" onClick={exportData} title="データをエクスポート">
                 💾
               </button>
@@ -734,6 +931,63 @@ export default function QuickMemoApp() {
           })
         )}
       </div>
+
+      {/* 認証モーダル */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={() => {
+          setShowAuthModal(false)
+          // 認証成功後はauth state changeでデータが自動読み込みされる
+        }}
+      />
+
+      {/* ローカルデータ移行提案モーダル */}
+      {!user && hasLocalData && (
+        <div className="modal active">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">
+                データをクラウドに保存しませんか？
+              </h3>
+            </div>
+            <div style={{ marginBottom: '20px', fontSize: '14px', lineHeight: '1.6' }}>
+              <p>現在のデータがLocalStorageに保存されています。</p>
+              <p>ログインすると、データをクラウドに保存して複数のデバイスで同期できます。</p>
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  background: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setShowAuthModal(true)}
+              >
+                ログインして移行
+              </button>
+              <button
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  background: '#f3f4f6',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setHasLocalData(false)}
+              >
+                後で
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* カテゴリー管理モーダル */}
       <div className={`modal ${showCategoryModal ? 'active' : ''}`}>

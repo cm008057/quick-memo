@@ -136,7 +136,7 @@ export const loadFromSupabase = async (): Promise<{
     const [
       { data: memos, error: memosError },
       { data: categories, error: categoriesError },
-      { data: memoOrders, error: orderError }
+      { data: memoOrders }
     ] = await Promise.all([
       supabase.from('memos').select('*').eq('user_id', userId),
       supabase.from('categories').select('*').eq('user_id', userId).order('order_index'),
