@@ -10,25 +10,37 @@ interface CategoryLike {
   [key: string]: unknown
 }
 
+// 暗号化を一時的に無効化（デバッグのため）
+const ENCRYPTION_ENABLED = false
+
 /**
  * ユーザーIDから暗号化キーを生成
  * 各ユーザーは自分だけの暗号化キーを持つ
  */
 export const generateEncryptionKey = async (userId: string): Promise<string> => {
+  if (!ENCRYPTION_ENABLED) return userId
+
   // サーバーサイドではスキップ
   if (typeof window === 'undefined') {
     return userId
   }
 
-  const CryptoJS = (await import('crypto-js')).default
-  const appSalt = process.env.NEXT_PUBLIC_APP_SALT || 'quick-memo-default-salt-2024'
-  return CryptoJS.SHA256(userId + appSalt).toString()
+  try {
+    const CryptoJS = (await import('crypto-js')).default
+    const appSalt = process.env.NEXT_PUBLIC_APP_SALT || 'quick-memo-default-salt-2024'
+    return CryptoJS.SHA256(userId + appSalt).toString()
+  } catch (error) {
+    console.error('Failed to generate encryption key:', error)
+    return userId
+  }
 }
 
 /**
  * テキストを暗号化
  */
 export const encryptText = async (text: string, userId: string): Promise<string> => {
+  if (!ENCRYPTION_ENABLED) return text
+
   if (!text || !userId) return text
 
   // サーバーサイドではスキップ
@@ -51,6 +63,8 @@ export const encryptText = async (text: string, userId: string): Promise<string>
  * 暗号化されたテキストを復号
  */
 export const decryptText = async (encryptedText: string, userId: string): Promise<string> => {
+  if (!ENCRYPTION_ENABLED) return encryptedText
+
   if (!encryptedText || !userId) return encryptedText
 
   // サーバーサイドではスキップ
@@ -79,6 +93,8 @@ export const decryptText = async (encryptedText: string, userId: string): Promis
  * データが暗号化されているかチェック
  */
 export const isEncrypted = (text: string): boolean => {
+  if (!ENCRYPTION_ENABLED) return false
+
   if (!text) return false
 
   try {
@@ -93,6 +109,8 @@ export const isEncrypted = (text: string): boolean => {
  * オブジェクトの特定フィールドを暗号化
  */
 export const encryptMemo = async (memo: MemoLike, userId: string): Promise<MemoLike> => {
+  if (!ENCRYPTION_ENABLED) return memo
+
   if (!userId) return memo
 
   // サーバーサイドではスキップ
@@ -100,10 +118,15 @@ export const encryptMemo = async (memo: MemoLike, userId: string): Promise<MemoL
     return memo
   }
 
-  return {
-    ...memo,
-    text: await encryptText(memo.text, userId),
-    isEncrypted: true
+  try {
+    return {
+      ...memo,
+      text: await encryptText(memo.text, userId),
+      isEncrypted: true
+    }
+  } catch (error) {
+    console.error('Memo encryption failed:', error)
+    return memo
   }
 }
 
@@ -111,6 +134,8 @@ export const encryptMemo = async (memo: MemoLike, userId: string): Promise<MemoL
  * オブジェクトの特定フィールドを復号
  */
 export const decryptMemo = async (memo: MemoLike, userId: string): Promise<MemoLike> => {
+  if (!ENCRYPTION_ENABLED) return memo
+
   if (!userId || !memo.isEncrypted) return memo
 
   // サーバーサイドではスキップ
@@ -118,10 +143,15 @@ export const decryptMemo = async (memo: MemoLike, userId: string): Promise<MemoL
     return memo
   }
 
-  return {
-    ...memo,
-    text: await decryptText(memo.text, userId),
-    isEncrypted: false
+  try {
+    return {
+      ...memo,
+      text: await decryptText(memo.text, userId),
+      isEncrypted: false
+    }
+  } catch (error) {
+    console.error('Memo decryption failed:', error)
+    return memo
   }
 }
 
@@ -129,6 +159,8 @@ export const decryptMemo = async (memo: MemoLike, userId: string): Promise<MemoL
  * カテゴリー名を暗号化
  */
 export const encryptCategory = async (category: CategoryLike, userId: string): Promise<CategoryLike> => {
+  if (!ENCRYPTION_ENABLED) return category
+
   if (!userId) return category
 
   // サーバーサイドではスキップ
@@ -136,10 +168,15 @@ export const encryptCategory = async (category: CategoryLike, userId: string): P
     return category
   }
 
-  return {
-    ...category,
-    name: await encryptText(category.name, userId),
-    isEncrypted: true
+  try {
+    return {
+      ...category,
+      name: await encryptText(category.name, userId),
+      isEncrypted: true
+    }
+  } catch (error) {
+    console.error('Category encryption failed:', error)
+    return category
   }
 }
 
@@ -147,6 +184,8 @@ export const encryptCategory = async (category: CategoryLike, userId: string): P
  * カテゴリー名を復号
  */
 export const decryptCategory = async (category: CategoryLike, userId: string): Promise<CategoryLike> => {
+  if (!ENCRYPTION_ENABLED) return category
+
   if (!userId) return category
 
   // 暗号化されていない場合はそのまま返す
@@ -157,9 +196,14 @@ export const decryptCategory = async (category: CategoryLike, userId: string): P
     return category
   }
 
-  return {
-    ...category,
-    name: await decryptText(category.name, userId),
-    isEncrypted: false
+  try {
+    return {
+      ...category,
+      name: await decryptText(category.name, userId),
+      isEncrypted: false
+    }
+  } catch (error) {
+    console.error('Category decryption failed:', error)
+    return category
   }
 }
