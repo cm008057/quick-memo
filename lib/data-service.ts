@@ -1,4 +1,5 @@
 import { createClient } from './supabase'
+import { encryptMemo, decryptMemo, encryptCategory, decryptCategory } from './encryption'
 
 export interface Memo {
   id: number
@@ -6,12 +7,14 @@ export interface Memo {
   category: string
   timestamp: string
   completed: boolean
+  isEncrypted?: boolean
 }
 
 export interface Category {
   name: string
   icon: string
   color: string
+  isEncrypted?: boolean
 }
 
 export const dataService = {
@@ -30,16 +33,21 @@ export const dataService = {
     // 既存のメモを削除
     await supabase.from('memos').delete().eq('user_id', user.id)
 
-    // 新しいメモを挿入
+    // 新しいメモを挿入（暗号化して保存）
     if (memos.length > 0) {
-      const memoEntries = memos.map(memo => ({
-        id: memo.id,
-        text: memo.text,
-        category: memo.category,
-        timestamp: memo.timestamp,
-        completed: memo.completed,
-        user_id: user.id
-      }))
+      const memoEntries = memos.map(memo => {
+        // メモを暗号化
+        const encryptedMemo = encryptMemo({...memo}, user.id)
+        return {
+          id: memo.id,
+          text: encryptedMemo.text,
+          category: memo.category,
+          timestamp: memo.timestamp,
+          completed: memo.completed,
+          user_id: user.id,
+          is_encrypted: true
+        }
+      })
 
       const { error } = await supabase.from('memos').insert(memoEntries)
       if (error) throw error
@@ -59,13 +67,29 @@ export const dataService = {
 
     if (error) throw error
 
-    return data?.map(item => ({
-      id: item.id,
-      text: item.text,
-      category: item.category,
-      timestamp: item.timestamp,
-      completed: item.completed
-    })) || []
+    // メモを復号化して返す
+    return data?.map(item => {
+      const memo: Memo = {
+        id: item.id,
+        text: item.text,
+        category: item.category,
+        timestamp: item.timestamp,
+        completed: item.completed,
+        isEncrypted: item.is_encrypted
+      }
+
+      // 暗号化されている場合は復号
+      if (item.is_encrypted) {
+        const decrypted = decryptMemo({...memo}, user.id)
+        return {
+          ...memo,
+          text: decrypted.text,
+          isEncrypted: false
+        }
+      }
+
+      return memo
+    }) || []
   },
 
   async saveCategories(categories: { [key: string]: Category }, categoryOrder: string[]) {
@@ -77,15 +101,20 @@ export const dataService = {
     // 既存のカテゴリを削除
     await supabase.from('categories').delete().eq('user_id', user.id)
 
-    // 新しいカテゴリを挿入
-    const categoryEntries = Object.entries(categories).map(([id, cat], index) => ({
-      id,
-      name: cat.name,
-      icon: cat.icon,
-      color: cat.color,
-      order_index: categoryOrder.indexOf(id) !== -1 ? categoryOrder.indexOf(id) : index,
-      user_id: user.id
-    }))
+    // 新しいカテゴリを挿入（暗号化して保存）
+    const categoryEntries = Object.entries(categories).map(([id, cat], index) => {
+      // カテゴリ名を暗号化
+      const encryptedCat = encryptCategory({...cat}, user.id)
+      return {
+        id,
+        name: encryptedCat.name,
+        icon: cat.icon,
+        color: cat.color,
+        order_index: categoryOrder.indexOf(id) !== -1 ? categoryOrder.indexOf(id) : index,
+        user_id: user.id,
+        is_encrypted: true
+      }
+    })
 
     if (categoryEntries.length > 0) {
       const { error } = await supabase.from('categories').insert(categoryEntries)
@@ -113,11 +142,24 @@ export const dataService = {
     const categoryOrder: string[] = []
 
     data?.forEach(cat => {
-      categories[cat.id] = {
+      let category: Category = {
         name: cat.name,
         icon: cat.icon,
-        color: cat.color
+        color: cat.color,
+        isEncrypted: cat.is_encrypted
       }
+
+      // 暗号化されている場合は復号
+      if (cat.is_encrypted) {
+        const decrypted = decryptCategory({...category}, user.id)
+        category = {
+          ...category,
+          name: decrypted.name,
+          isEncrypted: false
+        }
+      }
+
+      categories[cat.id] = category
       categoryOrder.push(cat.id)
     })
 

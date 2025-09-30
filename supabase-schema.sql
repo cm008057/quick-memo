@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS public.memos (
     timestamp TEXT NOT NULL,
     completed BOOLEAN DEFAULT false,
     user_id TEXT NOT NULL,
+    is_encrypted BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
@@ -17,6 +18,7 @@ CREATE TABLE IF NOT EXISTS public.categories (
     color TEXT NOT NULL,
     order_index INTEGER NOT NULL,
     user_id TEXT NOT NULL,
+    is_encrypted BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
@@ -27,6 +29,10 @@ CREATE TABLE IF NOT EXISTS public.memo_orders (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
+
+-- Add encryption columns to existing tables (if they don't exist)
+ALTER TABLE public.memos ADD COLUMN IF NOT EXISTS is_encrypted BOOLEAN DEFAULT false;
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS is_encrypted BOOLEAN DEFAULT false;
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_memos_user_id ON public.memos(user_id);

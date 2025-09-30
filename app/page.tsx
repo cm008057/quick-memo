@@ -60,6 +60,7 @@ interface Memo {
   category: string
   timestamp: string
   completed: boolean
+  isEncrypted?: boolean
 }
 
 // デフォルトカテゴリー
@@ -672,9 +673,28 @@ export default function QuickMemoApp() {
           fontSize: '14px',
           color: '#666',
           marginBottom: '10px',
-          textAlign: 'right'
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
         }}>
-          ✅ {user.email} でログイン中（データはクラウドに自動保存されます）
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{
+              background: '#10b981',
+              color: 'white',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              fontSize: '12px',
+              fontWeight: 'bold'
+            }}>
+              🔐 エンドツーエンド暗号化
+            </span>
+            <span style={{ fontSize: '12px', color: '#10b981' }}>
+              あなたのデータは暗号化されて保護されています
+            </span>
+          </div>
+          <div>
+            ✅ {user.email} でログイン中
+          </div>
         </div>
       )}
 
