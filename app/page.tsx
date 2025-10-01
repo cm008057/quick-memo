@@ -186,6 +186,10 @@ export default function QuickMemoApp() {
 
   // 認証状態の監視と初期化
   useEffect(() => {
+    // 環境変数のデバッグ
+    console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? '設定済み' : '未設定')
+    console.log('Supabase Key:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '設定済み' : '未設定')
+
     const { data: { subscription } } = authService.onAuthStateChange(async (user) => {
       console.log('Auth state changed:', user ? 'ログイン中' : '未ログイン')
       setUser(user)
