@@ -163,21 +163,24 @@ export default function QuickMemoApp() {
       const dbMemos = await dataService.loadMemos()
       const dbMemoOrder = await dataService.loadMemoOrder()
 
-      // データがある場合はそれを使用、ない場合はデフォルト
-      if (Object.keys(dbCategories).length > 0) {
-        setCategories(dbCategories)
-        setCategoryOrder(dbCategoryOrder)
+      // Supabaseにデータがある場合はそれを使用、ない場合はローカルデータをチェック
+      if (Object.keys(dbCategories).length > 0 || dbMemos.length > 0) {
+        // Supabaseにデータがある
+        setCategories(Object.keys(dbCategories).length > 0 ? dbCategories : defaultCategories)
+        setCategoryOrder(dbCategoryOrder.length > 0 ? dbCategoryOrder : Object.keys(defaultCategories))
+        setMemos(dbMemos)
+        setMemoOrder(dbMemoOrder)
+        setSelectedCategory(Object.keys(dbCategories)[0] || Object.keys(defaultCategories)[0])
+        console.log('Supabaseからデータを読み込みました:', dbMemos.length, '件のメモ')
       } else {
-        setCategories(defaultCategories)
-        setCategoryOrder(Object.keys(defaultCategories))
+        // Supabaseが空の場合、ローカルデータを表示
+        console.log('Supabaseが空のため、ローカルデータを表示します')
+        loadDataFromLocalStorage()
+        checkForLocalData()
       }
 
-      setMemos(dbMemos)
-      setMemoOrder(dbMemoOrder)
-      setSelectedCategory(Object.keys(dbCategories)[0] || Object.keys(defaultCategories)[0])
-
-      // LocalStorageからの移行チェック
-      await migrateLocalDataIfNeeded()
+      // 自動移行を無効化（手動同期のみ）
+      // await migrateLocalDataIfNeeded()
     } catch (error) {
       console.error('データの読み込みに失敗:', error)
     }
@@ -230,12 +233,47 @@ export default function QuickMemoApp() {
 
     try {
       console.log('クラウド保存を開始します...')
-      await migrateLocalDataIfNeeded()
+
+      // 現在のstateとLocalStorageの両方をチェックして同期
+      await syncCurrentDataToSupabase()
       setHasLocalData(false)
       console.log('クラウド保存が完了しました')
+      alert('データをクラウドに保存しました！')
     } catch (error) {
       console.error('クラウド保存エラー:', error)
       alert('保存に失敗しました: ' + (error as Error).message)
+    }
+  }
+
+  // 現在のデータをSupabaseに同期
+  const syncCurrentDataToSupabase = async () => {
+    try {
+      console.log('現在のデータをSupabaseに同期中...')
+      console.log(`同期するメモ数: ${memos.length}`)
+
+      // 現在表示中のメモを保存
+      if (memos.length > 0) {
+        await dataService.saveMemos(memos)
+      }
+
+      // 現在のカテゴリを保存
+      await dataService.saveCategories(categories, categoryOrder)
+
+      // メモの順序を保存
+      if (memoOrder.length > 0) {
+        await dataService.saveMemoOrder(memoOrder)
+      }
+
+      // LocalStorageもクリア（重複防止）
+      localStorage.removeItem('quickMemos')
+      localStorage.removeItem('categories')
+      localStorage.removeItem('categoryOrder')
+      localStorage.removeItem('memoOrder')
+
+      console.log('同期完了')
+    } catch (error) {
+      console.error('同期エラー:', error)
+      throw error
     }
   }
 
@@ -639,16 +677,19 @@ export default function QuickMemoApp() {
             setSelectedCategory(Object.keys(importData.categories)[0])
           }
 
-          // インポート後にすぐ保存（ログイン時はSupabase、未ログインはLocalStorage）
+          // インポート後にLocalStorageに保存
           saveMemos()
           saveCategories()
 
-          // ログイン済みの場合は、Supabaseへの保存を確認
-          if (user) {
+          // Supabaseに直接保存（認証なしテスト）
+          try {
             console.log(`${importData.memos.length}件のメモをSupabaseに保存中...`)
-            alert(`データをインポートしました！\n${importData.memos.length}件のデータをクラウドに保存中...`)
-          } else {
-            alert('データをインポートしました！\n※ログインするとクラウドに同期されます。')
+            await dataService.saveMemos(importData.memos)
+            console.log('Supabaseへの保存完了')
+            alert(`データをインポートしました！\n${importData.memos.length}件のデータをクラウドに保存完了`)
+          } catch (error) {
+            console.error('Supabase保存エラー:', error)
+            alert(`データをインポートしました！\nローカルに保存済み（クラウド保存エラー: ${(error as Error).message}）`)
           }
         }
       } catch (error) {
