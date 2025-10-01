@@ -27,10 +27,14 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
         : await authService.signUp(email, password)
 
       if (authError) {
-        setError(authError.message)
+        console.error('Auth error:', authError)
+        setError(`認証エラー: ${authError.message}`)
       } else {
         if (!isLogin) {
-          setError('確認メールをお送りしました。メールを確認してアカウントを有効化してください。')
+          // サインアップ成功
+          console.log('Signup successful')
+          onSuccess()
+          onClose()
         } else {
           onSuccess()
           onClose()

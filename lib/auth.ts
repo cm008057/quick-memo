@@ -10,6 +10,10 @@ export const authService = {
       options: {
         // メール確認後に自動的にログイン状態を維持
         emailRedirectTo: `${window.location.origin}/`,
+        // メール確認なしで即座にログインを許可
+        data: {
+          email_confirm: false
+        }
       }
     })
   },
