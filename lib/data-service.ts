@@ -78,8 +78,7 @@ export const dataService = {
             category: memo.category,
             timestamp: memo.timestamp,
             completed: memo.completed,
-            user_id: user.id,
-            is_encrypted: false // 暗号化なし
+            user_id: user.id
           }
         }))
 
@@ -122,8 +121,7 @@ export const dataService = {
             category: memo.category,
             timestamp: memo.timestamp,
             completed: memo.completed,
-            user_id: userId,
-            is_encrypted: false
+            user_id: userId
           }
         }))
 
@@ -243,8 +241,7 @@ export const dataService = {
         icon: cat.icon,
         color: cat.color,
         order_index: categoryOrder.indexOf(id) !== -1 ? categoryOrder.indexOf(id) : index,
-        user_id: user.id,
-        is_encrypted: false // 暗号化なし
+        user_id: user.id
       }
     }))
 
