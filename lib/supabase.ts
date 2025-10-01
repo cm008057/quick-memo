@@ -1,8 +1,8 @@
 import { createBrowserClient } from '@supabase/ssr'
 
 export const createClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()
 
   // デバッグ情報を出力
   console.log('Supabase URL value:', supabaseUrl)
@@ -24,9 +24,13 @@ export const createClient = () => {
     return null as any
   }
 
+  // 不正な文字を除去
+  const cleanUrl = supabaseUrl.replace(/[\r\n\t]/g, '')
+  const cleanKey = supabaseAnonKey.replace(/[\r\n\t]/g, '')
+
   return createBrowserClient(
-    supabaseUrl,
-    supabaseAnonKey,
+    cleanUrl,
+    cleanKey,
     {
       auth: {
         // セッションを永続化するためにローカルストレージを使用
