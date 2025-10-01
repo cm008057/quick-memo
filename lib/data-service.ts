@@ -33,28 +33,33 @@ export const dataService = {
     if (!supabase) return
 
     // 既存のメモを削除
-    await supabase.from('memos').delete().eq('user_id', user.id)
+    console.log('既存のメモを削除中...')
+    const { error: deleteError } = await supabase.from('memos').delete().eq('user_id', user.id)
+    if (deleteError) {
+      console.error('削除エラー:', deleteError)
+      throw deleteError
+    }
 
     // 新しいメモを挿入（暗号化して保存）
     if (memos.length > 0) {
       console.log(`保存するメモ数: ${memos.length}`)
 
-      // バッチサイズを50に設定（大量データ対応）
-      const batchSize = 50
+      // バッチサイズを20に設定（大量データ対応）
+      const batchSize = 20
       for (let i = 0; i < memos.length; i += batchSize) {
         const batch = memos.slice(i, i + batchSize)
 
         const memoEntries = await Promise.all(batch.map(async memo => {
-          // メモを暗号化
-          const encryptedMemo = await encryptMemo({...memo}, user.id)
+          // 暗号化を一時的に無効化
+          // const encryptedMemo = await encryptMemo({...memo}, user.id)
           return {
             id: memo.id,
-            text: encryptedMemo.text,
+            text: memo.text, // 暗号化なし
             category: memo.category,
             timestamp: memo.timestamp,
             completed: memo.completed,
             user_id: user.id,
-            is_encrypted: true
+            is_encrypted: false // 暗号化なし
           }
         }))
 
@@ -130,18 +135,18 @@ export const dataService = {
     // 既存のカテゴリを削除
     await supabase.from('categories').delete().eq('user_id', user.id)
 
-    // 新しいカテゴリを挿入（暗号化して保存）
+    // 新しいカテゴリを挿入（暗号化を無効化）
     const categoryEntries = await Promise.all(Object.entries(categories).map(async ([id, cat], index) => {
-      // カテゴリ名を暗号化
-      const encryptedCat = await encryptCategory({...cat}, user.id)
+      // 暗号化を一時的に無効化
+      // const encryptedCat = await encryptCategory({...cat}, user.id)
       return {
         id,
-        name: encryptedCat.name,
+        name: cat.name, // 暗号化なし
         icon: cat.icon,
         color: cat.color,
         order_index: categoryOrder.indexOf(id) !== -1 ? categoryOrder.indexOf(id) : index,
         user_id: user.id,
-        is_encrypted: true
+        is_encrypted: false // 暗号化なし
       }
     }))
 
