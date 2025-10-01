@@ -181,6 +181,7 @@ export default function QuickMemoApp() {
     } catch (error) {
       console.error('データの読み込みに失敗:', error)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // 認証状態の監視と初期化

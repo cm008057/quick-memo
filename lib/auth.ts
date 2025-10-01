@@ -3,6 +3,7 @@ import { createClient } from './supabase'
 export const authService = {
   async signUp(email: string, password: string) {
     const supabase = createClient()
+    if (!supabase) return { data: null, error: new Error('Supabase not configured') }
     return supabase.auth.signUp({
       email,
       password,
@@ -15,6 +16,7 @@ export const authService = {
 
   async signIn(email: string, password: string) {
     const supabase = createClient()
+    if (!supabase) return { data: null, error: new Error('Supabase not configured') }
     return supabase.auth.signInWithPassword({
       email,
       password,
@@ -23,6 +25,7 @@ export const authService = {
 
   async signInWithGoogle() {
     const supabase = createClient()
+    if (!supabase) return { data: null, error: new Error('Supabase not configured') }
     return supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -38,18 +41,26 @@ export const authService = {
 
   async signOut() {
     const supabase = createClient()
+    if (!supabase) return { error: null }
     return supabase.auth.signOut()
   },
 
   async getUser() {
     const supabase = createClient()
+    if (!supabase) return { data: { user: null }, error: null }
     return supabase.auth.getUser()
   },
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onAuthStateChange(callback: (user: any) => void) {
     const supabase = createClient()
-    return supabase.auth.onAuthStateChange((event, session) => {
+    if (!supabase) {
+      // Supabaseが設定されていない場合は即座にnullユーザーでコールバック
+      setTimeout(() => callback(null), 0)
+      return { data: { subscription: { unsubscribe: () => {} } } }
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return supabase.auth.onAuthStateChange((_event: any, session: any) => {
       callback(session?.user ?? null)
     })
   },
@@ -57,12 +68,14 @@ export const authService = {
   // セッションリフレッシュ機能
   async refreshSession() {
     const supabase = createClient()
+    if (!supabase) return { data: { session: null }, error: null }
     return supabase.auth.refreshSession()
   },
 
   // セッション状態を確認
   async getSession() {
     const supabase = createClient()
+    if (!supabase) return { data: { session: null }, error: null }
     return supabase.auth.getSession()
   }
 }

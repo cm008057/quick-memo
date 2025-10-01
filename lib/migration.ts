@@ -157,7 +157,8 @@ export const loadFromSupabase = async (): Promise<{
     const formattedCategories: { [key: string]: { name: string; icon: string; color: string } } = {}
     const categoryOrder: string[] = []
 
-    categories?.forEach(cat => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    categories?.forEach((cat: any) => {
       formattedCategories[cat.id] = {
         name: cat.name,
         icon: cat.icon,
@@ -166,7 +167,8 @@ export const loadFromSupabase = async (): Promise<{
       categoryOrder.push(cat.id)
     })
 
-    const formattedMemos = memos?.map(memo => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const formattedMemos = memos?.map((memo: any) => ({
       id: memo.id,
       text: memo.text,
       category: memo.category,

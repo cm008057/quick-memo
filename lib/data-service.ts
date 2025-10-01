@@ -20,6 +20,7 @@ export interface Category {
 export const dataService = {
   async getCurrentUser() {
     const supabase = createClient()
+    if (!supabase) return null
     const { data: { user } } = await supabase.auth.getUser()
     return user
   },
@@ -29,6 +30,7 @@ export const dataService = {
     if (!user) throw new Error('ユーザーが認証されていません')
 
     const supabase = createClient()
+    if (!supabase) return
 
     // 既存のメモを削除
     await supabase.from('memos').delete().eq('user_id', user.id)
@@ -59,6 +61,7 @@ export const dataService = {
     if (!user) return []
 
     const supabase = createClient()
+    if (!supabase) return []
     const { data, error } = await supabase
       .from('memos')
       .select('*')
@@ -68,7 +71,8 @@ export const dataService = {
     if (error) throw error
 
     // メモを復号化して返す
-    const memos = await Promise.all((data || []).map(async item => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const memos = await Promise.all((data || []).map(async (item: any) => {
       const memo: Memo = {
         id: item.id,
         text: item.text,
@@ -99,6 +103,7 @@ export const dataService = {
     if (!user) throw new Error('ユーザーが認証されていません')
 
     const supabase = createClient()
+    if (!supabase) return
 
     // 既存のカテゴリを削除
     await supabase.from('categories').delete().eq('user_id', user.id)
@@ -132,6 +137,7 @@ export const dataService = {
     if (!user) return { categories: {}, categoryOrder: [] }
 
     const supabase = createClient()
+    if (!supabase) return { categories: {}, categoryOrder: [] }
     const { data, error } = await supabase
       .from('categories')
       .select('*')
@@ -173,6 +179,7 @@ export const dataService = {
     if (!user) throw new Error('ユーザーが認証されていません')
 
     const supabase = createClient()
+    if (!supabase) return
     const { error } = await supabase
       .from('memo_orders')
       .upsert({
@@ -189,6 +196,8 @@ export const dataService = {
     if (!user) return []
 
     const supabase = createClient()
+    if (!supabase) return []
+
     const { data, error } = await supabase
       .from('memo_orders')
       .select('memo_order')
