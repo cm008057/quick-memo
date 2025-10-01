@@ -37,22 +37,36 @@ export const dataService = {
 
     // 新しいメモを挿入（暗号化して保存）
     if (memos.length > 0) {
-      const memoEntries = await Promise.all(memos.map(async memo => {
-        // メモを暗号化
-        const encryptedMemo = await encryptMemo({...memo}, user.id)
-        return {
-          id: memo.id,
-          text: encryptedMemo.text,
-          category: memo.category,
-          timestamp: memo.timestamp,
-          completed: memo.completed,
-          user_id: user.id,
-          is_encrypted: true
-        }
-      }))
+      console.log(`保存するメモ数: ${memos.length}`)
 
-      const { error } = await supabase.from('memos').insert(memoEntries)
-      if (error) throw error
+      // バッチサイズを50に設定（大量データ対応）
+      const batchSize = 50
+      for (let i = 0; i < memos.length; i += batchSize) {
+        const batch = memos.slice(i, i + batchSize)
+
+        const memoEntries = await Promise.all(batch.map(async memo => {
+          // メモを暗号化
+          const encryptedMemo = await encryptMemo({...memo}, user.id)
+          return {
+            id: memo.id,
+            text: encryptedMemo.text,
+            category: memo.category,
+            timestamp: memo.timestamp,
+            completed: memo.completed,
+            user_id: user.id,
+            is_encrypted: true
+          }
+        }))
+
+        const { error } = await supabase.from('memos').insert(memoEntries)
+        if (error) {
+          console.error(`バッチ ${i / batchSize + 1} の保存エラー:`, error)
+          throw error
+        }
+        console.log(`バッチ ${i / batchSize + 1} 完了: ${Math.min(i + batchSize, memos.length)}/${memos.length}`)
+      }
+
+      console.log('すべてのメモの保存が完了しました')
     }
   },
 
@@ -62,13 +76,21 @@ export const dataService = {
 
     const supabase = createClient()
     if (!supabase) return []
+
+    console.log('Supabaseからメモを読み込み中...')
     const { data, error } = await supabase
       .from('memos')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
+      .limit(1000)  // 最大1000件まで読み込み
 
-    if (error) throw error
+    if (error) {
+      console.error('メモの読み込みエラー:', error)
+      throw error
+    }
+
+    console.log(`Supabaseから${data?.length || 0}件のメモを取得しました`)
 
     // メモを復号化して返す
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
