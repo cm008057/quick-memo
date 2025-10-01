@@ -639,10 +639,17 @@ export default function QuickMemoApp() {
             setSelectedCategory(Object.keys(importData.categories)[0])
           }
 
+          // インポート後にすぐ保存（ログイン時はSupabase、未ログインはLocalStorage）
           saveMemos()
           saveCategories()
 
-          alert('データをインポートしました！')
+          // ログイン済みの場合は、Supabaseへの保存を確認
+          if (user) {
+            console.log(`${importData.memos.length}件のメモをSupabaseに保存中...`)
+            alert(`データをインポートしました！\n${importData.memos.length}件のデータをクラウドに保存中...`)
+          } else {
+            alert('データをインポートしました！\n※ログインするとクラウドに同期されます。')
+          }
         }
       } catch (error) {
         alert('インポートに失敗しました。\n\n' + (error as Error).message)
@@ -728,16 +735,35 @@ export default function QuickMemoApp() {
                 カテゴリー管理
               </button>
               {user ? (
-                <button
-                  className="manage-btn"
-                  onClick={async () => {
-                    await authService.signOut()
-                    alert('ログアウトしました')
-                  }}
-                  title="ログアウト"
-                >
-                  👤 ログアウト
-                </button>
+                <>
+                  <button
+                    className="manage-btn"
+                    onClick={async () => {
+                      try {
+                        console.log('手動でクラウド同期を開始...')
+                        await saveMemos()
+                        await saveCategories()
+                        alert(`クラウドに保存しました！\n• ${memos.length}件のメモ\n• ${Object.keys(categories).length}個のカテゴリー`)
+                      } catch (error) {
+                        console.error('同期エラー:', error)
+                        alert('同期に失敗しました: ' + (error as Error).message)
+                      }
+                    }}
+                    title="クラウドに同期"
+                  >
+                    ☁️ 同期
+                  </button>
+                  <button
+                    className="manage-btn"
+                    onClick={async () => {
+                      await authService.signOut()
+                      alert('ログアウトしました')
+                    }}
+                    title="ログアウト"
+                  >
+                    👤 ログアウト
+                  </button>
+                </>
               ) : (
                 <button
                   className="manage-btn"
