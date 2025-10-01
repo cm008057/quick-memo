@@ -163,21 +163,23 @@ export default function QuickMemoApp() {
       const dbMemos = await dataService.loadMemos()
       const dbMemoOrder = await dataService.loadMemoOrder()
 
-      // Supabaseにデータがある場合はそれを使用、ない場合はローカルデータをチェック
-      if (Object.keys(dbCategories).length > 0 || dbMemos.length > 0) {
-        // Supabaseにデータがある
-        setCategories(Object.keys(dbCategories).length > 0 ? dbCategories : defaultCategories)
-        setCategoryOrder(dbCategoryOrder.length > 0 ? dbCategoryOrder : Object.keys(defaultCategories))
-        setMemos(dbMemos)
-        setMemoOrder(dbMemoOrder)
-        setSelectedCategory(Object.keys(dbCategories)[0] || Object.keys(defaultCategories)[0])
-        console.log('Supabaseからデータを読み込みました:', dbMemos.length, '件のメモ')
-      } else {
-        // Supabaseが空の場合、ローカルデータを表示
-        console.log('Supabaseが空のため、ローカルデータを表示します')
-        loadDataFromLocalStorage()
-        checkForLocalData()
-      }
+      // 常にSupabaseデータを優先表示（デバッグ用）
+      console.log('Supabaseからの読み込み結果:', {
+        memos: dbMemos.length,
+        categories: Object.keys(dbCategories).length,
+        userAgent: navigator.userAgent
+      })
+
+      // データがあるかどうかに関わらず、Supabaseの結果を表示
+      setCategories(Object.keys(dbCategories).length > 0 ? dbCategories : defaultCategories)
+      setCategoryOrder(dbCategoryOrder.length > 0 ? dbCategoryOrder : Object.keys(defaultCategories))
+      setMemos(dbMemos)
+      setMemoOrder(dbMemoOrder)
+      setSelectedCategory(Object.keys(dbCategories)[0] || Object.keys(defaultCategories)[0])
+      console.log('データを設定しました:', dbMemos.length, '件のメモ')
+
+      // ローカルデータチェックも実行
+      checkForLocalData()
 
       // 自動移行を無効化（手動同期のみ）
       // await migrateLocalDataIfNeeded()
@@ -198,18 +200,13 @@ export default function QuickMemoApp() {
       setUser(user)
       setIsLoading(false)
 
-      if (user) {
-        // ログイン済み：Supabaseからデータを読み込み
-        try {
-          await loadDataFromSupabase()
-          console.log('Supabaseからデータを読み込みました')
-        } catch (error) {
-          console.error('Supabaseデータの読み込みに失敗:', error)
-          // フォールバック：LocalStorageからデータを読み込み
-          loadDataFromLocalStorage()
-        }
-      } else {
-        // 未ログイン：LocalStorageからデータを読み込み
+      // 認証状態に関わらず、常にSupabaseからデータを読み込み
+      try {
+        await loadDataFromSupabase()
+        console.log('Supabaseからデータを読み込みました')
+      } catch (error) {
+        console.error('Supabaseデータの読み込みに失敗:', error)
+        // フォールバック：LocalStorageからデータを読み込み
         loadDataFromLocalStorage()
         checkForLocalData()
       }
