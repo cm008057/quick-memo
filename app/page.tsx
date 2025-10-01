@@ -650,7 +650,7 @@ export default function QuickMemoApp() {
     if (!file) return
 
     const reader = new FileReader()
-    reader.onload = function(event) {
+    reader.onload = async function(event) {
       try {
         const importData = JSON.parse(event.target?.result as string)
 
