@@ -4,9 +4,22 @@ export const createClient = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
+  // デバッグ情報を出力
+  console.log('Supabase URL value:', supabaseUrl)
+  console.log('Supabase URL length:', supabaseUrl?.length)
+  console.log('Supabase Key exists:', !!supabaseAnonKey)
+  console.log('Supabase Key length:', supabaseAnonKey?.length)
+
   // 環境変数が設定されていない場合はnullを返す
   if (!supabaseUrl || !supabaseAnonKey) {
     console.warn('Supabase環境変数が設定されていません。ローカルストレージモードで動作します。')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return null as any
+  }
+
+  // URLの形式をチェック
+  if (!supabaseUrl.startsWith('http')) {
+    console.error('Supabase URLが正しい形式ではありません:', supabaseUrl)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return null as any
   }
