@@ -274,6 +274,28 @@ export default function QuickMemoApp() {
     }
   }
 
+  // 自動同期機能（メモ変更時に呼び出し）
+  const autoSync = async () => {
+    try {
+      await dataService.saveMemos(memos)
+      console.log('自動同期完了:', memos.length, '件')
+    } catch (error) {
+      console.error('自動同期エラー:', error)
+    }
+  }
+
+  // メモが変更されたときに自動同期
+  useEffect(() => {
+    if (memos.length > 0 && !isLoading) {
+      // 初回読み込み時以外で自動同期
+      const timer = setTimeout(() => {
+        autoSync()
+      }, 1000) // 1秒後に同期
+
+      return () => clearTimeout(timer)
+    }
+  }, [memos, isLoading])
+
   // LocalStorageからSupabaseへの自動移行
   const migrateLocalDataIfNeeded = async () => {
     const storedMemos = localStorage.getItem('quickMemos')
