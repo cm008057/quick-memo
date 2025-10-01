@@ -221,6 +221,24 @@ export default function QuickMemoApp() {
     setHasLocalData(!!hasData)
   }
 
+  // クラウドに保存ボタンの処理
+  const handleCloudSave = async () => {
+    if (!user) {
+      setShowAuthModal(true)
+      return
+    }
+
+    try {
+      console.log('クラウド保存を開始します...')
+      await migrateLocalDataIfNeeded()
+      setHasLocalData(false)
+      console.log('クラウド保存が完了しました')
+    } catch (error) {
+      console.error('クラウド保存エラー:', error)
+      alert('保存に失敗しました: ' + (error as Error).message)
+    }
+  }
+
   // LocalStorageからSupabaseへの自動移行
   const migrateLocalDataIfNeeded = async () => {
     const storedMemos = localStorage.getItem('quickMemos')
@@ -228,9 +246,11 @@ export default function QuickMemoApp() {
 
     if (storedMemos || storedCategories) {
       try {
+        console.log('LocalStorageからSupabaseへ移行開始...')
         // LocalStorageのデータをSupabaseに保存
         if (storedMemos) {
           const localMemos = JSON.parse(storedMemos)
+          console.log(`${localMemos.length}件のメモを移行します`)
           await dataService.saveMemos(localMemos)
         }
 
@@ -942,9 +962,19 @@ export default function QuickMemoApp() {
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
-        onSuccess={() => {
+        onSuccess={async () => {
           setShowAuthModal(false)
-          // 認証成功後はauth state changeでデータが自動読み込みされる
+          // 認証成功後に移行処理を実行
+          if (hasLocalData) {
+            try {
+              await new Promise(resolve => setTimeout(resolve, 1000)) // 認証完了を待つ
+              await migrateLocalDataIfNeeded()
+              setHasLocalData(false)
+              console.log('ログイン後の自動移行が完了しました')
+            } catch (error) {
+              console.error('自動移行エラー:', error)
+            }
+          }
         }}
       />
 
@@ -972,9 +1002,9 @@ export default function QuickMemoApp() {
                   borderRadius: '6px',
                   cursor: 'pointer'
                 }}
-                onClick={() => setShowAuthModal(true)}
+                onClick={handleCloudSave}
               >
-                ログインして移行
+                クラウドに保存
               </button>
               <button
                 style={{
