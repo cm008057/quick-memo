@@ -183,10 +183,10 @@ export default function QuickMemoApp() {
       const validMemos = dbMemos.filter((m: Memo) => m.deleted !== true)
       console.log(`有効メモ数: ${validMemos.length}件`)
 
-      // 新しい順にソート（memoOrderは参考程度）
+      // 元の作成時刻順（timestamp）でソート - 表示順を保持
       const sortedMemos = validMemos.sort((a, b) => {
-        const timeA = new Date(a.updated_at || a.timestamp).getTime()
-        const timeB = new Date(b.updated_at || b.timestamp).getTime()
+        const timeA = new Date(a.timestamp).getTime()
+        const timeB = new Date(b.timestamp).getTime()
         return timeB - timeA
       })
 

@@ -259,7 +259,7 @@ export const dataService = {
       .from('memos')
       .select('*')
       .eq('user_id', user.id)
-      .order('updated_at', { ascending: false })
+      .order('timestamp', { ascending: false })
       .limit(2000)  // 最大2000件まで読み込み
 
     if (error) {
@@ -308,7 +308,7 @@ export const dataService = {
       .from('memos')
       .select('*')
       .eq('user_id', userId)
-      .order('updated_at', { ascending: false })
+      .order('timestamp', { ascending: false })
       .limit(2000)
 
     if (error) {
