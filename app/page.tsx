@@ -653,18 +653,27 @@ export default function QuickMemoApp() {
   // メモを削除（ソフト削除）
   const deleteMemo = async (id: number) => {
     if (confirm('このメモを削除しますか？')) {
+      // ソフト削除：deletedフラグを設定
+      const deletedMemo = memos.find(m => m.id === id)
+      if (!deletedMemo) return
+
+      // deletedフラグをtrueに設定
+      const updatedMemo = { ...deletedMemo, deleted: true, updated_at: new Date().toISOString() }
+
       // 表示からは即座に削除
-      const updatedMemos = memos.filter(m => m.id !== id)
-      setMemos(updatedMemos)
+      const visibleMemos = memos.filter(m => m.id !== id)
+      setMemos(visibleMemos)
       setMemoOrder(prev => prev.filter(mId => mId !== id))
 
       // ローカルストレージを更新
       saveMemos()
 
-      // クラウドからも削除
+      // クラウドにdeletedフラグ付きで保存
       try {
-        await dataService.saveMemos(updatedMemos)
-        console.log('メモ削除完了: ID=' + id)
+        // 削除したメモを含む全メモリストを作成
+        const allMemos = [...visibleMemos, updatedMemo]
+        await dataService.saveMemos(allMemos)
+        console.log('メモ削除完了（ソフト削除）: ID=' + id)
       } catch (error) {
         console.error('クラウド削除エラー:', error)
       }

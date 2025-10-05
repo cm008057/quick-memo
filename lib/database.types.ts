@@ -10,6 +10,8 @@ export interface Database {
           completed: boolean
           user_id: string
           created_at: string
+          deleted: boolean
+          updated_at: string
         }
         Insert: {
           id?: number
@@ -19,6 +21,8 @@ export interface Database {
           completed?: boolean
           user_id: string
           created_at?: string
+          deleted?: boolean
+          updated_at?: string
         }
         Update: {
           id?: number
@@ -28,6 +32,8 @@ export interface Database {
           completed?: boolean
           user_id?: string
           created_at?: string
+          deleted?: boolean
+          updated_at?: string
         }
       }
       categories: {
