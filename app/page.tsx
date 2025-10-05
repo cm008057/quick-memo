@@ -160,15 +160,20 @@ export default function QuickMemoApp() {
 
   // Supabaseからデータを読み込み
   const loadDataFromSupabase = useCallback(async () => {
+    if (isLoading) {
+      console.log('⏳ 既に読み込み中のため、スキップします')
+      return
+    }
+
+    setIsLoading(true)
     try {
+      console.log('📥 Supabaseからデータ読み込み開始')
       const { categories: dbCategories, categoryOrder: dbCategoryOrder } = await dataService.loadCategories()
       const dbMemos = await dataService.loadMemos()
 
-      // 常にSupabaseデータを優先表示（デバッグ用）
-      console.log('Supabaseからの読み込み結果:', {
+      console.log('✅ Supabaseからの読み込み完了:', {
         memos: dbMemos.length,
-        categories: Object.keys(dbCategories).length,
-        userAgent: navigator.userAgent
+        categories: Object.keys(dbCategories).length
       })
 
       // データがあるかどうかに関わらず、Supabaseの結果を表示
@@ -183,18 +188,21 @@ export default function QuickMemoApp() {
       const validMemos = dbMemos.filter((m: Memo) => m.deleted !== true)
       console.log(`有効メモ数: ${validMemos.length}件`)
 
-      // 現在の表示順序を保持、新しいメモのみ先頭に追加
+      // 表示順序の決定
       let sortedMemos: Memo[]
 
-      if (memoOrder.length > 0) {
-        // 現在の表示順序を優先（更新時の並び順を保持）
-        console.log('現在の表示順序を保持')
-        const orderedMemos = memoOrder
+      // 現在のページに表示されているメモの順序を取得
+      const currentDisplayOrder = memos.length > 0 ? memos.map(m => m.id) : []
+
+      if (currentDisplayOrder.length > 0) {
+        // 既にメモが表示されている場合は、その順序を保持
+        console.log('現在の表示順序を保持:', currentDisplayOrder.length, '件')
+        const orderedMemos = currentDisplayOrder
           .map(id => validMemos.find(m => m.id === id))
           .filter((m): m is Memo => m !== undefined)
 
         // 新しく追加されたメモ（現在の順序にないもの）を先頭に追加
-        const newMemos = validMemos.filter(m => !memoOrder.includes(m.id))
+        const newMemos = validMemos.filter(m => !currentDisplayOrder.includes(m.id))
         newMemos.sort((a, b) => {
           const timeA = new Date(a.timestamp).getTime()
           const timeB = new Date(b.timestamp).getTime()
@@ -202,10 +210,10 @@ export default function QuickMemoApp() {
         })
 
         sortedMemos = [...newMemos, ...orderedMemos]
-        console.log(`新しいメモ: ${newMemos.length}件, 既存メモ: ${orderedMemos.length}件`)
+        console.log(`🔄 順序保持: 新規${newMemos.length}件 + 既存${orderedMemos.length}件 = 合計${sortedMemos.length}件`)
       } else {
-        // 初回読み込み時は最新順
-        console.log('初回読み込み - 最新順で表示')
+        // 初回読み込み時のみ最新順
+        console.log('🆕 初回読み込み - 最新順で表示')
         sortedMemos = validMemos.sort((a, b) => {
           const timeA = new Date(a.timestamp).getTime()
           const timeB = new Date(b.timestamp).getTime()
@@ -219,7 +227,7 @@ export default function QuickMemoApp() {
       console.log(`✅ 最終設定メモ数: ${sortedMemos.length}件`)
 
       setSelectedCategory(Object.keys(dbCategories)[0] || Object.keys(defaultCategories)[0])
-      console.log('データを設定しました:', dbMemos.length, '件のメモ')
+      console.log('🎉 データ設定完了:', dbMemos.length, '件のメモ')
 
       // ローカルデータチェックも実行
       checkForLocalData()
@@ -227,9 +235,11 @@ export default function QuickMemoApp() {
       // 自動移行を無効化（手動同期のみ）
       // await migrateLocalDataIfNeeded()
     } catch (error) {
-      console.error('データの読み込みに失敗:', error)
+      console.error('❌ データの読み込みに失敗:', error)
+    } finally {
+      setIsLoading(false)
     }
-  }, [])
+  }, [isLoading, memos])
 
   // 認証状態の監視と初期化
   useEffect(() => {
