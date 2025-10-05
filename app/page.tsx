@@ -163,7 +163,6 @@ export default function QuickMemoApp() {
     try {
       const { categories: dbCategories, categoryOrder: dbCategoryOrder } = await dataService.loadCategories()
       const dbMemos = await dataService.loadMemos()
-      const dbMemoOrder = await dataService.loadMemoOrder()
 
       // 常にSupabaseデータを優先表示（デバッグ用）
       console.log('Supabaseからの読み込み結果:', {
@@ -860,7 +859,7 @@ export default function QuickMemoApp() {
           console.log(`ユニークID数: ${uniqueIds.size}`)
           if (ids.length !== uniqueIds.size) {
             console.warn('⚠️ インポートデータにID重複あり!')
-            const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index)
+            const duplicateIds = ids.filter((id: number, index: number) => ids.indexOf(id) !== index)
             console.log('重複ID:', [...new Set(duplicateIds)])
           }
 
@@ -1031,7 +1030,7 @@ export default function QuickMemoApp() {
                       console.log(`ユニークID数: ${uniqueIds.size}`)
                       if (ids.length !== uniqueIds.size) {
                         console.warn('⚠️ ID重複検出!')
-                        const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index)
+                        const duplicates = ids.filter((id: number, index: number) => ids.indexOf(id) !== index)
                         console.log('重複ID:', duplicates)
                       }
 
