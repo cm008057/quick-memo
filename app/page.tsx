@@ -242,55 +242,80 @@ export default function QuickMemoApp() {
     }
   }
 
-  // 安全な同期：既存データとマージ
+  // タイムスタンプベースの同期：最新データを統合
   const syncCurrentDataToSupabase = async () => {
     try {
-      console.log('安全な同期を開始...')
+      console.log('タイムスタンプベース同期を開始...')
       console.log(`ローカルメモ数: ${memos.length}`)
 
-      // まずSupabaseから最新データを取得
-      const existingMemos = await dataService.loadMemos()
-      console.log(`Supabase既存メモ数: ${existingMemos.length}`)
+      // Supabaseから既存データを取得
+      const cloudMemos = await dataService.loadMemos()
+      console.log(`クラウドメモ数: ${cloudMemos.length}`)
 
-      // データをマージ（ID と内容で重複排除）
-      const allMemos = [...memos]
-      let duplicateCount = 0
+      // タイムスタンプベースでマージ
+      const mergedMemos: Memo[] = []
+      const processedIds = new Set<number>()
 
-      existingMemos.forEach(existingMemo => {
-        // IDまたは内容が同じものは重複とみなす
-        const isDuplicate = allMemos.find(m =>
-          m.id === existingMemo.id ||
-          (m.text === existingMemo.text && m.category === existingMemo.category && m.timestamp === existingMemo.timestamp)
-        )
+      // ローカルとクラウドの両方のメモを処理
+      const allMemosSources = [
+        ...memos.map(m => ({ ...m, source: 'local' as const })),
+        ...cloudMemos.map(m => ({ ...m, source: 'cloud' as const }))
+      ]
 
-        if (!isDuplicate) {
-          allMemos.push(existingMemo)
-        } else {
-          duplicateCount++
+      // IDごとにグループ化
+      const memoGroups = new Map<number, typeof allMemosSources>()
+      allMemosSources.forEach(memo => {
+        if (!memoGroups.has(memo.id)) {
+          memoGroups.set(memo.id, [])
         }
+        memoGroups.get(memo.id)!.push(memo)
       })
 
-      console.log(`マージ後メモ数: ${allMemos.length} (重複${duplicateCount}件を除外)`)
+      // 各IDについて最新版を選択
+      memoGroups.forEach((memoVersions, id) => {
+        if (memoVersions.length === 1) {
+          // 片方にしか存在しない場合
+          const memo = memoVersions[0]
+          if (!memo.deleted) {
+            mergedMemos.push(memo)
+          }
+        } else {
+          // 両方に存在する場合、タイムスタンプで最新を選択
+          const latest = memoVersions.reduce((prev, curr) => {
+            const prevTime = prev.updated_at || prev.timestamp
+            const currTime = curr.updated_at || curr.timestamp
+            return new Date(currTime) > new Date(prevTime) ? curr : prev
+          })
+
+          // 最新版が削除フラグ付きでなければ追加
+          if (!latest.deleted) {
+            mergedMemos.push(latest)
+          }
+        }
+        processedIds.add(id)
+      })
+
+      console.log(`同期後メモ数: ${mergedMemos.length}`)
+      console.log(`削除されたメモ: ${memos.length + cloudMemos.length - mergedMemos.length}件`)
 
       // マージしたデータを保存
-      if (allMemos.length > 0) {
-        await dataService.saveMemos(allMemos)
-        setMemos(allMemos) // ローカル表示も更新
+      if (mergedMemos.length > 0) {
+        await dataService.saveMemos(mergedMemos)
+        setMemos(mergedMemos) // ローカル表示も更新
+      } else {
+        // 全て削除された場合
+        await dataService.saveMemos([])
+        setMemos([])
       }
 
-      // カテゴリも同様にマージ
-      const { categories: existingCategories } = await dataService.loadCategories()
-      const mergedCategories = { ...existingCategories, ...categories }
-      await dataService.saveCategories(mergedCategories, categoryOrder)
-      setCategories(mergedCategories)
-
-      // LocalStorageもクリア
+      // LocalStorageをクリア
       localStorage.removeItem('quickMemos')
       localStorage.removeItem('categories')
       localStorage.removeItem('categoryOrder')
       localStorage.removeItem('memoOrder')
 
-      console.log('安全な同期完了 - データ消失なし')
+      console.log('タイムスタンプベース同期完了')
+      alert(`同期完了！\n最新のメモ数: ${mergedMemos.length}件`)
     } catch (error) {
       console.error('同期エラー:', error)
       throw error
@@ -432,7 +457,9 @@ export default function QuickMemoApp() {
       text: memoInput.trim(),
       category: selectedCategory,
       timestamp: new Date().toLocaleString('ja-JP'),
-      completed: false
+      completed: false,
+      updated_at: new Date().toISOString(),
+      deleted: false
     }
 
     setMemos(prev => [newMemo, ...prev])
@@ -469,7 +496,7 @@ export default function QuickMemoApp() {
   const saveMemoEdit = (id: number) => {
     if (editText.trim()) {
       setMemos(prev => prev.map(m =>
-        m.id === id ? { ...m, text: editText.trim() } : m
+        m.id === id ? { ...m, text: editText.trim(), updated_at: new Date().toISOString() } : m
       ))
       saveMemos()
     }
@@ -485,16 +512,23 @@ export default function QuickMemoApp() {
   // メモを完了/未完了切り替え
   const toggleComplete = (id: number) => {
     setMemos(prev => prev.map(m =>
-      m.id === id ? { ...m, completed: !m.completed } : m
+      m.id === id ? { ...m, completed: !m.completed, updated_at: new Date().toISOString() } : m
     ))
     saveMemos()
   }
 
-  // メモを削除
+  // メモを削除（ソフト削除）
   const deleteMemo = (id: number) => {
     if (confirm('このメモを削除しますか？')) {
-      setMemos(prev => prev.filter(m => m.id !== id))
-      setMemoOrder(prev => prev.filter(mId => mId !== id))
+      // 削除フラグを立てて同期
+      setMemos(prev => prev.map(m =>
+        m.id === id ? { ...m, deleted: true, updated_at: new Date().toISOString() } : m
+      ))
+      // 表示からは即座に削除
+      setTimeout(() => {
+        setMemos(prev => prev.filter(m => m.id !== id))
+        setMemoOrder(prev => prev.filter(mId => mId !== id))
+      }, 100)
       saveMemos()
     }
   }

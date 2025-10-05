@@ -8,6 +8,8 @@ export interface Memo {
   timestamp: string
   completed: boolean
   isEncrypted?: boolean
+  updated_at?: string  // 更新時刻
+  deleted?: boolean    // 削除フラグ
 }
 
 export interface Category {
@@ -78,7 +80,9 @@ export const dataService = {
             category: memo.category,
             timestamp: memo.timestamp,
             completed: memo.completed,
-            user_id: user.id
+            user_id: user.id,
+            updated_at: memo.updated_at || new Date().toISOString(),
+            deleted: memo.deleted || false
           }
         }))
 
@@ -121,7 +125,9 @@ export const dataService = {
             category: memo.category,
             timestamp: memo.timestamp,
             completed: memo.completed,
-            user_id: userId
+            user_id: userId,
+            updated_at: memo.updated_at || new Date().toISOString(),
+            deleted: memo.deleted || false
           }
         }))
 
