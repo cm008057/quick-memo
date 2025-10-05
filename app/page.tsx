@@ -107,6 +107,7 @@ export default function QuickMemoApp() {
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [hasLocalData, setHasLocalData] = useState<boolean>(false)
   const [isDeleting, setIsDeleting] = useState<boolean>(false)
+  const [isImporting, setIsImporting] = useState<boolean>(false)
 
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -166,7 +167,8 @@ export default function QuickMemoApp() {
   // Supabaseからデータを読み込み（デバウンス付き）
   const loadDataFromSupabase = useCallback(async (debounceMs: number = 0) => {
     // 削除処理中は読み込みをスキップ（重要：削除の妨害を防ぐ）
-    if (isDeleting) {
+    // ただしインポート中は読み込みを許可
+    if (isDeleting && !isImporting) {
       console.log('🚫 削除処理中のためデータ読み込みをスキップ')
       return
     }
@@ -261,7 +263,7 @@ export default function QuickMemoApp() {
     } finally {
       setIsLoading(false)
     }
-  }, [isLoading, isDeleting]) // memosの依存関係を削除して無限ループを防止
+  }, [isLoading, isDeleting, isImporting]) // memosの依存関係を削除して無限ループを防止
 
   // 認証状態の監視と初期化
   useEffect(() => {
@@ -313,7 +315,7 @@ export default function QuickMemoApp() {
 
     // 定期的にデータをチェック（他のデバイスでの変更を検出）
     const syncInterval = setInterval(() => {
-      if (user && !isLoading && !isDeleting) {
+      if (user && !isLoading && !isDeleting && !isImporting) {
         console.log('🔄 定期同期チェック')
         loadDataFromSupabase(0)
       }
@@ -323,19 +325,19 @@ export default function QuickMemoApp() {
       window.removeEventListener('memoDeleted', handleMemoDeleted as EventListener)
       clearInterval(syncInterval)
     }
-  }, [user, isLoading, loadDataFromSupabase])
+  }, [user, isLoading, isImporting, loadDataFromSupabase])
 
   // ウィンドウフォーカスとページ可視性変更時の即座同期（他のデバイスでの変更を検出）
   useEffect(() => {
     const handleWindowFocus = () => {
-      if (user && !isLoading && !isDeleting) {
+      if (user && !isLoading && !isDeleting && !isImporting) {
         console.log('👁️ ウィンドウフォーカス検出 - 即座にデータ同期')
         loadDataFromSupabase(0)
       }
     }
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && user && !isLoading && !isDeleting) {
+      if (document.visibilityState === 'visible' && user && !isLoading && !isDeleting && !isImporting) {
         console.log('📱 ページ可視化検出 - 即座にデータ同期（モバイル対応）')
         loadDataFromSupabase(0)
       }
@@ -350,7 +352,7 @@ export default function QuickMemoApp() {
       window.removeEventListener('focus', handleWindowFocus)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [user, isLoading, isDeleting, loadDataFromSupabase])
+  }, [user, isLoading, isDeleting, isImporting, loadDataFromSupabase])
 
   // LocalStorageにデータがあるかチェック
   const checkForLocalData = () => {
@@ -596,7 +598,8 @@ export default function QuickMemoApp() {
   // データ保存（認証状態に応じて自動選択）
   const saveMemos = async () => {
     // 削除処理中は保存をスキップ（削除したメモの復活を防ぐ）
-    if (isDeleting) {
+    // ただしインポート中は保存を許可
+    if (isDeleting && !isImporting) {
       console.log('🚫 削除処理中のため保存をスキップ')
       return
     }
@@ -996,6 +999,10 @@ export default function QuickMemoApp() {
     const reader = new FileReader()
     reader.onload = async function(event) {
       try {
+        // インポート処理開始
+        setIsImporting(true)
+        console.log('📂 インポート処理開始')
+
         const importData = JSON.parse(event.target?.result as string)
 
         if (!importData.memos || !importData.categories) {
@@ -1086,10 +1093,15 @@ export default function QuickMemoApp() {
           } catch (error) {
             console.error('Supabase緊急保存エラー:', error)
             alert(`⚠️ データをインポートしました！\nローカルに保存済み\n\nクラウド保存エラー: ${(error as Error).message}\n\n手動で同期ボタンを押してください`)
+          } finally {
+            // インポート処理完了
+            setIsImporting(false)
+            console.log('📂 インポート処理完了')
           }
         }
       } catch (error) {
         alert('インポートに失敗しました。\n\n' + (error as Error).message)
+        setIsImporting(false) // エラー時もフラグをリセット
       }
 
       e.target.value = ''
