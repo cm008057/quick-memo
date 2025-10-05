@@ -176,29 +176,25 @@ export default function QuickMemoApp() {
       setCategories(Object.keys(dbCategories).length > 0 ? dbCategories : defaultCategories)
       setCategoryOrder(dbCategoryOrder.length > 0 ? dbCategoryOrder : Object.keys(defaultCategories))
 
-      // memoOrderが存在する場合は手動順序を維持
-      if (dbMemoOrder && dbMemoOrder.length > 0) {
-        // memoOrderに基づいて並び替え
-        const orderedMemos = dbMemoOrder
-          .map(id => dbMemos.find(m => m.id === id))
-          .filter((m): m is Memo => m !== undefined)
+      // 🛡️ データ損失防止：全データを直接使用（順序フィルタリングを無効化）
+      console.log(`🔍 読み込みデータ詳細: ${dbMemos.length}件のメモを確認`)
+      console.log('削除フラグ確認:', dbMemos.filter((m: Memo) => m.deleted === true).length, '件が削除フラグ付き')
 
-        // memoOrderにないメモを最後に追加
-        const missingMemos = dbMemos.filter(m => !dbMemoOrder.includes(m.id))
-        const allMemos = [...orderedMemos, ...missingMemos]
+      // 削除フラグが付いていないメモのみを使用
+      const validMemos = dbMemos.filter((m: Memo) => m.deleted !== true)
+      console.log(`有効メモ数: ${validMemos.length}件`)
 
-        setMemos(allMemos)
-        setMemoOrder([...dbMemoOrder, ...missingMemos.map(m => m.id)])
-      } else {
-        // memoOrderがない場合は新しい順にソート
-        const sortedMemos = dbMemos.sort((a, b) => {
-          const timeA = new Date(a.updated_at || a.timestamp).getTime()
-          const timeB = new Date(b.updated_at || b.timestamp).getTime()
-          return timeB - timeA
-        })
-        setMemos(sortedMemos)
-        setMemoOrder(sortedMemos.map(m => m.id))
-      }
+      // 新しい順にソート（memoOrderは参考程度）
+      const sortedMemos = validMemos.sort((a, b) => {
+        const timeA = new Date(a.updated_at || a.timestamp).getTime()
+        const timeB = new Date(b.updated_at || b.timestamp).getTime()
+        return timeB - timeA
+      })
+
+      setMemos(sortedMemos)
+      setMemoOrder(sortedMemos.map(m => m.id))
+
+      console.log(`✅ 最終設定メモ数: ${sortedMemos.length}件`)
 
       setSelectedCategory(Object.keys(dbCategories)[0] || Object.keys(defaultCategories)[0])
       console.log('データを設定しました:', dbMemos.length, '件のメモ')
