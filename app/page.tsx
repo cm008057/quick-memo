@@ -165,6 +165,12 @@ export default function QuickMemoApp() {
 
   // Supabaseからデータを読み込み（デバウンス付き）
   const loadDataFromSupabase = useCallback(async (debounceMs: number = 0) => {
+    // 削除処理中は読み込みをスキップ（重要：削除の妨害を防ぐ）
+    if (isDeleting) {
+      console.log('🚫 削除処理中のためデータ読み込みをスキップ')
+      return
+    }
+
     // 既存のタイマーをクリア
     if (loadDataTimerRef.current) {
       clearTimeout(loadDataTimerRef.current)
@@ -255,7 +261,7 @@ export default function QuickMemoApp() {
     } finally {
       setIsLoading(false)
     }
-  }, [isLoading]) // memosの依存関係を削除して無限ループを防止
+  }, [isLoading, isDeleting]) // memosの依存関係を削除して無限ループを防止
 
   // 認証状態の監視と初期化
   useEffect(() => {
@@ -311,7 +317,7 @@ export default function QuickMemoApp() {
         console.log('🔄 定期同期チェック')
         loadDataFromSupabase(0)
       }
-    }, 5000) // 5秒ごと（スマホ→PC同期を改善）
+    }, 15000) // 15秒ごと（削除処理との干渉を防ぐ）
 
     return () => {
       window.removeEventListener('memoDeleted', handleMemoDeleted as EventListener)
@@ -748,12 +754,6 @@ export default function QuickMemoApp() {
         // 他のデバイス用の削除イベントを発火
         window.dispatchEvent(new CustomEvent('memoDeleted', { detail: { id } }))
 
-        // 追加の同期確保：少し時間を置いてから再度確認
-        setTimeout(() => {
-          console.log('🔄 削除後の追加同期チェック（2秒後）')
-          loadDataFromSupabase(0)
-        }, 2000)
-
         console.log('🎉 削除処理とデータ同期完了')
 
       } catch (error) {
@@ -771,6 +771,12 @@ export default function QuickMemoApp() {
         // 削除処理完了フラグをリセット
         setIsDeleting(false)
         console.log('🔓 削除処理完了 - 自動保存を再開')
+
+        // 削除処理完了後の追加同期（他のデバイス向け）
+        setTimeout(() => {
+          console.log('🔄 削除完了後の追加同期チェック（3秒後）')
+          loadDataFromSupabase(0)
+        }, 3000)
       }
     }
   }
