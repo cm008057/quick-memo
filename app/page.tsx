@@ -1009,7 +1009,7 @@ export default function QuickMemoApp() {
         console.log('📂 ファイル読み込み開始')
         importData = JSON.parse(event.target?.result as string)
 
-        if (!importData.memos || !importData.categories) {
+        if (!importData || !importData.memos || !importData.categories) {
           throw new Error('無効なバックアップファイルです')
         }
 
