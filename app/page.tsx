@@ -307,11 +307,11 @@ export default function QuickMemoApp() {
 
     // 定期的にデータをチェック（他のデバイスでの変更を検出）
     const syncInterval = setInterval(() => {
-      if (user && !isLoading) {
+      if (user && !isLoading && !isDeleting) {
         console.log('🔄 定期同期チェック')
         loadDataFromSupabase(0)
       }
-    }, 10000) // 10秒ごと
+    }, 5000) // 5秒ごと（スマホ→PC同期を改善）
 
     return () => {
       window.removeEventListener('memoDeleted', handleMemoDeleted as EventListener)
@@ -319,20 +319,32 @@ export default function QuickMemoApp() {
     }
   }, [user, isLoading, loadDataFromSupabase])
 
-  // ウィンドウフォーカス時の即座同期（他のデバイスでの変更を検出）
+  // ウィンドウフォーカスとページ可視性変更時の即座同期（他のデバイスでの変更を検出）
   useEffect(() => {
     const handleWindowFocus = () => {
-      if (user && !isLoading) {
+      if (user && !isLoading && !isDeleting) {
         console.log('👁️ ウィンドウフォーカス検出 - 即座にデータ同期')
         loadDataFromSupabase(0)
       }
     }
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && user && !isLoading && !isDeleting) {
+        console.log('📱 ページ可視化検出 - 即座にデータ同期（モバイル対応）')
+        loadDataFromSupabase(0)
+      }
+    }
+
+    // デスクトップ用
     window.addEventListener('focus', handleWindowFocus)
+    // モバイル用（タブ切り替え、アプリ切り替え対応）
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
     return () => {
       window.removeEventListener('focus', handleWindowFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [user, isLoading, loadDataFromSupabase])
+  }, [user, isLoading, isDeleting, loadDataFromSupabase])
 
   // LocalStorageにデータがあるかチェック
   const checkForLocalData = () => {
@@ -735,6 +747,12 @@ export default function QuickMemoApp() {
 
         // 他のデバイス用の削除イベントを発火
         window.dispatchEvent(new CustomEvent('memoDeleted', { detail: { id } }))
+
+        // 追加の同期確保：少し時間を置いてから再度確認
+        setTimeout(() => {
+          console.log('🔄 削除後の追加同期チェック（2秒後）')
+          loadDataFromSupabase(0)
+        }, 2000)
 
         console.log('🎉 削除処理とデータ同期完了')
 
