@@ -59,7 +59,7 @@ export const dataService = {
 
     // Supabaseクライアントの接続テスト
     try {
-      const { data: testData, error: testError } = await supabase.from('memos').select('id').limit(1)
+      const { error: testError } = await supabase.from('memos').select('id').limit(1)
       if (testError) {
         console.error('Supabase接続テストエラー:', testError)
         throw new Error(`Supabase接続失敗: ${testError.message}`)
@@ -170,7 +170,7 @@ export const dataService = {
 
     // Supabaseクライアントの接続テスト
     try {
-      const { data: testData, error: testError } = await supabase.from('memos').select('id').limit(1)
+      const { error: testError } = await supabase.from('memos').select('id').limit(1)
       if (testError) {
         console.error('Supabase接続テストエラー:', testError)
         throw new Error(`Supabase接続失敗: ${testError.message}`)

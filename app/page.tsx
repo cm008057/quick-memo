@@ -859,7 +859,7 @@ export default function QuickMemoApp() {
           console.log(`処理後件数: ${processedMemos.length}`)
 
           // ID重複チェック
-          const ids = processedMemos.map(m => m.id)
+          const ids = processedMemos.map((m: Memo) => m.id)
           const uniqueIds = new Set(ids)
           console.log(`ユニークID数: ${uniqueIds.size}`)
           if (ids.length !== uniqueIds.size) {
@@ -1030,7 +1030,7 @@ export default function QuickMemoApp() {
                       console.log(`ローカルメモ数: ${memos.length}`)
 
                       // ID重複チェック
-                      const ids = memos.map(m => m.id)
+                      const ids = memos.map((m: Memo) => m.id)
                       const uniqueIds = new Set(ids)
                       console.log(`ユニークID数: ${uniqueIds.size}`)
                       if (ids.length !== uniqueIds.size) {
@@ -1040,7 +1040,7 @@ export default function QuickMemoApp() {
                       }
 
                       // データ形式チェック
-                      const invalidMemos = memos.filter(m => !m.id || !m.text || !m.category)
+                      const invalidMemos = memos.filter((m: Memo) => !m.id || !m.text || !m.category)
                       console.log(`不正メモ数: ${invalidMemos.length}`)
                       if (invalidMemos.length > 0) {
                         console.log('不正メモ:', invalidMemos.slice(0, 5))
