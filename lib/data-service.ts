@@ -77,14 +77,8 @@ export const dataService = {
     if (memos.length > 0) {
       console.log(`保存するメモ数: ${memos.length}`)
 
-      // 🔧 修正：削除は最初に1回だけ実行
-      console.log('既存データを完全削除...')
-      const { error: deleteError } = await supabase.from('memos').delete().eq('user_id', user.id)
-      if (deleteError) {
-        console.error('削除エラー:', deleteError)
-        throw deleteError
-      }
-      console.log('削除完了')
+      // 🔧 UPSERTを使用して重複エラーを回避
+      console.log('メモをUPSERTで保存中...')
 
       // バッチサイズを10に縮小（エラー対応）
       const batchSize = 10
@@ -106,10 +100,13 @@ export const dataService = {
           }
         }))
 
-        console.log(`バッチ ${i / batchSize + 1} 挿入中... (${batch.length}件)`)
+        console.log(`バッチ ${i / batchSize + 1} UPSERT中... (${batch.length}件)`)
         console.log(`バッチ内容:`, batch.map(m => ({ id: m.id, textLength: m.text?.length || 0 })))
 
-        const { error, data } = await supabase.from('memos').insert(memoEntries)
+        const { error, data } = await supabase.from('memos').upsert(memoEntries, {
+          onConflict: 'id',  // IDが重複した場合は更新
+          ignoreDuplicates: false  // 重複を無視せず更新
+        })
         if (error) {
           console.error(`バッチ ${i / batchSize + 1} の保存エラー:`, error)
           console.error('エラー詳細:', {
@@ -143,7 +140,10 @@ export const dataService = {
               deleted: memo.deleted || false
             })))
 
-            const { error: retryError } = await supabase.from('memos').insert(smallerEntries)
+            const { error: retryError } = await supabase.from('memos').upsert(smallerEntries, {
+              onConflict: 'id',
+              ignoreDuplicates: false
+            })
             if (retryError) {
               console.error('再試行も失敗:', retryError)
               throw retryError
@@ -188,14 +188,8 @@ export const dataService = {
     if (memos.length > 0) {
       console.log(`保存するメモ数: ${memos.length}`)
 
-      // 🔧 修正：削除は最初に1回だけ実行
-      console.log('既存データを完全削除...')
-      const { error: deleteError } = await supabase.from('memos').delete().eq('user_id', userId)
-      if (deleteError) {
-        console.error('削除エラー:', deleteError)
-        throw deleteError
-      }
-      console.log('削除完了')
+      // 🔧 UPSERTを使用して重複エラーを回避
+      console.log('メモをUPSERTで保存中...')
 
       const batchSize = 10
       for (let i = 0; i < memos.length; i += batchSize) {
@@ -214,8 +208,11 @@ export const dataService = {
           }
         }))
 
-        console.log(`バッチ ${i / batchSize + 1} 挿入中... (${batch.length}件)`)
-        const { error, data } = await supabase.from('memos').insert(memoEntries)
+        console.log(`バッチ ${i / batchSize + 1} UPSERT中... (${batch.length}件)`)
+        const { error, data } = await supabase.from('memos').upsert(memoEntries, {
+          onConflict: 'id',  // IDが重複した場合は更新
+          ignoreDuplicates: false  // 重複を無視せず更新
+        })
         if (error) {
           console.error(`バッチ ${i / batchSize + 1} の保存エラー:`, error)
           console.error('エラー詳細:', {
@@ -491,8 +488,11 @@ export const dataService = {
             deleted: false  // 明示的にfalse
           }))
 
-          console.log(`📦 バッチ ${Math.floor(i / batchSize) + 1} 挿入中...`)
-          const { error, data } = await supabase.from('memos').insert(memoEntries)
+          console.log(`📦 バッチ ${Math.floor(i / batchSize) + 1} UPSERT中...`)
+          const { error, data } = await supabase.from('memos').upsert(memoEntries, {
+            onConflict: 'id',
+            ignoreDuplicates: false
+          })
           if (error) {
             console.error(`❌ バッチ ${Math.floor(i / batchSize) + 1} エラー:`, error)
             throw error
