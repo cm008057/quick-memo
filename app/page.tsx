@@ -544,7 +544,7 @@ export default function QuickMemoApp() {
   }
 
   // メモを追加
-  const addMemo = () => {
+  const addMemo = async () => {
     if (!memoInput.trim()) return
 
     const newMemo: Memo = {
@@ -557,15 +557,25 @@ export default function QuickMemoApp() {
       deleted: false
     }
 
-    setMemos(prev => [newMemo, ...prev])
+    console.log('新しいメモを追加:', newMemo)
+
+    // 状態を更新
+    const updatedMemos = [newMemo, ...memos]
+    setMemos(updatedMemos)
     setMemoOrder(prev => [newMemo.id, ...prev])
     setMemoInput('')
+
+    // ローカルストレージに保存
     saveMemos()
 
-    // 即座にクラウドに保存
-    setTimeout(() => {
-      autoSync()
-    }, 500)
+    // 即座にクラウドに保存（更新されたメモリストを使用）
+    try {
+      console.log('クラウドに保存中...', updatedMemos.length, '件')
+      await dataService.saveMemos(updatedMemos)
+      console.log('クラウド保存完了')
+    } catch (error) {
+      console.error('クラウド保存エラー:', error)
+    }
   }
 
   // 音声入力切り替え
@@ -618,33 +628,50 @@ export default function QuickMemoApp() {
   }
 
   // メモを削除（ソフト削除）
-  const deleteMemo = (id: number) => {
+  const deleteMemo = async (id: number) => {
     if (confirm('このメモを削除しますか？')) {
-      // 削除フラグを立てて同期
-      setMemos(prev => prev.map(m =>
-        m.id === id ? { ...m, deleted: true, updated_at: new Date().toISOString() } : m
-      ))
+      console.log('メモを削除中:', id)
+
       // 表示からは即座に削除
-      setTimeout(() => {
-        setMemos(prev => prev.filter(m => m.id !== id))
-        setMemoOrder(prev => prev.filter(mId => mId !== id))
-      }, 100)
+      const updatedMemos = memos.filter(m => m.id !== id)
+      setMemos(updatedMemos)
+      setMemoOrder(prev => prev.filter(mId => mId !== id))
+
+      // ローカルストレージを更新
       saveMemos()
+
+      // クラウドからも削除
+      try {
+        console.log('クラウドに削除を反映中...', updatedMemos.length, '件')
+        await dataService.saveMemos(updatedMemos)
+        console.log('クラウド削除完了')
+      } catch (error) {
+        console.error('クラウド削除エラー:', error)
+      }
     }
   }
 
   // カテゴリを移動
-  const moveToCategory = (memoId: number, newCategory: string) => {
-    setMemos(prev => prev.map(m =>
-      m.id === memoId ? { ...m, category: newCategory } : m
-    ))
+  const moveToCategory = async (memoId: number, newCategory: string) => {
+    const updatedMemos = memos.map(m =>
+      m.id === memoId ? { ...m, category: newCategory, updated_at: new Date().toISOString() } : m
+    )
+    setMemos(updatedMemos)
     saveMemos()
     setShowCategoryMenu(null)
     showNotification(`メモを「${categories[newCategory]?.name}」に移動しました`)
+
+    // クラウドに同期
+    try {
+      await dataService.saveMemos(updatedMemos)
+      console.log('カテゴリ移動をクラウドに同期完了')
+    } catch (error) {
+      console.error('カテゴリ移動の同期エラー:', error)
+    }
   }
 
   // カテゴリにコピー
-  const copyToCategory = (memoId: number, targetCategory: string) => {
+  const copyToCategory = async (memoId: number, targetCategory: string) => {
     const originalMemo = memos.find(m => m.id === memoId)
     if (!originalMemo) return
 
@@ -653,14 +680,25 @@ export default function QuickMemoApp() {
       text: originalMemo.text,
       category: targetCategory,
       completed: false,
-      timestamp: new Date().toLocaleString('ja-JP')
+      timestamp: new Date().toLocaleString('ja-JP'),
+      updated_at: new Date().toISOString(),
+      deleted: false
     }
 
-    setMemos(prev => [newMemo, ...prev])
+    const updatedMemos = [newMemo, ...memos]
+    setMemos(updatedMemos)
     setMemoOrder(prev => [newMemo.id, ...prev])
     saveMemos()
     setShowCategoryMenu(null)
     showNotification(`メモを「${categories[targetCategory]?.name}」にコピーしました`)
+
+    // クラウドに同期
+    try {
+      await dataService.saveMemos(updatedMemos)
+      console.log('メモコピーをクラウドに同期完了')
+    } catch (error) {
+      console.error('メモコピーの同期エラー:', error)
+    }
   }
 
   // 通知を表示
