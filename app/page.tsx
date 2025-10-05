@@ -183,12 +183,35 @@ export default function QuickMemoApp() {
       const validMemos = dbMemos.filter((m: Memo) => m.deleted !== true)
       console.log(`有効メモ数: ${validMemos.length}件`)
 
-      // 元の作成時刻順（timestamp）でソート - 表示順を保持
-      const sortedMemos = validMemos.sort((a, b) => {
-        const timeA = new Date(a.timestamp).getTime()
-        const timeB = new Date(b.timestamp).getTime()
-        return timeB - timeA
-      })
+      // 手動並び替えを優先、なければ最新順
+      const currentMemoOrder = await dataService.loadMemoOrder()
+
+      let sortedMemos: Memo[]
+      if (currentMemoOrder.length > 0) {
+        // 手動並び替えがある場合はそれを優先
+        console.log('手動並び替え順序を適用')
+        const orderedMemos = currentMemoOrder
+          .map(id => validMemos.find(m => m.id === id))
+          .filter((m): m is Memo => m !== undefined)
+
+        // 新しく追加されたメモ（並び替え順序にないもの）を先頭に追加
+        const newMemos = validMemos.filter(m => !currentMemoOrder.includes(m.id))
+        newMemos.sort((a, b) => {
+          const timeA = new Date(a.timestamp).getTime()
+          const timeB = new Date(b.timestamp).getTime()
+          return timeB - timeA
+        })
+
+        sortedMemos = [...newMemos, ...orderedMemos]
+      } else {
+        // 手動並び替えがない場合は最新順
+        console.log('最新順で表示')
+        sortedMemos = validMemos.sort((a, b) => {
+          const timeA = new Date(a.timestamp).getTime()
+          const timeB = new Date(b.timestamp).getTime()
+          return timeB - timeA
+        })
+      }
 
       setMemos(sortedMemos)
       setMemoOrder(sortedMemos.map(m => m.id))
