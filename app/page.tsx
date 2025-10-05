@@ -317,12 +317,17 @@ export default function QuickMemoApp() {
       })
 
       // 各IDについて最新版を選択
+      let excludedCount = 0
       memoGroups.forEach((memoVersions, id) => {
         if (memoVersions.length === 1) {
           // 片方にしか存在しない場合
           const memo = memoVersions[0]
-          if (!memo.deleted) {
+          // deleted === true の場合のみ除外（明示的にtrueの場合のみ）
+          if (memo.deleted !== true) {
             mergedMemos.push(memo)
+          } else {
+            excludedCount++
+            console.log(`除外されたメモ (deleted=true): ID=${memo.id}, text="${memo.text?.substring(0, 20)}..."`)
           }
         } else {
           // 両方に存在する場合、タイムスタンプで最新を選択
@@ -332,13 +337,18 @@ export default function QuickMemoApp() {
             return new Date(currTime) > new Date(prevTime) ? curr : prev
           })
 
-          // 最新版が削除フラグ付きでなければ追加
-          if (!latest.deleted) {
+          // 最新版が明示的に削除フラグ付きでなければ追加
+          if (latest.deleted !== true) {
             mergedMemos.push(latest)
+          } else {
+            excludedCount++
+            console.log(`除外されたメモ (deleted=true): ID=${latest.id}, text="${latest.text?.substring(0, 20)}..."`)
           }
         }
         processedIds.add(id)
       })
+
+      console.log(`削除フラグによる除外数: ${excludedCount}件`)
 
       console.log(`同期後メモ数: ${mergedMemos.length}`)
       console.log(`削除されたメモ: ${memos.length + cloudMemos.length - mergedMemos.length}件`)
@@ -822,11 +832,16 @@ export default function QuickMemoApp() {
             exportData() // 現在のデータを自動バックアップ
           }
 
-          // データを更新
-          setMemos(importData.memos || [])
+          // データを更新（deleted属性を明示的に設定）
+          const processedMemos = (importData.memos || []).map((memo: Memo) => ({
+            ...memo,
+            deleted: memo.deleted === true ? true : false, // 明示的にfalseを設定
+            updated_at: memo.updated_at || new Date().toISOString()
+          }))
+          setMemos(processedMemos)
           setCategories(importData.categories || {})
           setCategoryOrder(importData.categoryOrder || Object.keys(importData.categories))
-          setMemoOrder(importData.memoOrder || importData.memos.map((m: Memo) => m.id))
+          setMemoOrder(importData.memoOrder || processedMemos.map((m: Memo) => m.id))
 
           if (!importData.categories[selectedCategory]) {
             setSelectedCategory(Object.keys(importData.categories)[0])
@@ -840,8 +855,8 @@ export default function QuickMemoApp() {
           try {
             console.log(`${importData.memos.length}件のメモをSupabaseに緊急保存中...`)
 
-            // 強制的に全データを上書き保存
-            await dataService.saveMemos(importData.memos)
+            // 強制的に全データを上書き保存（deleted属性を明示的に設定）
+            await dataService.saveMemos(processedMemos)
 
             // メモ順序も保存
             const memoOrderToSave = importData.memoOrder || importData.memos.map((m: Memo) => m.id)
@@ -945,19 +960,34 @@ export default function QuickMemoApp() {
                   <button
                     className="manage-btn"
                     onClick={async () => {
+                      const proceed = confirm(`🔧 修正版同期機能\n\n【重要】テスト前に緊急バックアップを推奨\n\n現在: ${memos.length}件\n\n続行しますか？`)
+                      if (!proceed) return
+
                       try {
-                        console.log('手動でクラウド同期を開始...')
+                        console.log('修正版同期を開始...')
                         await saveMemos()
                         await saveCategories()
-                        alert(`クラウドに保存しました！\n• ${memos.length}件のメモ\n• ${Object.keys(categories).length}個のカテゴリー`)
+                        alert(`✅ 修正版同期完了！\n• ${memos.length}件のメモ\n• ${Object.keys(categories).length}個のカテゴリー`)
                       } catch (error) {
                         console.error('同期エラー:', error)
                         alert('同期に失敗しました: ' + (error as Error).message)
                       }
                     }}
-                    title="クラウドに同期"
+                    title="修正版同期機能（テスト中）"
+                    style={{ backgroundColor: '#10b981', color: 'white' }}
                   >
-                    ☁️ 同期
+                    🔧 修正版同期
+                  </button>
+                  <button
+                    className="manage-btn"
+                    onClick={() => {
+                      exportData()
+                      alert(`🛡️ バックアップ完了！\n\n現在のデータ（${memos.length}件）をダウンロードしました。`)
+                    }}
+                    title="データをバックアップ"
+                    style={{ backgroundColor: '#f59e0b', color: 'white' }}
+                  >
+                    💾 バックアップ
                   </button>
                   <button
                     className="manage-btn"

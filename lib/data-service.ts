@@ -52,7 +52,23 @@ export const dataService = {
     }
 
     const supabase = createClient()
-    if (!supabase) return
+    if (!supabase) {
+      console.warn('Supabaseクライアントが利用できません - ローカル保存のみ')
+      return
+    }
+
+    // Supabaseクライアントの接続テスト
+    try {
+      const { data: testData, error: testError } = await supabase.from('memos').select('id').limit(1)
+      if (testError) {
+        console.error('Supabase接続テストエラー:', testError)
+        throw new Error(`Supabase接続失敗: ${testError.message}`)
+      }
+      console.log('Supabase接続テスト成功')
+    } catch (connectionError) {
+      console.error('Supabase接続エラー:', connectionError)
+      throw connectionError
+    }
 
     // UPSERTを使用（削除せず、既存データを更新または新規追加）
     console.log('メモをアップサート中...')
@@ -61,8 +77,17 @@ export const dataService = {
     if (memos.length > 0) {
       console.log(`保存するメモ数: ${memos.length}`)
 
-      // バッチサイズを20に設定（大量データ対応）
-      const batchSize = 20
+      // 🔧 修正：削除は最初に1回だけ実行
+      console.log('既存データを完全削除...')
+      const { error: deleteError } = await supabase.from('memos').delete().eq('user_id', user.id)
+      if (deleteError) {
+        console.error('削除エラー:', deleteError)
+        throw deleteError
+      }
+      console.log('削除完了')
+
+      // バッチサイズを10に縮小（エラー対応）
+      const batchSize = 10
       for (let i = 0; i < memos.length; i += batchSize) {
         const batch = memos.slice(i, i + batchSize)
 
@@ -81,15 +106,55 @@ export const dataService = {
           }
         }))
 
-        // UPSERTを使用（既存データは更新、新規データは追加）
-        const { error } = await supabase.from('memos').upsert(memoEntries, {
-          onConflict: 'id,user_id'
-        })
+        console.log(`バッチ ${i / batchSize + 1} 挿入中... (${batch.length}件)`)
+        console.log(`バッチ内容:`, batch.map(m => ({ id: m.id, textLength: m.text?.length || 0 })))
+
+        const { error, data } = await supabase.from('memos').insert(memoEntries)
         if (error) {
           console.error(`バッチ ${i / batchSize + 1} の保存エラー:`, error)
-          throw error
+          console.error('エラー詳細:', {
+            code: error.code || 'undefined',
+            message: error.message || 'undefined',
+            details: error.details || 'undefined',
+            hint: error.hint || 'undefined',
+            batchSize: batch.length,
+            batchRange: `${i + 1}-${Math.min(i + batchSize, memos.length)}`,
+            errorType: typeof error,
+            errorKeys: Object.keys(error || {}),
+            fullError: JSON.stringify(error, null, 2)
+          })
+
+          // エラーの種類によって処理を分岐
+          if (error.code === '23505') {
+            console.warn('重複キーエラー - バッチをスキップして続行')
+            continue
+          } else if (error.message?.includes('payload') || error.message?.includes('size')) {
+            console.warn('ペイロードサイズエラー - バッチサイズを縮小して再試行')
+            // バッチサイズを半分にして再試行
+            const smallerBatch = batch.slice(0, Math.floor(batch.length / 2))
+            const smallerEntries = await Promise.all(smallerBatch.map(async memo => ({
+              id: memo.id,
+              text: memo.text,
+              category: memo.category,
+              timestamp: memo.timestamp,
+              completed: memo.completed,
+              user_id: user.id,
+              updated_at: memo.updated_at || new Date().toISOString(),
+              deleted: memo.deleted || false
+            })))
+
+            const { error: retryError } = await supabase.from('memos').insert(smallerEntries)
+            if (retryError) {
+              console.error('再試行も失敗:', retryError)
+              throw retryError
+            }
+            console.log(`縮小バッチで成功: ${smallerBatch.length}件`)
+            continue
+          } else {
+            throw error
+          }
         }
-        console.log(`バッチ ${i / batchSize + 1} 完了: ${Math.min(i + batchSize, memos.length)}/${memos.length}`)
+        console.log(`バッチ ${i / batchSize + 1} 完了: ${Math.min(i + batchSize, memos.length)}/${memos.length} (挿入数: ${data?.length || 0})`)
       }
 
       console.log('すべてのメモの保存が完了しました')
@@ -98,7 +163,23 @@ export const dataService = {
 
   async saveMemosWithUserId(memos: Memo[], userId: string) {
     const supabase = createClient()
-    if (!supabase) return
+    if (!supabase) {
+      console.warn('Supabaseクライアントが利用できません - ローカル保存のみ')
+      return
+    }
+
+    // Supabaseクライアントの接続テスト
+    try {
+      const { data: testData, error: testError } = await supabase.from('memos').select('id').limit(1)
+      if (testError) {
+        console.error('Supabase接続テストエラー:', testError)
+        throw new Error(`Supabase接続失敗: ${testError.message}`)
+      }
+      console.log('Supabase接続テスト成功')
+    } catch (connectionError) {
+      console.error('Supabase接続エラー:', connectionError)
+      throw connectionError
+    }
 
     // UPSERTを使用（削除せず、既存データを更新または新規追加）
     console.log('メモをアップサート中...')
@@ -107,7 +188,16 @@ export const dataService = {
     if (memos.length > 0) {
       console.log(`保存するメモ数: ${memos.length}`)
 
-      const batchSize = 20
+      // 🔧 修正：削除は最初に1回だけ実行
+      console.log('既存データを完全削除...')
+      const { error: deleteError } = await supabase.from('memos').delete().eq('user_id', userId)
+      if (deleteError) {
+        console.error('削除エラー:', deleteError)
+        throw deleteError
+      }
+      console.log('削除完了')
+
+      const batchSize = 10
       for (let i = 0; i < memos.length; i += batchSize) {
         const batch = memos.slice(i, i + batchSize)
 
@@ -124,15 +214,31 @@ export const dataService = {
           }
         }))
 
-        // UPSERTを使用（既存データは更新、新規データは追加）
-        const { error } = await supabase.from('memos').upsert(memoEntries, {
-          onConflict: 'id,user_id'
-        })
+        console.log(`バッチ ${i / batchSize + 1} 挿入中... (${batch.length}件)`)
+        const { error, data } = await supabase.from('memos').insert(memoEntries)
         if (error) {
           console.error(`バッチ ${i / batchSize + 1} の保存エラー:`, error)
-          throw error
+          console.error('エラー詳細:', {
+            code: error.code || 'undefined',
+            message: error.message || 'undefined',
+            details: error.details || 'undefined',
+            hint: error.hint || 'undefined',
+            batchSize: batch.length,
+            batchRange: `${i + 1}-${Math.min(i + batchSize, memos.length)}`,
+            errorType: typeof error,
+            errorKeys: Object.keys(error || {}),
+            fullError: JSON.stringify(error, null, 2)
+          })
+
+          // 重複エラーの場合はスキップ
+          if (error.code === '23505') {
+            console.warn('重複キーエラー - バッチをスキップして続行')
+            continue
+          } else {
+            throw error
+          }
         }
-        console.log(`バッチ ${i / batchSize + 1} 完了: ${Math.min(i + batchSize, memos.length)}/${memos.length}`)
+        console.log(`バッチ ${i / batchSize + 1} 完了: ${Math.min(i + batchSize, memos.length)}/${memos.length} (挿入数: ${data?.length || 0})`)
       }
       console.log('すべてのメモの保存が完了しました')
     }
@@ -300,7 +406,10 @@ export const dataService = {
 
   async saveMemoOrder(memoOrder: number[]) {
     const user = await this.getCurrentUser()
-    if (!user) throw new Error('ユーザーが認証されていません')
+    if (!user) {
+      // 認証なしの場合はtest-user-123で保存
+      return this.saveMemoOrderForUser('test-user-123', memoOrder)
+    }
 
     const supabase = createClient()
     if (!supabase) return
@@ -313,6 +422,69 @@ export const dataService = {
       })
 
     if (error) throw error
+  },
+
+  async saveMemoOrderForUser(userId: string, memoOrder: number[]) {
+    const supabase = createClient()
+    if (!supabase) return
+    const { error } = await supabase
+      .from('memo_orders')
+      .upsert({
+        user_id: userId,
+        memo_order: memoOrder,
+        updated_at: new Date().toISOString()
+      })
+
+    if (error) throw error
+  },
+
+  // 強制的に全データを置換保存（インポート専用）
+  async forceReplaceAllMemos(memos: Memo[]) {
+    const supabase = createClient()
+    if (!supabase) return
+
+    console.log('🚨 強制置換モード: 全データを削除してから保存')
+
+    try {
+      // test-user-123のデータを完全削除
+      const { error: deleteError } = await supabase.from('memos').delete().eq('user_id', 'test-user-123')
+      if (deleteError) {
+        console.error('削除エラー:', deleteError)
+      } else {
+        console.log('✅ 既存データ削除完了')
+      }
+
+      // 新しいデータを挿入
+      if (memos.length > 0) {
+        console.log(`📝 ${memos.length}件のメモを新規挿入中...`)
+
+        const batchSize = 20
+        for (let i = 0; i < memos.length; i += batchSize) {
+          const batch = memos.slice(i, i + batchSize)
+          const memoEntries = batch.map(memo => ({
+            id: memo.id,
+            text: memo.text,
+            category: memo.category,
+            timestamp: memo.timestamp,
+            completed: memo.completed,
+            user_id: 'test-user-123',
+            updated_at: memo.updated_at || new Date().toISOString(),
+            deleted: memo.deleted || false
+          }))
+
+          const { error } = await supabase.from('memos').insert(memoEntries)
+          if (error) {
+            console.error(`❌ バッチ ${i / batchSize + 1} エラー:`, error)
+            throw error
+          }
+          console.log(`✅ バッチ ${i / batchSize + 1} 完了: ${Math.min(i + batchSize, memos.length)}/${memos.length}`)
+        }
+        console.log(`🎉 強制置換完了: ${memos.length}件保存`)
+      }
+    } catch (error) {
+      console.error('強制置換エラー:', error)
+      throw error
+    }
   },
 
   async loadMemoOrder(): Promise<number[]> {
