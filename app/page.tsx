@@ -325,7 +325,7 @@ export default function QuickMemoApp() {
       window.removeEventListener('memoDeleted', handleMemoDeleted as EventListener)
       clearInterval(syncInterval)
     }
-  }, [user, isLoading, isImporting, loadDataFromSupabase])
+  }, [user, isLoading, isImporting, isDeleting, loadDataFromSupabase])
 
   // ウィンドウフォーカスとページ可視性変更時の即座同期（他のデバイスでの変更を検出）
   useEffect(() => {
@@ -998,7 +998,12 @@ export default function QuickMemoApp() {
 
     const reader = new FileReader()
     reader.onload = async function(event) {
-      let importData: any = null
+      let importData: {
+        memos: Memo[]
+        categories: Record<string, Category>
+        categoryOrder?: string[]
+        memoOrder?: number[]
+      } | null = null
 
       try {
         console.log('📂 ファイル読み込み開始')
