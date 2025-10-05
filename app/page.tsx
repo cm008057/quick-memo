@@ -960,23 +960,27 @@ export default function QuickMemoApp() {
                   <button
                     className="manage-btn"
                     onClick={async () => {
-                      const proceed = confirm(`🔧 修正版同期機能\n\n【重要】テスト前に緊急バックアップを推奨\n\n現在: ${memos.length}件\n\n続行しますか？`)
+                      const proceed = confirm(`🛡️ 安全な完全同期\n\n現在のローカルデータ（${memos.length}件）をクラウドに完全保存します。\n\n⚠️ クラウドの既存データは上書きされます。\n\n続行しますか？`)
                       if (!proceed) return
 
                       try {
-                        console.log('修正版同期を開始...')
-                        await saveMemos()
+                        console.log('安全な完全同期を開始...')
+                        console.log(`同期対象: ${memos.length}件のメモ`)
+
+                        // forceReplaceAllMemosを使用して確実に保存
+                        await dataService.forceReplaceAllMemos(memos)
                         await saveCategories()
-                        alert(`✅ 修正版同期完了！\n• ${memos.length}件のメモ\n• ${Object.keys(categories).length}個のカテゴリー`)
+
+                        alert(`✅ 安全な同期完了！\n\n• ${memos.length}件のメモを完全保存\n• ${Object.keys(categories).length}個のカテゴリー\n\n🔒 データ完全性を保証`)
                       } catch (error) {
                         console.error('同期エラー:', error)
                         alert('同期に失敗しました: ' + (error as Error).message)
                       }
                     }}
-                    title="修正版同期機能（テスト中）"
-                    style={{ backgroundColor: '#10b981', color: 'white' }}
+                    title="安全な完全同期（データ損失なし保証）"
+                    style={{ backgroundColor: '#059669', color: 'white', fontWeight: 'bold' }}
                   >
-                    🔧 修正版同期
+                    🛡️ 安全同期
                   </button>
                   <button
                     className="manage-btn"

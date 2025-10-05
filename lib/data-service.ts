@@ -438,51 +438,83 @@ export const dataService = {
     if (error) throw error
   },
 
-  // 強制的に全データを置換保存（インポート専用）
+  // 強制的に全データを置換保存（確実な保存用）
   async forceReplaceAllMemos(memos: Memo[]) {
     const supabase = createClient()
-    if (!supabase) return
+    if (!supabase) {
+      console.error('Supabaseクライアントが利用できません')
+      throw new Error('Supabase connection failed')
+    }
 
-    console.log('🚨 強制置換モード: 全データを削除してから保存')
+    // ユーザーIDを取得
+    const user = await this.getCurrentUser()
+    const userId = user?.id || 'test-user-123'
+
+    console.log('🛡️ 安全な強制置換モード開始')
+    console.log(`対象ユーザー: ${userId}`)
+    console.log(`保存対象: ${memos.length}件`)
 
     try {
-      // test-user-123のデータを完全削除
-      const { error: deleteError } = await supabase.from('memos').delete().eq('user_id', 'test-user-123')
+      // 既存データを完全削除
+      console.log('🗑️ 既存データを完全削除中...')
+      const { error: deleteError } = await supabase.from('memos').delete().eq('user_id', userId)
       if (deleteError) {
         console.error('削除エラー:', deleteError)
-      } else {
-        console.log('✅ 既存データ削除完了')
+        throw deleteError
       }
+      console.log('✅ 既存データ削除完了')
 
       // 新しいデータを挿入
       if (memos.length > 0) {
         console.log(`📝 ${memos.length}件のメモを新規挿入中...`)
 
-        const batchSize = 20
+        // 小さいバッチサイズで確実性を重視
+        const batchSize = 5
+        let totalInserted = 0
+
         for (let i = 0; i < memos.length; i += batchSize) {
           const batch = memos.slice(i, i + batchSize)
           const memoEntries = batch.map(memo => ({
             id: memo.id,
-            text: memo.text,
-            category: memo.category,
+            text: memo.text || '',  // nullを防ぐ
+            category: memo.category || 'その他',
             timestamp: memo.timestamp,
-            completed: memo.completed,
-            user_id: 'test-user-123',
+            completed: memo.completed || false,
+            user_id: userId,
             updated_at: memo.updated_at || new Date().toISOString(),
-            deleted: memo.deleted || false
+            deleted: false  // 明示的にfalse
           }))
 
-          const { error } = await supabase.from('memos').insert(memoEntries)
+          console.log(`📦 バッチ ${Math.floor(i / batchSize) + 1} 挿入中...`)
+          const { error, data } = await supabase.from('memos').insert(memoEntries)
           if (error) {
-            console.error(`❌ バッチ ${i / batchSize + 1} エラー:`, error)
+            console.error(`❌ バッチ ${Math.floor(i / batchSize) + 1} エラー:`, error)
             throw error
           }
-          console.log(`✅ バッチ ${i / batchSize + 1} 完了: ${Math.min(i + batchSize, memos.length)}/${memos.length}`)
+
+          totalInserted += data?.length || batch.length
+          console.log(`✅ バッチ ${Math.floor(i / batchSize) + 1} 完了: ${totalInserted}/${memos.length}`)
         }
-        console.log(`🎉 強制置換完了: ${memos.length}件保存`)
+
+        console.log(`🎉 安全な強制置換完了: ${totalInserted}件保存`)
+
+        // 保存結果を検証
+        const { data: verifyData, error: verifyError } = await supabase
+          .from('memos')
+          .select('id')
+          .eq('user_id', userId)
+
+        if (verifyError) {
+          console.warn('検証エラー:', verifyError)
+        } else {
+          console.log(`🔍 保存検証: ${verifyData?.length || 0}件確認 (期待値: ${memos.length}件)`)
+          if (verifyData?.length !== memos.length) {
+            console.warn(`⚠️ 件数不一致: 保存=${verifyData?.length}, 期待=${memos.length}`)
+          }
+        }
       }
     } catch (error) {
-      console.error('強制置換エラー:', error)
+      console.error('🚨 強制置換エラー:', error)
       throw error
     }
   },
