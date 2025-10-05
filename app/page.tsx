@@ -291,6 +291,48 @@ export default function QuickMemoApp() {
     }
   }, []) // 依存関係を空配列にして初回のみ実行
 
+  // メモ削除イベントリスナーと定期同期
+  useEffect(() => {
+    const handleMemoDeleted = (event: CustomEvent) => {
+      console.log('🔄 削除イベントを受信、データを再読み込み:', event.detail)
+      // 削除後は即座にデータを再読み込み
+      setTimeout(() => {
+        loadDataFromSupabase(0)
+      }, 200)
+    }
+
+    // 削除イベントリスナーを追加
+    window.addEventListener('memoDeleted', handleMemoDeleted as EventListener)
+
+    // 定期的にデータをチェック（他のデバイスでの変更を検出）
+    const syncInterval = setInterval(() => {
+      if (user && !isLoading) {
+        console.log('🔄 定期同期チェック')
+        loadDataFromSupabase(0)
+      }
+    }, 10000) // 10秒ごと
+
+    return () => {
+      window.removeEventListener('memoDeleted', handleMemoDeleted as EventListener)
+      clearInterval(syncInterval)
+    }
+  }, [user, isLoading, loadDataFromSupabase])
+
+  // ウィンドウフォーカス時の即座同期（他のデバイスでの変更を検出）
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      if (user && !isLoading) {
+        console.log('👁️ ウィンドウフォーカス検出 - 即座にデータ同期')
+        loadDataFromSupabase(0)
+      }
+    }
+
+    window.addEventListener('focus', handleWindowFocus)
+    return () => {
+      window.removeEventListener('focus', handleWindowFocus)
+    }
+  }, [user, isLoading, loadDataFromSupabase])
+
   // LocalStorageにデータがあるかチェック
   const checkForLocalData = () => {
     const hasData = localStorage.getItem('quickMemos') || localStorage.getItem('categories')
@@ -669,20 +711,29 @@ export default function QuickMemoApp() {
       // クラウドで物理削除を実行
       try {
         const userId = user?.id || 'test-user-123'
+        console.log(`🔐 認証チェック: userId=${userId}`)
+
         await hardDeleteMemo(id, userId)
         console.log(`✅ メモ削除完了（物理削除）: ID=${id}`)
 
-        // 全デバイスで即座に同期されるように強制リロード
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent('memoDeleted', { detail: { id } }))
-        }, 100)
+        // 削除成功後、即座にデータを再読み込み
+        console.log('🔄 削除後のデータ再読み込み開始')
+        await loadDataFromSupabase(0)
+
+        // 他のデバイス用の削除イベントを発火
+        window.dispatchEvent(new CustomEvent('memoDeleted', { detail: { id } }))
+
+        console.log('🎉 削除処理とデータ同期完了')
 
       } catch (error) {
         console.error('❌ クラウド削除エラー:', error)
         // エラー時は元に戻す
         setMemos(originalMemos)
         setMemoOrder(originalOrder)
-        alert('削除に失敗しました。もう一度お試しください。')
+
+        // より詳細なエラーメッセージ
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        alert(`削除に失敗しました: ${errorMessage}\nもう一度お試しください。`)
       }
     }
   }
