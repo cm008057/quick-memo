@@ -54,13 +54,8 @@ export const dataService = {
     const supabase = createClient()
     if (!supabase) return
 
-    // 既存のメモを削除
-    console.log('既存のメモを削除中...')
-    const { error: deleteError } = await supabase.from('memos').delete().eq('user_id', user.id)
-    if (deleteError) {
-      console.error('削除エラー:', deleteError)
-      throw deleteError
-    }
+    // UPSERTを使用（削除せず、既存データを更新または新規追加）
+    console.log('メモをアップサート中...')
 
     // 新しいメモを挿入（暗号化して保存）
     if (memos.length > 0) {
@@ -86,7 +81,10 @@ export const dataService = {
           }
         }))
 
-        const { error } = await supabase.from('memos').insert(memoEntries)
+        // UPSERTを使用（既存データは更新、新規データは追加）
+        const { error } = await supabase.from('memos').upsert(memoEntries, {
+          onConflict: 'id,user_id'
+        })
         if (error) {
           console.error(`バッチ ${i / batchSize + 1} の保存エラー:`, error)
           throw error
@@ -102,13 +100,8 @@ export const dataService = {
     const supabase = createClient()
     if (!supabase) return
 
-    // 既存のメモを削除
-    console.log('既存のメモを削除中...')
-    const { error: deleteError } = await supabase.from('memos').delete().eq('user_id', userId)
-    if (deleteError) {
-      console.error('削除エラー:', deleteError)
-      throw deleteError
-    }
+    // UPSERTを使用（削除せず、既存データを更新または新規追加）
+    console.log('メモをアップサート中...')
 
     // 新しいメモを挿入
     if (memos.length > 0) {
@@ -131,7 +124,10 @@ export const dataService = {
           }
         }))
 
-        const { error } = await supabase.from('memos').insert(memoEntries)
+        // UPSERTを使用（既存データは更新、新規データは追加）
+        const { error } = await supabase.from('memos').upsert(memoEntries, {
+          onConflict: 'id,user_id'
+        })
         if (error) {
           console.error(`バッチ ${i / batchSize + 1} の保存エラー:`, error)
           throw error

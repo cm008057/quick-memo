@@ -808,12 +808,24 @@ export default function QuickMemoApp() {
           saveMemos()
           saveCategories()
 
+          // インポート前にバックアップを自動作成
+          if (memos.length > 0) {
+            console.log('インポート前のデータをバックアップ中...')
+            exportData() // 現在のデータを自動バックアップ
+          }
+
           // Supabaseに直接保存（認証なしテスト）
           try {
             console.log(`${importData.memos.length}件のメモをSupabaseに保存中...`)
             await dataService.saveMemos(importData.memos)
             console.log('Supabaseへの保存完了')
-            alert(`データをインポートしました！\n${importData.memos.length}件のデータをクラウドに保存完了`)
+
+            // メモ順序も保存
+            if (importData.memoOrder) {
+              await dataService.saveMemoOrder(importData.memoOrder)
+            }
+
+            alert(`データをインポートしました！\n${importData.memos.length}件のデータをクラウドに保存完了\n\n※インポート前のデータは自動でバックアップされました`)
           } catch (error) {
             console.error('Supabase保存エラー:', error)
             alert(`データをインポートしました！\nローカルに保存済み（クラウド保存エラー: ${(error as Error).message}）`)
