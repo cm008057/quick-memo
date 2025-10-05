@@ -259,7 +259,8 @@ export const dataService = {
       .from('memos')
       .select('*')
       .eq('user_id', user.id)
-      .order('id', { ascending: false })
+      .is('deleted', false)  // 削除されていないメモのみ取得
+      .order('updated_at', { ascending: false })
       .limit(2000)  // 最大2000件まで読み込み
 
     if (error) {
@@ -267,7 +268,7 @@ export const dataService = {
       throw error
     }
 
-    console.log(`Supabaseから${data?.length || 0}件のメモを取得しました`)
+    console.log(`📥 Supabaseから${data?.length || 0}件の有効メモを取得`)
 
     // メモを復号化して返す
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -308,7 +309,8 @@ export const dataService = {
       .from('memos')
       .select('*')
       .eq('user_id', userId)
-      .order('id', { ascending: false })
+      .is('deleted', false)  // 削除されていないメモのみ取得
+      .order('updated_at', { ascending: false })
       .limit(2000)
 
     if (error) {
@@ -316,7 +318,7 @@ export const dataService = {
       throw error
     }
 
-    console.log(`Supabaseから${data?.length || 0}件のメモを取得しました`)
+    console.log(`📥 Supabaseから${data?.length || 0}件の有効メモを取得`)
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const memos = (data || []).map((item: any) => ({
@@ -507,6 +509,7 @@ export const dataService = {
           .from('memos')
           .select('id')
           .eq('user_id', userId)
+          .is('deleted', false)  // 有効なメモのみカウント
 
         if (verifyError) {
           console.warn('検証エラー:', verifyError)

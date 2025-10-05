@@ -179,10 +179,13 @@ export default function QuickMemoApp() {
       })
     }
 
-    if (isLoading) {
-      console.log('⏳ 既に読み込み中のため、スキップします')
-      return
-    }
+    // 緊急修正: isLoadingチェックを一時的に無効化
+    // if (isLoading) {
+    //   console.log('⏳ 既に読み込み中のため、スキップします')
+    //   return
+    // }
+
+    console.log('📥 データ読み込みを強制実行中...')
 
     setIsLoading(true)
     try {
@@ -261,17 +264,21 @@ export default function QuickMemoApp() {
     const { data: { subscription } } = authService.onAuthStateChange(async (user) => {
       console.log('Auth state changed:', user ? 'ログイン中' : '未ログイン')
       setUser(user)
+
+      // ローディングフラグを強制リセットしてからデータ読み込み
       setIsLoading(false)
 
-      // 認証状態変更時は500msのデバウンスでデータ読み込み
-      try {
-        await loadDataFromSupabase(500) // デバウンス付きで呼び出し
-      } catch (error) {
-        console.error('Supabaseデータの読み込みに失敗:', error)
-        // フォールバック：LocalStorageからデータを読み込み
-        loadDataFromLocalStorage()
-        checkForLocalData()
-      }
+      // 100ms待ってからデータ読み込み
+      setTimeout(async () => {
+        console.log('🔄 データ読み込み開始')
+        try {
+          await loadDataFromSupabase(0)
+        } catch (error) {
+          console.error('Supabaseデータの読み込みに失敗:', error)
+          loadDataFromLocalStorage()
+          checkForLocalData()
+        }
+      }, 100)
     })
 
     return () => {
