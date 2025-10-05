@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import AuthModal from '@/components/AuthModal'
 import { authService } from '@/lib/auth'
 import { dataService } from '@/lib/data-service'
+import { softDeleteMemo } from '@/lib/delete-memo'
 import './memo-styles.css'
 
 // 型定義
@@ -653,29 +654,22 @@ export default function QuickMemoApp() {
   // メモを削除（ソフト削除）
   const deleteMemo = async (id: number) => {
     if (confirm('このメモを削除しますか？')) {
-      // ソフト削除：deletedフラグを設定
-      const deletedMemo = memos.find(m => m.id === id)
-      if (!deletedMemo) return
-
-      // deletedフラグをtrueに設定
-      const updatedMemo = { ...deletedMemo, deleted: true, updated_at: new Date().toISOString() }
-
       // 表示からは即座に削除
-      const visibleMemos = memos.filter(m => m.id !== id)
-      setMemos(visibleMemos)
+      setMemos(prev => prev.filter(m => m.id !== id))
       setMemoOrder(prev => prev.filter(mId => mId !== id))
 
       // ローカルストレージを更新
       saveMemos()
 
-      // クラウドにdeletedフラグ付きで保存
+      // クラウドでソフト削除を実行
       try {
-        // 削除したメモを含む全メモリストを作成
-        const allMemos = [...visibleMemos, updatedMemo]
-        await dataService.saveMemos(allMemos)
+        const userId = user?.id || 'test-user-123'
+        await softDeleteMemo(id, userId)
         console.log('メモ削除完了（ソフト削除）: ID=' + id)
       } catch (error) {
         console.error('クラウド削除エラー:', error)
+        // エラー時は元に戻す
+        await loadDataFromSupabase(0)
       }
     }
   }
