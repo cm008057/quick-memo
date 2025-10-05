@@ -1102,15 +1102,34 @@ export default function QuickMemoApp() {
                         console.log('不正メモ:', invalidMemos.slice(0, 5))
                       }
 
+                      // 認証状況確認
+                      const currentUser = await dataService.getCurrentUser()
+                      console.log('👤 認証状況:', currentUser ? `ログイン中 (${currentUser.email})` : '未ログイン (test-user-123)')
+
                       // クラウドデータ確認
+                      let cloudMemos = []
+                      let cloudError = null
                       try {
-                        const cloudMemos = await dataService.loadMemos()
-                        console.log(`クラウドメモ数: ${cloudMemos.length}`)
+                        cloudMemos = await dataService.loadMemos()
+                        console.log(`☁️ クラウドメモ数: ${cloudMemos.length}`)
+                        console.log('クラウド最新5件:', cloudMemos.slice(0, 5).map(m => ({ id: m.id, text: m.text?.substring(0, 20) + '...' })))
                       } catch (error) {
-                        console.error('クラウドデータ読み込みエラー:', error)
+                        console.error('❌ クラウドデータ読み込みエラー:', error)
+                        cloudError = error
                       }
 
-                      alert(`🔍 データ診断完了\n\nローカル: ${memos.length}件\nユニークID: ${uniqueIds.size}件\n不正データ: ${invalidMemos.length}件\n\n詳細はコンソールを確認`)
+                      // 同期状況確認
+                      const localIds = new Set(memos.map(m => m.id))
+                      const cloudIds = new Set(cloudMemos.map(m => m.id))
+                      const onlyLocal = memos.filter(m => !cloudIds.has(m.id)).length
+                      const onlyCloud = cloudMemos.filter(m => !localIds.has(m.id)).length
+
+                      console.log(`🔄 同期状況:`)
+                      console.log(`- ローカルのみ: ${onlyLocal}件`)
+                      console.log(`- クラウドのみ: ${onlyCloud}件`)
+                      console.log(`- 共通: ${memos.filter(m => cloudIds.has(m.id)).length}件`)
+
+                      alert(`🔍 詳細診断完了\n\n👤 認証: ${currentUser ? `ログイン中` : '未ログイン'}\n📱 ローカル: ${memos.length}件\n☁️ クラウド: ${cloudMemos.length}件\n🔄 ローカル限定: ${onlyLocal}件\n🔄 クラウド限定: ${onlyCloud}件\n❌ エラー: ${cloudError ? 'あり' : 'なし'}\n\n詳細はコンソールを確認`)
                     }}
                     title="データ整合性診断"
                     style={{ backgroundColor: '#8b5cf6', color: 'white' }}
