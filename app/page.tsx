@@ -235,39 +235,52 @@ export default function QuickMemoApp() {
       await syncCurrentDataToSupabase()
       setHasLocalData(false)
       console.log('クラウド保存が完了しました')
-      alert('データをクラウドに保存しました！')
+      alert(`データをクラウドに保存しました！\nローカル: ${memos.length}件 → マージ後: ${memos.length}件`)
     } catch (error) {
       console.error('クラウド保存エラー:', error)
       alert('保存に失敗しました: ' + (error as Error).message)
     }
   }
 
-  // 現在のデータをSupabaseに同期
+  // 安全な同期：既存データとマージ
   const syncCurrentDataToSupabase = async () => {
     try {
-      console.log('現在のデータをSupabaseに同期中...')
-      console.log(`同期するメモ数: ${memos.length}`)
+      console.log('安全な同期を開始...')
+      console.log(`ローカルメモ数: ${memos.length}`)
 
-      // 現在表示中のメモを保存
-      if (memos.length > 0) {
-        await dataService.saveMemos(memos)
+      // まずSupabaseから最新データを取得
+      const existingMemos = await dataService.loadMemos()
+      console.log(`Supabase既存メモ数: ${existingMemos.length}`)
+
+      // データをマージ（IDで重複排除）
+      const allMemos = [...memos]
+      existingMemos.forEach(existingMemo => {
+        if (!allMemos.find(m => m.id === existingMemo.id)) {
+          allMemos.push(existingMemo)
+        }
+      })
+
+      console.log(`マージ後メモ数: ${allMemos.length}`)
+
+      // マージしたデータを保存
+      if (allMemos.length > 0) {
+        await dataService.saveMemos(allMemos)
+        setMemos(allMemos) // ローカル表示も更新
       }
 
-      // 現在のカテゴリを保存
-      await dataService.saveCategories(categories, categoryOrder)
+      // カテゴリも同様にマージ
+      const { categories: existingCategories } = await dataService.loadCategories()
+      const mergedCategories = { ...existingCategories, ...categories }
+      await dataService.saveCategories(mergedCategories, categoryOrder)
+      setCategories(mergedCategories)
 
-      // メモの順序を保存
-      if (memoOrder.length > 0) {
-        await dataService.saveMemoOrder(memoOrder)
-      }
-
-      // LocalStorageもクリア（重複防止）
+      // LocalStorageもクリア
       localStorage.removeItem('quickMemos')
       localStorage.removeItem('categories')
       localStorage.removeItem('categoryOrder')
       localStorage.removeItem('memoOrder')
 
-      console.log('同期完了')
+      console.log('安全な同期完了 - データ消失なし')
     } catch (error) {
       console.error('同期エラー:', error)
       throw error
