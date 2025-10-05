@@ -256,8 +256,8 @@ export const dataService = {
       .from('memos')
       .select('*')
       .eq('user_id', user.id)
-      // .is('deleted', false)  // 一時的に無効化 - DBに列が存在しないため
-      .order('id', { ascending: false })  // updated_atも存在しない可能性があるためidでソート
+      .eq('deleted', false)  // 削除されていないメモのみ取得
+      .order('updated_at', { ascending: false })  // 最新の更新順
       .limit(2000)  // 最大2000件まで読み込み
 
     if (error) {
@@ -306,8 +306,8 @@ export const dataService = {
       .from('memos')
       .select('*')
       .eq('user_id', userId)
-      // .is('deleted', false)  // 一時的に無効化 - DBに列が存在しないため
-      .order('id', { ascending: false })  // updated_atも存在しない可能性があるためidでソート
+      .eq('deleted', false)  // 削除されていないメモのみ取得
+      .order('updated_at', { ascending: false })  // 最新の更新順
       .limit(2000)
 
     if (error) {
@@ -509,7 +509,7 @@ export const dataService = {
           .from('memos')
           .select('id')
           .eq('user_id', userId)
-          // .is('deleted', false)  // 一時的に無効化 - DBに列が存在しないため
+          .eq('deleted', false)  // 有効なメモのみカウント
 
         if (verifyError) {
           console.warn('検証エラー:', verifyError)
