@@ -427,15 +427,6 @@ export default function QuickMemoApp() {
     }
   }
 
-  // 自動同期機能（メモ変更時に呼び出し）
-  const autoSync = async () => {
-    try {
-      await dataService.saveMemos(memos)
-      console.log('自動同期完了:', memos.length, '件')
-    } catch (error) {
-      console.error('自動同期エラー:', error)
-    }
-  }
 
   // 自動同期を無効化（手動同期のみ）
   // useEffect(() => {
@@ -1117,7 +1108,7 @@ export default function QuickMemoApp() {
                       console.log('👤 認証状況:', currentUser ? `ログイン中 (${currentUser.email})` : '未ログイン (test-user-123)')
 
                       // クラウドデータ確認
-                      let cloudMemos = []
+                      let cloudMemos: Memo[] = []
                       let cloudError = null
                       try {
                         cloudMemos = await dataService.loadMemos()
