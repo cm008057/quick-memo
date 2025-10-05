@@ -1,5 +1,5 @@
 import { createClient } from './supabase'
-import { encryptMemo, decryptMemo, encryptCategory, decryptCategory } from './encryption'
+import { decryptMemo, decryptCategory } from './encryption'
 
 export interface Memo {
   id: number

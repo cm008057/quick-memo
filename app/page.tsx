@@ -61,6 +61,8 @@ interface Memo {
   timestamp: string
   completed: boolean
   isEncrypted?: boolean
+  updated_at?: string
+  deleted?: boolean
 }
 
 // デフォルトカテゴリー
@@ -186,7 +188,6 @@ export default function QuickMemoApp() {
     } catch (error) {
       console.error('データの読み込みに失敗:', error)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // 認証状態の監視と初期化
@@ -342,7 +343,7 @@ export default function QuickMemoApp() {
 
       return () => clearTimeout(timer)
     }
-  }, [memos, isLoading])
+  }, [memos, isLoading, autoSync])
 
   // LocalStorageからSupabaseへの自動移行
   const migrateLocalDataIfNeeded = async () => {
