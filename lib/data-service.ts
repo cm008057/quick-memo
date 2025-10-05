@@ -259,8 +259,8 @@ export const dataService = {
       .from('memos')
       .select('*')
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(1000)  // 最大1000件まで読み込み
+      .order('updated_at', { ascending: false })
+      .limit(2000)  // 最大2000件まで読み込み
 
     if (error) {
       console.error('メモの読み込みエラー:', error)
@@ -278,7 +278,9 @@ export const dataService = {
         category: item.category,
         timestamp: item.timestamp,
         completed: item.completed,
-        isEncrypted: item.is_encrypted
+        isEncrypted: item.is_encrypted,
+        updated_at: item.updated_at,
+        deleted: item.deleted
       }
 
       // 暗号化されている場合は復号
@@ -306,8 +308,8 @@ export const dataService = {
       .from('memos')
       .select('*')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1000)
+      .order('updated_at', { ascending: false })
+      .limit(2000)
 
     if (error) {
       console.error('メモの読み込みエラー:', error)
@@ -323,7 +325,9 @@ export const dataService = {
       category: item.category,
       timestamp: item.timestamp,
       completed: item.completed,
-      isEncrypted: item.is_encrypted
+      isEncrypted: item.is_encrypted,
+      updated_at: item.updated_at,
+      deleted: item.deleted
     }))
 
     return memos
