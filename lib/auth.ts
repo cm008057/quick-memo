@@ -65,18 +65,17 @@ export const authService = {
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return supabase.auth.onAuthStateChange(async (event: any, session: any) => {
-      console.log('Auth event:', event, session ? 'セッションあり' : 'セッションなし')
-
-      // TOKEN_REFRESHED や SIGNED_OUT イベントの処理
-      if (event === 'TOKEN_REFRESHED') {
-        console.log('トークンがリフレッシュされました')
+      // 重要なイベントのみログ出力
+      if (event === 'SIGNED_IN') {
+        console.log('🔐 ログイン完了')
       } else if (event === 'SIGNED_OUT') {
-        console.log('ログアウトしました')
+        console.log('🔓 ログアウト完了')
         // ローカルストレージをクリア
         if (typeof window !== 'undefined') {
           localStorage.removeItem('sb-' + supabase.supabaseUrl.split('//')[1] + '-auth-token')
         }
       }
+      // TOKEN_REFRESHEDは頻繁すぎるのでログ出力なし
 
       callback(session?.user ?? null)
     })

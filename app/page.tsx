@@ -158,8 +158,27 @@ export default function QuickMemoApp() {
     setSelectedCategory(Object.keys(defaultCategories)[0])
   }
 
-  // Supabaseからデータを読み込み
-  const loadDataFromSupabase = useCallback(async () => {
+  // デバウンス用のタイマー参照
+  const loadDataTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Supabaseからデータを読み込み（デバウンス付き）
+  const loadDataFromSupabase = useCallback(async (debounceMs: number = 0) => {
+    // 既存のタイマーをクリア
+    if (loadDataTimerRef.current) {
+      clearTimeout(loadDataTimerRef.current)
+      loadDataTimerRef.current = null
+    }
+
+    // デバウンス処理
+    if (debounceMs > 0) {
+      return new Promise<void>((resolve) => {
+        loadDataTimerRef.current = setTimeout(async () => {
+          await loadDataFromSupabase(0) // デバウンスなしで実際の処理を実行
+          resolve()
+        }, debounceMs)
+      })
+    }
+
     if (isLoading) {
       console.log('⏳ 既に読み込み中のため、スキップします')
       return
@@ -167,26 +186,22 @@ export default function QuickMemoApp() {
 
     setIsLoading(true)
     try {
-      console.log('📥 Supabaseからデータ読み込み開始')
+      console.log('📥 Supabaseデータ読み込み開始')
       const { categories: dbCategories, categoryOrder: dbCategoryOrder } = await dataService.loadCategories()
       const dbMemos = await dataService.loadMemos()
 
-      console.log('✅ Supabaseからの読み込み完了:', {
-        memos: dbMemos.length,
-        categories: Object.keys(dbCategories).length
-      })
+      console.log(`✅ 読み込み完了: ${dbMemos.length}件のメモ, ${Object.keys(dbCategories).length}個のカテゴリー`)
 
       // データがあるかどうかに関わらず、Supabaseの結果を表示
       setCategories(Object.keys(dbCategories).length > 0 ? dbCategories : defaultCategories)
       setCategoryOrder(dbCategoryOrder.length > 0 ? dbCategoryOrder : Object.keys(defaultCategories))
 
-      // 🛡️ データ損失防止：全データを直接使用（順序フィルタリングを無効化）
-      console.log(`🔍 読み込みデータ詳細: ${dbMemos.length}件のメモを確認`)
-      console.log('削除フラグ確認:', dbMemos.filter((m: Memo) => m.deleted === true).length, '件が削除フラグ付き')
-
       // 削除フラグが付いていないメモのみを使用
       const validMemos = dbMemos.filter((m: Memo) => m.deleted !== true)
-      console.log(`有効メモ数: ${validMemos.length}件`)
+      const deletedCount = dbMemos.length - validMemos.length
+      if (deletedCount > 0) {
+        console.log(`削除済みを除外: ${deletedCount}件`)
+      }
 
       // 表示順序の決定
       let sortedMemos: Memo[]
@@ -196,7 +211,6 @@ export default function QuickMemoApp() {
 
       if (currentDisplayOrder.length > 0) {
         // 既にメモが表示されている場合は、その順序を保持
-        console.log('現在の表示順序を保持:', currentDisplayOrder.length, '件')
         const orderedMemos = currentDisplayOrder
           .map(id => validMemos.find(m => m.id === id))
           .filter((m): m is Memo => m !== undefined)
@@ -210,7 +224,9 @@ export default function QuickMemoApp() {
         })
 
         sortedMemos = [...newMemos, ...orderedMemos]
-        console.log(`🔄 順序保持: 新規${newMemos.length}件 + 既存${orderedMemos.length}件 = 合計${sortedMemos.length}件`)
+        if (newMemos.length > 0) {
+          console.log(`🔄 順序保持: 新規${newMemos.length}件 + 既存${orderedMemos.length}件 = 合計${sortedMemos.length}件`)
+        }
       } else {
         // 初回読み込み時のみ最新順
         console.log('🆕 初回読み込み - 最新順で表示')
@@ -224,22 +240,17 @@ export default function QuickMemoApp() {
       setMemos(sortedMemos)
       setMemoOrder(sortedMemos.map(m => m.id))
 
-      console.log(`✅ 最終設定メモ数: ${sortedMemos.length}件`)
-
       setSelectedCategory(Object.keys(dbCategories)[0] || Object.keys(defaultCategories)[0])
-      console.log('🎉 データ設定完了:', dbMemos.length, '件のメモ')
+      console.log(`✅ データ設定完了: ${sortedMemos.length}件`)
 
       // ローカルデータチェックも実行
       checkForLocalData()
-
-      // 自動移行を無効化（手動同期のみ）
-      // await migrateLocalDataIfNeeded()
     } catch (error) {
       console.error('❌ データの読み込みに失敗:', error)
     } finally {
       setIsLoading(false)
     }
-  }, [isLoading, memos])
+  }, [isLoading]) // memosの依存関係を削除して無限ループを防止
 
   // 認証状態の監視と初期化
   useEffect(() => {
@@ -252,10 +263,9 @@ export default function QuickMemoApp() {
       setUser(user)
       setIsLoading(false)
 
-      // 認証状態に関わらず、常にSupabaseからデータを読み込み
+      // 認証状態変更時は500msのデバウンスでデータ読み込み
       try {
-        await loadDataFromSupabase()
-        console.log('Supabaseからデータを読み込みました')
+        await loadDataFromSupabase(500) // デバウンス付きで呼び出し
       } catch (error) {
         console.error('Supabaseデータの読み込みに失敗:', error)
         // フォールバック：LocalStorageからデータを読み込み
@@ -264,8 +274,14 @@ export default function QuickMemoApp() {
       }
     })
 
-    return () => subscription?.unsubscribe?.()
-  }, [loadDataFromSupabase])
+    return () => {
+      // クリーンアップ：タイマーをクリア
+      if (loadDataTimerRef.current) {
+        clearTimeout(loadDataTimerRef.current)
+      }
+      subscription?.unsubscribe?.()
+    }
+  }, []) // 依存関係を空配列にして初回のみ実行
 
   // LocalStorageにデータがあるかチェック
   const checkForLocalData = () => {
@@ -558,7 +574,7 @@ export default function QuickMemoApp() {
       deleted: false
     }
 
-    console.log('新しいメモを追加:', newMemo)
+    console.log('新しいメモを追加: ID=' + newMemo.id)
 
     // 状態を更新
     const updatedMemos = [newMemo, ...memos]
@@ -571,7 +587,6 @@ export default function QuickMemoApp() {
 
     // 即座にクラウドに保存（更新されたメモリストを使用）
     try {
-      console.log('クラウドに保存中...', updatedMemos.length, '件')
       await dataService.saveMemos(updatedMemos)
       console.log('クラウド保存完了')
     } catch (error) {
@@ -631,8 +646,6 @@ export default function QuickMemoApp() {
   // メモを削除（ソフト削除）
   const deleteMemo = async (id: number) => {
     if (confirm('このメモを削除しますか？')) {
-      console.log('メモを削除中:', id)
-
       // 表示からは即座に削除
       const updatedMemos = memos.filter(m => m.id !== id)
       setMemos(updatedMemos)
@@ -643,9 +656,8 @@ export default function QuickMemoApp() {
 
       // クラウドからも削除
       try {
-        console.log('クラウドに削除を反映中...', updatedMemos.length, '件')
         await dataService.saveMemos(updatedMemos)
-        console.log('クラウド削除完了')
+        console.log('メモ削除完了: ID=' + id)
       } catch (error) {
         console.error('クラウド削除エラー:', error)
       }
@@ -665,9 +677,9 @@ export default function QuickMemoApp() {
     // クラウドに同期
     try {
       await dataService.saveMemos(updatedMemos)
-      console.log('カテゴリ移動をクラウドに同期完了')
+      console.log('カテゴリ移動同期完了')
     } catch (error) {
-      console.error('カテゴリ移動の同期エラー:', error)
+      console.error('カテゴリ移動エラー:', error)
     }
   }
 
@@ -696,9 +708,9 @@ export default function QuickMemoApp() {
     // クラウドに同期
     try {
       await dataService.saveMemos(updatedMemos)
-      console.log('メモコピーをクラウドに同期完了')
+      console.log('メモコピー同期完了')
     } catch (error) {
-      console.error('メモコピーの同期エラー:', error)
+      console.error('メモコピーエラー:', error)
     }
   }
 
