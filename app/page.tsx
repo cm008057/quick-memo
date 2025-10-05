@@ -172,21 +172,36 @@ export default function QuickMemoApp() {
         userAgent: navigator.userAgent
       })
 
-      // データがあるかどうかに関わらず、Supabaseの結果を表示（新しい順にソート）
+      // データがあるかどうかに関わらず、Supabaseの結果を表示
       setCategories(Object.keys(dbCategories).length > 0 ? dbCategories : defaultCategories)
       setCategoryOrder(dbCategoryOrder.length > 0 ? dbCategoryOrder : Object.keys(defaultCategories))
 
-      // メモを新しい順にソート
-      const sortedMemos = dbMemos.sort((a, b) => {
-        const timeA = new Date(a.updated_at || a.timestamp).getTime()
-        const timeB = new Date(b.updated_at || b.timestamp).getTime()
-        return timeB - timeA // 新しい順
-      })
+      // memoOrderが存在する場合は手動順序を維持
+      if (dbMemoOrder && dbMemoOrder.length > 0) {
+        // memoOrderに基づいて並び替え
+        const orderedMemos = dbMemoOrder
+          .map(id => dbMemos.find(m => m.id === id))
+          .filter((m): m is Memo => m !== undefined)
 
-      setMemos(sortedMemos)
-      setMemoOrder(dbMemoOrder)
+        // memoOrderにないメモを最後に追加
+        const missingMemos = dbMemos.filter(m => !dbMemoOrder.includes(m.id))
+        const allMemos = [...orderedMemos, ...missingMemos]
+
+        setMemos(allMemos)
+        setMemoOrder([...dbMemoOrder, ...missingMemos.map(m => m.id)])
+      } else {
+        // memoOrderがない場合は新しい順にソート
+        const sortedMemos = dbMemos.sort((a, b) => {
+          const timeA = new Date(a.updated_at || a.timestamp).getTime()
+          const timeB = new Date(b.updated_at || b.timestamp).getTime()
+          return timeB - timeA
+        })
+        setMemos(sortedMemos)
+        setMemoOrder(sortedMemos.map(m => m.id))
+      }
+
       setSelectedCategory(Object.keys(dbCategories)[0] || Object.keys(defaultCategories)[0])
-      console.log('データを設定しました:', sortedMemos.length, '件のメモ')
+      console.log('データを設定しました:', dbMemos.length, '件のメモ')
 
       // ローカルデータチェックも実行
       checkForLocalData()
@@ -307,20 +322,36 @@ export default function QuickMemoApp() {
       console.log(`同期後メモ数: ${mergedMemos.length}`)
       console.log(`削除されたメモ: ${memos.length + cloudMemos.length - mergedMemos.length}件`)
 
-      // マージしたデータを保存（新しい順にソート）
+      // マージしたデータを保存（手動順序を維持）
       if (mergedMemos.length > 0) {
-        // 更新時刻またはタイムスタンプで新しい順にソート
-        const sortedMemos = mergedMemos.sort((a, b) => {
-          const timeA = new Date(a.updated_at || a.timestamp).getTime()
-          const timeB = new Date(b.updated_at || b.timestamp).getTime()
-          return timeB - timeA // 新しい順
-        })
-        await dataService.saveMemos(sortedMemos)
-        setMemos(sortedMemos) // ローカル表示も更新
+        // 既存のmemoOrderを維持し、新規メモのみ先頭に追加
+        const existingOrder = memoOrder.filter(id => mergedMemos.some(m => m.id === id))
+        const newMemoIds = mergedMemos
+          .filter(m => !existingOrder.includes(m.id))
+          .sort((a, b) => {
+            // 新規メモは新しい順
+            const timeA = new Date(a.updated_at || a.timestamp).getTime()
+            const timeB = new Date(b.updated_at || b.timestamp).getTime()
+            return timeB - timeA
+          })
+          .map(m => m.id)
+
+        const updatedOrder = [...newMemoIds, ...existingOrder]
+
+        // memoOrderに基づいてメモを並び替え
+        const orderedMemos = updatedOrder
+          .map(id => mergedMemos.find(m => m.id === id))
+          .filter((m): m is Memo => m !== undefined)
+
+        await dataService.saveMemos(orderedMemos)
+        await dataService.saveMemoOrder(updatedOrder) // 順序も保存
+        setMemos(orderedMemos)
+        setMemoOrder(updatedOrder)
       } else {
         // 全て削除された場合
         await dataService.saveMemos([])
         setMemos([])
+        setMemoOrder([])
       }
 
       // LocalStorageをクリア
