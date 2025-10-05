@@ -235,7 +235,7 @@ export default function QuickMemoApp() {
       await syncCurrentDataToSupabase()
       setHasLocalData(false)
       console.log('クラウド保存が完了しました')
-      alert(`データをクラウドに保存しました！\nローカル: ${memos.length}件 → マージ後: ${memos.length}件`)
+      alert(`データをクラウドに同期しました！\n同期後: ${memos.length}件（重複は自動除外）`)
     } catch (error) {
       console.error('クラウド保存エラー:', error)
       alert('保存に失敗しました: ' + (error as Error).message)
@@ -252,15 +252,25 @@ export default function QuickMemoApp() {
       const existingMemos = await dataService.loadMemos()
       console.log(`Supabase既存メモ数: ${existingMemos.length}`)
 
-      // データをマージ（IDで重複排除）
+      // データをマージ（ID と内容で重複排除）
       const allMemos = [...memos]
+      let duplicateCount = 0
+
       existingMemos.forEach(existingMemo => {
-        if (!allMemos.find(m => m.id === existingMemo.id)) {
+        // IDまたは内容が同じものは重複とみなす
+        const isDuplicate = allMemos.find(m =>
+          m.id === existingMemo.id ||
+          (m.text === existingMemo.text && m.category === existingMemo.category && m.timestamp === existingMemo.timestamp)
+        )
+
+        if (!isDuplicate) {
           allMemos.push(existingMemo)
+        } else {
+          duplicateCount++
         }
       })
 
-      console.log(`マージ後メモ数: ${allMemos.length}`)
+      console.log(`マージ後メモ数: ${allMemos.length} (重複${duplicateCount}件を除外)`)
 
       // マージしたデータを保存
       if (allMemos.length > 0) {
