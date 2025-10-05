@@ -998,12 +998,11 @@ export default function QuickMemoApp() {
 
     const reader = new FileReader()
     reader.onload = async function(event) {
-      try {
-        // インポート処理開始
-        setIsImporting(true)
-        console.log('📂 インポート処理開始')
+      let importData: any = null
 
-        const importData = JSON.parse(event.target?.result as string)
+      try {
+        console.log('📂 ファイル読み込み開始')
+        importData = JSON.parse(event.target?.result as string)
 
         if (!importData.memos || !importData.categories) {
           throw new Error('無効なバックアップファイルです')
@@ -1019,6 +1018,9 @@ export default function QuickMemoApp() {
           `※現在のデータは上書きされます`
 
         if (confirm(confirmMessage)) {
+          // 実際のインポート処理開始（確認後）
+          setIsImporting(true)
+          console.log('📂 インポート処理開始（確認済み）')
           // インポート前にバックアップを自動作成
           if (memos.length > 0) {
             console.log('インポート前のデータをバックアップ中...')
@@ -1070,13 +1072,19 @@ export default function QuickMemoApp() {
             setSelectedCategory(Object.keys(importData.categories)[0])
           }
 
-          // LocalStorageに保存
-          saveMemos()
-          saveCategories()
+          // まずReact Stateを更新（await不要）
+          console.log('🔄 React Stateを更新中...')
 
-          // 即座にSupabaseにも保存（最優先）
+          // LocalStorageに保存（非同期関数を適切にawait）
+          console.log('💾 LocalStorageに保存中...')
+          await saveMemos()
+          await saveCategories()
+
+          console.log('✅ LocalStorage保存完了')
+
+          // Supabaseに保存（最新のStateを使用）
           try {
-            console.log(`${importData.memos.length}件のメモをSupabaseに緊急保存中...`)
+            console.log(`📤 ${processedMemos.length}件のメモをSupabaseに緊急保存中...`)
 
             // 強制的に全データを上書き保存（deleted属性を明示的に設定）
             await dataService.saveMemos(processedMemos)
@@ -1099,9 +1107,16 @@ export default function QuickMemoApp() {
             console.log('📂 インポート処理完了')
           }
         }
+        } else {
+          console.log('📂 インポートがキャンセルされました')
+        }
       } catch (error) {
+        console.error('❌ インポートエラー:', error)
         alert('インポートに失敗しました。\n\n' + (error as Error).message)
-        setIsImporting(false) // エラー時もフラグをリセット
+      } finally {
+        // 必ずフラグをリセット
+        setIsImporting(false)
+        console.log('📂 インポート処理終了')
       }
 
       e.target.value = ''
