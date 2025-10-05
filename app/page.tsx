@@ -276,6 +276,27 @@ export default function QuickMemoApp() {
       const cloudMemos = await dataService.loadMemos()
       console.log(`クラウドメモ数: ${cloudMemos.length}`)
 
+      // データ件数チェック：ローカルの方が多い場合は警告
+      if (memos.length > cloudMemos.length + 10) {
+        const useLocal = confirm(
+          `データ件数の違いを検出しました：\n\n` +
+          `ローカル: ${memos.length}件\n` +
+          `クラウド: ${cloudMemos.length}件\n\n` +
+          `ローカルの方が${memos.length - cloudMemos.length}件多いです。\n\n` +
+          `「OK」= ローカルデータをクラウドに保存\n` +
+          `「キャンセル」= クラウドデータで上書き`
+        )
+
+        if (useLocal) {
+          // ローカルデータを優先してクラウドに保存
+          console.log('ローカルデータを優先してクラウドに保存')
+          await dataService.saveMemos(memos)
+          await dataService.saveMemoOrder(memoOrder)
+          alert(`ローカルデータ（${memos.length}件）をクラウドに保存しました！`)
+          return
+        }
+      }
+
       // タイムスタンプベースでマージ
       const mergedMemos: Memo[] = []
       const processedIds = new Set<number>()
@@ -795,6 +816,13 @@ export default function QuickMemoApp() {
           `※現在のデータは上書きされます`
 
         if (confirm(confirmMessage)) {
+          // インポート前にバックアップを自動作成
+          if (memos.length > 0) {
+            console.log('インポート前のデータをバックアップ中...')
+            exportData() // 現在のデータを自動バックアップ
+          }
+
+          // データを更新
           setMemos(importData.memos || [])
           setCategories(importData.categories || {})
           setCategoryOrder(importData.categoryOrder || Object.keys(importData.categories))
@@ -804,31 +832,29 @@ export default function QuickMemoApp() {
             setSelectedCategory(Object.keys(importData.categories)[0])
           }
 
-          // インポート後にLocalStorageに保存
+          // LocalStorageに保存
           saveMemos()
           saveCategories()
 
-          // インポート前にバックアップを自動作成
-          if (memos.length > 0) {
-            console.log('インポート前のデータをバックアップ中...')
-            exportData() // 現在のデータを自動バックアップ
-          }
-
-          // Supabaseに直接保存（認証なしテスト）
+          // 即座にSupabaseにも保存（最優先）
           try {
-            console.log(`${importData.memos.length}件のメモをSupabaseに保存中...`)
+            console.log(`${importData.memos.length}件のメモをSupabaseに緊急保存中...`)
+
+            // 強制的に全データを上書き保存
             await dataService.saveMemos(importData.memos)
-            console.log('Supabaseへの保存完了')
 
             // メモ順序も保存
-            if (importData.memoOrder) {
-              await dataService.saveMemoOrder(importData.memoOrder)
-            }
+            const memoOrderToSave = importData.memoOrder || importData.memos.map((m: Memo) => m.id)
+            await dataService.saveMemoOrder(memoOrderToSave)
 
-            alert(`データをインポートしました！\n${importData.memos.length}件のデータをクラウドに保存完了\n\n※インポート前のデータは自動でバックアップされました`)
+            // カテゴリーも保存
+            await dataService.saveCategories(importData.categories, importData.categoryOrder || Object.keys(importData.categories))
+
+            console.log('Supabaseへの緊急保存完了')
+            alert(`✅ データをインポートしました！\n${importData.memos.length}件のデータをクラウドに緊急保存完了\n\n※これでクラウドが最新状態になりました`)
           } catch (error) {
-            console.error('Supabase保存エラー:', error)
-            alert(`データをインポートしました！\nローカルに保存済み（クラウド保存エラー: ${(error as Error).message}）`)
+            console.error('Supabase緊急保存エラー:', error)
+            alert(`⚠️ データをインポートしました！\nローカルに保存済み\n\nクラウド保存エラー: ${(error as Error).message}\n\n手動で同期ボタンを押してください`)
           }
         }
       } catch (error) {
