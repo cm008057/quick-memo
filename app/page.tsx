@@ -106,6 +106,7 @@ export default function QuickMemoApp() {
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [hasLocalData, setHasLocalData] = useState<boolean>(false)
+  const [isDeleting, setIsDeleting] = useState<boolean>(false)
 
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -576,6 +577,12 @@ export default function QuickMemoApp() {
 
   // データ保存（認証状態に応じて自動選択）
   const saveMemos = async () => {
+    // 削除処理中は保存をスキップ（削除したメモの復活を防ぐ）
+    if (isDeleting) {
+      console.log('🚫 削除処理中のため保存をスキップ')
+      return
+    }
+
     if (user) {
       try {
         await dataService.saveMemos(memos)
@@ -698,6 +705,9 @@ export default function QuickMemoApp() {
     if (confirm('このメモを削除しますか？')) {
       console.log(`🗑️ 削除処理開始: ID=${id}`)
 
+      // 削除処理中フラグを設定（自動保存を無効化）
+      setIsDeleting(true)
+
       // 表示からは即座に削除
       const originalMemos = [...memos]
       const originalOrder = [...memoOrder]
@@ -705,8 +715,11 @@ export default function QuickMemoApp() {
       setMemos(prev => prev.filter(m => m.id !== id))
       setMemoOrder(prev => prev.filter(mId => mId !== id))
 
-      // ローカルストレージを更新
-      saveMemos()
+      // LocalStorageを直接更新（saveMemos関数は削除中なのでスキップされる）
+      const filteredMemos = memos.filter(m => m.id !== id)
+      const filteredOrder = memoOrder.filter(mId => mId !== id)
+      localStorage.setItem('quickMemos', JSON.stringify(filteredMemos))
+      localStorage.setItem('memoOrder', JSON.stringify(filteredOrder))
 
       // クラウドで物理削除を実行
       try {
@@ -730,10 +743,16 @@ export default function QuickMemoApp() {
         // エラー時は元に戻す
         setMemos(originalMemos)
         setMemoOrder(originalOrder)
+        localStorage.setItem('quickMemos', JSON.stringify(originalMemos))
+        localStorage.setItem('memoOrder', JSON.stringify(originalOrder))
 
         // より詳細なエラーメッセージ
         const errorMessage = error instanceof Error ? error.message : 'Unknown error'
         alert(`削除に失敗しました: ${errorMessage}\nもう一度お試しください。`)
+      } finally {
+        // 削除処理完了フラグをリセット
+        setIsDeleting(false)
+        console.log('🔓 削除処理完了 - 自動保存を再開')
       }
     }
   }
