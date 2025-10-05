@@ -172,13 +172,21 @@ export default function QuickMemoApp() {
         userAgent: navigator.userAgent
       })
 
-      // データがあるかどうかに関わらず、Supabaseの結果を表示
+      // データがあるかどうかに関わらず、Supabaseの結果を表示（新しい順にソート）
       setCategories(Object.keys(dbCategories).length > 0 ? dbCategories : defaultCategories)
       setCategoryOrder(dbCategoryOrder.length > 0 ? dbCategoryOrder : Object.keys(defaultCategories))
-      setMemos(dbMemos)
+
+      // メモを新しい順にソート
+      const sortedMemos = dbMemos.sort((a, b) => {
+        const timeA = new Date(a.updated_at || a.timestamp).getTime()
+        const timeB = new Date(b.updated_at || b.timestamp).getTime()
+        return timeB - timeA // 新しい順
+      })
+
+      setMemos(sortedMemos)
       setMemoOrder(dbMemoOrder)
       setSelectedCategory(Object.keys(dbCategories)[0] || Object.keys(defaultCategories)[0])
-      console.log('データを設定しました:', dbMemos.length, '件のメモ')
+      console.log('データを設定しました:', sortedMemos.length, '件のメモ')
 
       // ローカルデータチェックも実行
       checkForLocalData()
@@ -299,10 +307,16 @@ export default function QuickMemoApp() {
       console.log(`同期後メモ数: ${mergedMemos.length}`)
       console.log(`削除されたメモ: ${memos.length + cloudMemos.length - mergedMemos.length}件`)
 
-      // マージしたデータを保存
+      // マージしたデータを保存（新しい順にソート）
       if (mergedMemos.length > 0) {
-        await dataService.saveMemos(mergedMemos)
-        setMemos(mergedMemos) // ローカル表示も更新
+        // 更新時刻またはタイムスタンプで新しい順にソート
+        const sortedMemos = mergedMemos.sort((a, b) => {
+          const timeA = new Date(a.updated_at || a.timestamp).getTime()
+          const timeB = new Date(b.updated_at || b.timestamp).getTime()
+          return timeB - timeA // 新しい順
+        })
+        await dataService.saveMemos(sortedMemos)
+        setMemos(sortedMemos) // ローカル表示も更新
       } else {
         // 全て削除された場合
         await dataService.saveMemos([])
@@ -333,17 +347,17 @@ export default function QuickMemoApp() {
     }
   }
 
-  // メモが変更されたときに自動同期
-  useEffect(() => {
-    if (memos.length > 0 && !isLoading) {
-      // 初回読み込み時以外で自動同期
-      const timer = setTimeout(() => {
-        autoSync()
-      }, 1000) // 1秒後に同期
+  // 自動同期を無効化（手動同期のみ）
+  // useEffect(() => {
+  //   if (memos.length > 0 && !isLoading) {
+  //     // 初回読み込み時以外で自動同期
+  //     const timer = setTimeout(() => {
+  //       autoSync()
+  //     }, 1000) // 1秒後に同期
 
-      return () => clearTimeout(timer)
-    }
-  }, [memos, isLoading, autoSync])
+  //     return () => clearTimeout(timer)
+  //   }
+  // }, [memos, isLoading, autoSync])
 
   // LocalStorageからSupabaseへの自動移行
   const migrateLocalDataIfNeeded = async () => {
@@ -467,6 +481,11 @@ export default function QuickMemoApp() {
     setMemoOrder(prev => [newMemo.id, ...prev])
     setMemoInput('')
     saveMemos()
+
+    // 即座にクラウドに保存
+    setTimeout(() => {
+      autoSync()
+    }, 500)
   }
 
   // 音声入力切り替え
