@@ -256,7 +256,7 @@ export const dataService = {
       .from('memos')
       .select('*')
       .eq('user_id', user.id)
-      .eq('deleted', false)  // 削除されていないメモのみ取得
+      // deletedフィルタを削除（物理削除に変更のため）
       .order('updated_at', { ascending: false })  // 最新の更新順
       .limit(2000)  // 最大2000件まで読み込み
 
@@ -306,7 +306,7 @@ export const dataService = {
       .from('memos')
       .select('*')
       .eq('user_id', userId)
-      .eq('deleted', false)  // 削除されていないメモのみ取得
+      // deletedフィルタを削除（物理削除に変更のため）
       .order('updated_at', { ascending: false })  // 最新の更新順
       .limit(2000)
 
@@ -509,7 +509,7 @@ export const dataService = {
           .from('memos')
           .select('id')
           .eq('user_id', userId)
-          .eq('deleted', false)  // 有効なメモのみカウント
+          // deletedフィルタを削除（物理削除に変更のため）
 
         if (verifyError) {
           console.warn('検証エラー:', verifyError)

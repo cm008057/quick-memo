@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import AuthModal from '@/components/AuthModal'
 import { authService } from '@/lib/auth'
 import { dataService } from '@/lib/data-service'
-import { softDeleteMemo } from '@/lib/delete-memo'
+import { hardDeleteMemo } from '@/lib/delete-memo'
 import './memo-styles.css'
 
 // 型定義
@@ -654,22 +654,35 @@ export default function QuickMemoApp() {
   // メモを削除（ソフト削除）
   const deleteMemo = async (id: number) => {
     if (confirm('このメモを削除しますか？')) {
+      console.log(`🗑️ 削除処理開始: ID=${id}`)
+
       // 表示からは即座に削除
+      const originalMemos = [...memos]
+      const originalOrder = [...memoOrder]
+
       setMemos(prev => prev.filter(m => m.id !== id))
       setMemoOrder(prev => prev.filter(mId => mId !== id))
 
       // ローカルストレージを更新
       saveMemos()
 
-      // クラウドでソフト削除を実行
+      // クラウドで物理削除を実行
       try {
         const userId = user?.id || 'test-user-123'
-        await softDeleteMemo(id, userId)
-        console.log('メモ削除完了（ソフト削除）: ID=' + id)
+        await hardDeleteMemo(id, userId)
+        console.log(`✅ メモ削除完了（物理削除）: ID=${id}`)
+
+        // 全デバイスで即座に同期されるように強制リロード
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('memoDeleted', { detail: { id } }))
+        }, 100)
+
       } catch (error) {
-        console.error('クラウド削除エラー:', error)
+        console.error('❌ クラウド削除エラー:', error)
         // エラー時は元に戻す
-        await loadDataFromSupabase(0)
+        setMemos(originalMemos)
+        setMemoOrder(originalOrder)
+        alert('削除に失敗しました。もう一度お試しください。')
       }
     }
   }
