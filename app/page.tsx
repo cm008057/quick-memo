@@ -833,11 +833,41 @@ export default function QuickMemoApp() {
           }
 
           // データを更新（deleted属性を明示的に設定）
-          const processedMemos = (importData.memos || []).map((memo: Memo) => ({
-            ...memo,
-            deleted: memo.deleted === true ? true : false, // 明示的にfalseを設定
-            updated_at: memo.updated_at || new Date().toISOString()
-          }))
+          console.log('📥 インポートデータ詳細:')
+          console.log(`元データ件数: ${importData.memos?.length || 0}`)
+
+          const processedMemos = (importData.memos || []).map((memo: Memo, index: number) => {
+            const processed = {
+              ...memo,
+              deleted: memo.deleted === true ? true : false, // 明示的にfalseを設定
+              updated_at: memo.updated_at || new Date().toISOString()
+            }
+
+            // 最初の5件を詳細ログ
+            if (index < 5) {
+              console.log(`メモ${index + 1}:`, {
+                id: processed.id,
+                textLength: processed.text?.length || 0,
+                category: processed.category,
+                deleted: processed.deleted
+              })
+            }
+
+            return processed
+          })
+
+          console.log(`処理後件数: ${processedMemos.length}`)
+
+          // ID重複チェック
+          const ids = processedMemos.map(m => m.id)
+          const uniqueIds = new Set(ids)
+          console.log(`ユニークID数: ${uniqueIds.size}`)
+          if (ids.length !== uniqueIds.size) {
+            console.warn('⚠️ インポートデータにID重複あり!')
+            const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index)
+            console.log('重複ID:', [...new Set(duplicateIds)])
+          }
+
           setMemos(processedMemos)
           setCategories(importData.categories || {})
           setCategoryOrder(importData.categoryOrder || Object.keys(importData.categories))
@@ -992,6 +1022,44 @@ export default function QuickMemoApp() {
                     style={{ backgroundColor: '#f59e0b', color: 'white' }}
                   >
                     💾 バックアップ
+                  </button>
+                  <button
+                    className="manage-btn"
+                    onClick={async () => {
+                      console.log('🔍 データ診断開始')
+                      console.log(`ローカルメモ数: ${memos.length}`)
+
+                      // ID重複チェック
+                      const ids = memos.map(m => m.id)
+                      const uniqueIds = new Set(ids)
+                      console.log(`ユニークID数: ${uniqueIds.size}`)
+                      if (ids.length !== uniqueIds.size) {
+                        console.warn('⚠️ ID重複検出!')
+                        const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index)
+                        console.log('重複ID:', duplicates)
+                      }
+
+                      // データ形式チェック
+                      const invalidMemos = memos.filter(m => !m.id || !m.text || !m.category)
+                      console.log(`不正メモ数: ${invalidMemos.length}`)
+                      if (invalidMemos.length > 0) {
+                        console.log('不正メモ:', invalidMemos.slice(0, 5))
+                      }
+
+                      // クラウドデータ確認
+                      try {
+                        const cloudMemos = await dataService.loadMemos()
+                        console.log(`クラウドメモ数: ${cloudMemos.length}`)
+                      } catch (error) {
+                        console.error('クラウドデータ読み込みエラー:', error)
+                      }
+
+                      alert(`🔍 データ診断完了\n\nローカル: ${memos.length}件\nユニークID: ${uniqueIds.size}件\n不正データ: ${invalidMemos.length}件\n\n詳細はコンソールを確認`)
+                    }}
+                    title="データ整合性診断"
+                    style={{ backgroundColor: '#8b5cf6', color: 'white' }}
+                  >
+                    🔍 診断
                   </button>
                   <button
                     className="manage-btn"
