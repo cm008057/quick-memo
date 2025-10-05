@@ -1106,7 +1106,6 @@ export default function QuickMemoApp() {
             setIsImporting(false)
             console.log('📂 インポート処理完了')
           }
-        }
         } else {
           console.log('📂 インポートがキャンセルされました')
         }
