@@ -993,8 +993,14 @@ export default function QuickMemoApp() {
 
   // データをインポート
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('🚀 handleImport関数が呼び出されました')
+    console.log('📁 選択されたファイル:', e.target.files?.[0])
+
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file) {
+      console.log('❌ ファイルが選択されていません')
+      return
+    }
 
     const reader = new FileReader()
     reader.onload = async function(event) {
@@ -1320,7 +1326,11 @@ export default function QuickMemoApp() {
               <button className="export-btn" onClick={exportData} title="データをエクスポート">
                 💾
               </button>
-              <button className="import-btn" onClick={() => importInputRef.current?.click()} title="データをインポート">
+              <button className="import-btn" onClick={() => {
+                console.log('📂 インポートボタンがクリックされました')
+                console.log('📁 inputRef:', importInputRef.current)
+                importInputRef.current?.click()
+              }} title="データをインポート">
                 📂
               </button>
               <input
