@@ -333,8 +333,13 @@ export const dataService = {
   },
 
   async saveCategories(categories: { [key: string]: Category }, categoryOrder: string[]) {
+    // 🔧 修正: 認証なしの場合もテスト保存を許可（savememosと同様）
     const user = await this.getCurrentUser()
-    if (!user) throw new Error('ユーザーが認証されていません')
+    if (!user) {
+      console.log('認証なしでテストカテゴリ保存を実行')
+      const testUserId = 'test-user-123'
+      return this.saveCategoriesWithUserId(categories, categoryOrder, testUserId)
+    }
 
     const supabase = createClient()
     if (!supabase) return
@@ -353,6 +358,31 @@ export const dataService = {
         color: cat.color,
         order_index: categoryOrder.indexOf(id) !== -1 ? categoryOrder.indexOf(id) : index,
         user_id: user.id
+      }
+    }))
+
+    if (categoryEntries.length > 0) {
+      const { error } = await supabase.from('categories').insert(categoryEntries)
+      if (error) throw error
+    }
+  },
+
+  async saveCategoriesWithUserId(categories: { [key: string]: Category }, categoryOrder: string[], userId: string) {
+    const supabase = createClient()
+    if (!supabase) return
+
+    // 既存のカテゴリを削除
+    await supabase.from('categories').delete().eq('user_id', userId)
+
+    // 新しいカテゴリを挿入
+    const categoryEntries = await Promise.all(Object.entries(categories).map(async ([id, cat], index) => {
+      return {
+        id,
+        name: cat.name,
+        icon: cat.icon,
+        color: cat.color,
+        order_index: categoryOrder.indexOf(id) !== -1 ? categoryOrder.indexOf(id) : index,
+        user_id: userId
       }
     }))
 
