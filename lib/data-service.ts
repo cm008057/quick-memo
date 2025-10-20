@@ -344,10 +344,7 @@ export const dataService = {
     const supabase = createClient()
     if (!supabase) return
 
-    // 既存のカテゴリを削除
-    await supabase.from('categories').delete().eq('user_id', user.id)
-
-    // 新しいカテゴリを挿入（暗号化を無効化）
+    // 新しいカテゴリを挿入または更新（UPSERTで主キー重複を回避）
     const categoryEntries = await Promise.all(Object.entries(categories).map(async ([id, cat], index) => {
       // 暗号化を一時的に無効化
       // const encryptedCat = await encryptCategory({...cat}, user.id)
@@ -362,8 +359,23 @@ export const dataService = {
     }))
 
     if (categoryEntries.length > 0) {
-      const { error } = await supabase.from('categories').insert(categoryEntries)
+      // UPSERTを使用: 既存IDがあれば更新、なければ挿入
+      const { error } = await supabase
+        .from('categories')
+        .upsert(categoryEntries, { onConflict: 'id' })
       if (error) throw error
+    }
+
+    // インポート後、不要なカテゴリを削除（現在のuserIdに属し、インポートデータに含まれないもの）
+    const categoryIds = Object.keys(categories)
+    const { error: deleteError } = await supabase
+      .from('categories')
+      .delete()
+      .eq('user_id', user.id)
+      .not('id', 'in', `(${categoryIds.join(',')})`)
+
+    if (deleteError) {
+      console.warn('古いカテゴリの削除に失敗:', deleteError)
     }
   },
 
@@ -371,10 +383,7 @@ export const dataService = {
     const supabase = createClient()
     if (!supabase) return
 
-    // 既存のカテゴリを削除
-    await supabase.from('categories').delete().eq('user_id', userId)
-
-    // 新しいカテゴリを挿入
+    // 新しいカテゴリを挿入または更新（UPSERTで主キー重複を回避）
     const categoryEntries = await Promise.all(Object.entries(categories).map(async ([id, cat], index) => {
       return {
         id,
@@ -387,8 +396,23 @@ export const dataService = {
     }))
 
     if (categoryEntries.length > 0) {
-      const { error } = await supabase.from('categories').insert(categoryEntries)
+      // UPSERTを使用: 既存IDがあれば更新、なければ挿入
+      const { error } = await supabase
+        .from('categories')
+        .upsert(categoryEntries, { onConflict: 'id' })
       if (error) throw error
+    }
+
+    // インポート後、不要なカテゴリを削除（現在のuserIdに属し、インポートデータに含まれないもの）
+    const categoryIds = Object.keys(categories)
+    const { error: deleteError } = await supabase
+      .from('categories')
+      .delete()
+      .eq('user_id', userId)
+      .not('id', 'in', `(${categoryIds.join(',')})`)
+
+    if (deleteError) {
+      console.warn('古いカテゴリの削除に失敗:', deleteError)
     }
   },
 
