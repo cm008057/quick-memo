@@ -1107,9 +1107,10 @@ export default function QuickMemoApp() {
           console.log('🔄 React Stateを更新中...')
 
           // LocalStorageに保存（非同期関数を適切にawait）
+          // 🔧 修正: インポートしたデータを明示的に渡す
           console.log('💾 LocalStorageに保存中...')
-          await saveMemos()
-          await saveCategories()
+          await saveMemos(processedMemos, importData.memoOrder || processedMemos.map((m: Memo) => m.id))
+          await saveCategories(importData.categories, importData.categoryOrder || Object.keys(importData.categories))
 
           console.log('✅ LocalStorage保存完了')
 
