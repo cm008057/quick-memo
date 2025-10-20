@@ -108,6 +108,8 @@ export default function QuickMemoApp() {
   const [hasLocalData, setHasLocalData] = useState<boolean>(false)
   const [isDeleting, setIsDeleting] = useState<boolean>(false)
   const [isImporting, setIsImporting] = useState<boolean>(false)
+  const [isSaving, setIsSaving] = useState<boolean>(false)
+  const [isSyncing, setIsSyncing] = useState<boolean>(false)
 
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -173,6 +175,12 @@ export default function QuickMemoApp() {
       return
     }
 
+    // 保存処理中は読み込みをスキップ（Race Condition防止）
+    if (isSaving) {
+      console.log('🚫 保存処理中のためデータ読み込みをスキップ')
+      return
+    }
+
     // 既存のタイマーをクリア
     if (loadDataTimerRef.current) {
       clearTimeout(loadDataTimerRef.current)
@@ -189,14 +197,15 @@ export default function QuickMemoApp() {
       })
     }
 
-    // 緊急修正: isLoadingチェックを一時的に無効化
-    // if (isLoading) {
-    //   console.log('⏳ 既に読み込み中のため、スキップします')
-    //   return
-    // }
+    // 読み込み中の重複実行を防止（排他制御）
+    if (isSyncing) {
+      console.log('⏳ 既に同期中のため、スキップします')
+      return
+    }
 
-    console.log('📥 データ読み込みを強制実行中...')
+    console.log('📥 Supabaseデータ読み込み開始')
 
+    setIsSyncing(true)
     setIsLoading(true)
     try {
       console.log('📥 Supabaseデータ読み込み開始')
@@ -262,8 +271,9 @@ export default function QuickMemoApp() {
       console.error('❌ データの読み込みに失敗:', error)
     } finally {
       setIsLoading(false)
+      setIsSyncing(false)
     }
-  }, [isLoading, isDeleting, isImporting]) // memosの依存関係を削除して無限ループを防止
+  }, [isDeleting, isImporting, isSaving, isSyncing]) // memosの依存関係を削除して無限ループを防止
 
   // 認証状態の監視と初期化
   useEffect(() => {
@@ -314,30 +324,33 @@ export default function QuickMemoApp() {
     window.addEventListener('memoDeleted', handleMemoDeleted as EventListener)
 
     // 定期的にデータをチェック（他のデバイスでの変更を検出）
+    // 🔧 修正: 間隔を30秒に延長し、保存/同期中のチェックを追加
     const syncInterval = setInterval(() => {
-      if (user && !isLoading && !isDeleting && !isImporting) {
-        console.log('🔄 定期同期チェック')
+      if (user && !isLoading && !isDeleting && !isImporting && !isSaving && !isSyncing) {
+        console.log('🔄 定期同期チェック (30秒間隔)')
         loadDataFromSupabase(0)
       }
-    }, 15000) // 15秒ごと（削除処理との干渉を防ぐ）
+    }, 30000) // 30秒ごと（Race Condition防止のため延長）
 
     return () => {
       window.removeEventListener('memoDeleted', handleMemoDeleted as EventListener)
       clearInterval(syncInterval)
     }
-  }, [user, isLoading, isImporting, isDeleting, loadDataFromSupabase])
+  }, [user, isLoading, isImporting, isDeleting, isSaving, isSyncing, loadDataFromSupabase])
 
   // ウィンドウフォーカスとページ可視性変更時の即座同期（他のデバイスでの変更を検出）
   useEffect(() => {
     const handleWindowFocus = () => {
-      if (user && !isLoading && !isDeleting && !isImporting) {
+      // 🔧 修正: 保存/同期中のチェックを追加
+      if (user && !isLoading && !isDeleting && !isImporting && !isSaving && !isSyncing) {
         console.log('👁️ ウィンドウフォーカス検出 - 即座にデータ同期')
         loadDataFromSupabase(0)
       }
     }
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && user && !isLoading && !isDeleting && !isImporting) {
+      // 🔧 修正: 保存/同期中のチェックを追加
+      if (document.visibilityState === 'visible' && user && !isLoading && !isDeleting && !isImporting && !isSaving && !isSyncing) {
         console.log('📱 ページ可視化検出 - 即座にデータ同期（モバイル対応）')
         loadDataFromSupabase(0)
       }
@@ -352,7 +365,7 @@ export default function QuickMemoApp() {
       window.removeEventListener('focus', handleWindowFocus)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [user, isLoading, isDeleting, isImporting, loadDataFromSupabase])
+  }, [user, isLoading, isDeleting, isImporting, isSaving, isSyncing, loadDataFromSupabase])
 
   // LocalStorageにデータがあるかチェック
   const checkForLocalData = () => {
@@ -596,7 +609,8 @@ export default function QuickMemoApp() {
   }, [])
 
   // データ保存（認証状態に応じて自動選択）
-  const saveMemos = async () => {
+  // 🔧 修正: 引数で保存するデータを受け取るように変更（Race Condition防止）
+  const saveMemos = async (memosToSave?: Memo[], memoOrderToSave?: number[]) => {
     // 削除処理中は保存をスキップ（削除したメモの復活を防ぐ）
     // ただしインポート中は保存を許可
     if (isDeleting && !isImporting) {
@@ -604,37 +618,57 @@ export default function QuickMemoApp() {
       return
     }
 
-    if (user) {
-      try {
-        await dataService.saveMemos(memos)
-        await dataService.saveMemoOrder(memoOrder)
-      } catch (error) {
-        console.error('メモの保存に失敗:', error)
-        // フォールバック：LocalStorageに保存
-        localStorage.setItem('quickMemos', JSON.stringify(memos))
-        localStorage.setItem('memoOrder', JSON.stringify(memoOrder))
+    // 保存中の重複実行を防止
+    if (isSaving) {
+      console.log('🚫 既に保存処理中のため、スキップします')
+      return
+    }
+
+    // 引数がない場合は現在のstateを使用（後方互換性）
+    const finalMemos = memosToSave ?? memos
+    const finalMemoOrder = memoOrderToSave ?? memoOrder
+
+    setIsSaving(true)
+    try {
+      if (user) {
+        try {
+          await dataService.saveMemos(finalMemos)
+          await dataService.saveMemoOrder(finalMemoOrder)
+          console.log(`✅ クラウド保存完了: ${finalMemos.length}件`)
+        } catch (error) {
+          console.error('メモの保存に失敗:', error)
+          // フォールバック：LocalStorageに保存
+          localStorage.setItem('quickMemos', JSON.stringify(finalMemos))
+          localStorage.setItem('memoOrder', JSON.stringify(finalMemoOrder))
+        }
+      } else {
+        // 未ログイン：LocalStorageに保存
+        localStorage.setItem('quickMemos', JSON.stringify(finalMemos))
+        localStorage.setItem('memoOrder', JSON.stringify(finalMemoOrder))
       }
-    } else {
-      // 未ログイン：LocalStorageに保存
-      localStorage.setItem('quickMemos', JSON.stringify(memos))
-      localStorage.setItem('memoOrder', JSON.stringify(memoOrder))
+    } finally {
+      setIsSaving(false)
     }
   }
 
-  const saveCategories = async () => {
+  const saveCategories = async (categoriesToSave?: { [key: string]: Category }, categoryOrderToSave?: string[]) => {
+    // 引数がない場合は現在のstateを使用（後方互換性）
+    const finalCategories = categoriesToSave ?? categories
+    const finalCategoryOrder = categoryOrderToSave ?? categoryOrder
+
     if (user) {
       try {
-        await dataService.saveCategories(categories, categoryOrder)
+        await dataService.saveCategories(finalCategories, finalCategoryOrder)
       } catch (error) {
         console.error('カテゴリの保存に失敗:', error)
         // フォールバック：LocalStorageに保存
-        localStorage.setItem('categories', JSON.stringify(categories))
-        localStorage.setItem('categoryOrder', JSON.stringify(categoryOrder))
+        localStorage.setItem('categories', JSON.stringify(finalCategories))
+        localStorage.setItem('categoryOrder', JSON.stringify(finalCategoryOrder))
       }
     } else {
       // 未ログイン：LocalStorageに保存
-      localStorage.setItem('categories', JSON.stringify(categories))
-      localStorage.setItem('categoryOrder', JSON.stringify(categoryOrder))
+      localStorage.setItem('categories', JSON.stringify(finalCategories))
+      localStorage.setItem('categoryOrder', JSON.stringify(finalCategoryOrder))
     }
   }
 
@@ -656,20 +690,13 @@ export default function QuickMemoApp() {
 
     // 状態を更新
     const updatedMemos = [newMemo, ...memos]
+    const updatedMemoOrder = [newMemo.id, ...memoOrder]
     setMemos(updatedMemos)
-    setMemoOrder(prev => [newMemo.id, ...prev])
+    setMemoOrder(updatedMemoOrder)
     setMemoInput('')
 
-    // ローカルストレージに保存
-    saveMemos()
-
-    // 即座にクラウドに保存（更新されたメモリストを使用）
-    try {
-      await dataService.saveMemos(updatedMemos)
-      console.log('クラウド保存完了')
-    } catch (error) {
-      console.error('クラウド保存エラー:', error)
-    }
+    // 🔧 修正: 明示的に更新後のデータを保存（Race Condition防止）
+    await saveMemos(updatedMemos, updatedMemoOrder)
   }
 
   // 音声入力切り替え
@@ -697,12 +724,14 @@ export default function QuickMemoApp() {
     }
   }
 
-  const saveMemoEdit = (id: number) => {
+  const saveMemoEdit = async (id: number) => {
     if (editText.trim()) {
-      setMemos(prev => prev.map(m =>
+      // 🔧 修正: 更新後のメモを明示的に計算してから保存
+      const updatedMemos = memos.map(m =>
         m.id === id ? { ...m, text: editText.trim(), updated_at: new Date().toISOString() } : m
-      ))
-      saveMemos()
+      )
+      setMemos(updatedMemos)
+      await saveMemos(updatedMemos)
     }
     setEditingMemo(null)
     setEditText('')
@@ -714,11 +743,13 @@ export default function QuickMemoApp() {
   }
 
   // メモを完了/未完了切り替え
-  const toggleComplete = (id: number) => {
-    setMemos(prev => prev.map(m =>
+  const toggleComplete = async (id: number) => {
+    // 🔧 修正: 更新後のメモを明示的に計算してから保存
+    const updatedMemos = memos.map(m =>
       m.id === id ? { ...m, completed: !m.completed, updated_at: new Date().toISOString() } : m
-    ))
-    saveMemos()
+    )
+    setMemos(updatedMemos)
+    await saveMemos(updatedMemos)
   }
 
   // メモを削除（ソフト削除）
@@ -790,17 +821,11 @@ export default function QuickMemoApp() {
       m.id === memoId ? { ...m, category: newCategory, updated_at: new Date().toISOString() } : m
     )
     setMemos(updatedMemos)
-    saveMemos()
     setShowCategoryMenu(null)
     showNotification(`メモを「${categories[newCategory]?.name}」に移動しました`)
 
-    // クラウドに同期
-    try {
-      await dataService.saveMemos(updatedMemos)
-      console.log('カテゴリ移動同期完了')
-    } catch (error) {
-      console.error('カテゴリ移動エラー:', error)
-    }
+    // 🔧 修正: 一度だけ保存（二重保存を防止）
+    await saveMemos(updatedMemos)
   }
 
   // カテゴリにコピー
@@ -819,19 +844,14 @@ export default function QuickMemoApp() {
     }
 
     const updatedMemos = [newMemo, ...memos]
+    const updatedMemoOrder = [newMemo.id, ...memoOrder]
     setMemos(updatedMemos)
-    setMemoOrder(prev => [newMemo.id, ...prev])
-    saveMemos()
+    setMemoOrder(updatedMemoOrder)
     setShowCategoryMenu(null)
     showNotification(`メモを「${categories[targetCategory]?.name}」にコピーしました`)
 
-    // クラウドに同期
-    try {
-      await dataService.saveMemos(updatedMemos)
-      console.log('メモコピー同期完了')
-    } catch (error) {
-      console.error('メモコピーエラー:', error)
-    }
+    // 🔧 修正: 一度だけ保存（二重保存を防止）
+    await saveMemos(updatedMemos, updatedMemoOrder)
   }
 
   // 通知を表示
