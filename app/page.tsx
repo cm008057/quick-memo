@@ -291,7 +291,17 @@ export default function QuickMemoApp() {
       setMemos(sortedMemos)
       setMemoOrder(finalMemoOrder)
 
-      setSelectedCategory(Object.keys(dbCategories)[0] || Object.keys(defaultCategories)[0])
+      // 🔧 重要: 選択中のカテゴリーが有効なら保持、無効なら最初のカテゴリーを選択
+      const newCategories = Object.keys(dbCategories).length > 0 ? dbCategories : defaultCategories
+      if (!newCategories[selectedCategory]) {
+        // 現在のカテゴリーが存在しない場合のみ変更（カテゴリー削除時など）
+        const newSelectedCategory = Object.keys(newCategories)[0]
+        setSelectedCategory(newSelectedCategory)
+        console.log(`📂 カテゴリー変更: ${selectedCategory} → ${newSelectedCategory}（元のカテゴリーが削除されました）`)
+      } else {
+        console.log(`📂 カテゴリー保持: ${selectedCategory}`)
+      }
+
       console.log(`✅ データ設定完了: ${sortedMemos.length}件`)
 
       // ローカルデータチェックも実行
