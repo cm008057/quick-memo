@@ -155,13 +155,13 @@ input, textarea {
 }
 
 .filter-tab {
-    padding: 8px 16px;
+    padding: 6px 12px;
     border: none;
     border-radius: 6px;
     cursor: pointer;
     background: #e5e5e5;
     color: #666;
-    font-size: 14px;
+    font-size: 13px;
     white-space: nowrap;
 }
 
@@ -823,13 +823,13 @@ input, textarea {
     }
 
     .filter-tab {
-        padding: 6px 12px;
-        font-size: 13px;
+        padding: 5px 10px;
+        font-size: 12px;
         flex-shrink: 0;
     }
 
     .filter-tab span {
-        font-size: 11px;
+        font-size: 10px;
     }
 
     .sort-wrapper {
@@ -912,8 +912,8 @@ input, textarea {
 
 @media (max-width: 380px) {
     .filter-tab {
-        padding: 5px 10px;
-        font-size: 12px;
+        padding: 4px 8px;
+        font-size: 11px;
     }
 
     .category-btn {

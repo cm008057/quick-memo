@@ -1587,26 +1587,6 @@ export default function QuickMemoApp() {
                     </>
                   ) : (
                     <>
-                      {currentSort === 'manual' && (
-                        <>
-                          <button
-                            className="action-btn move-up-btn"
-                            onClick={() => moveUp(memo.id)}
-                            title="1つ上に移動"
-                            disabled={filteredMemos.findIndex(m => m.id === memo.id) === 0}
-                          >
-                            ↑
-                          </button>
-                          <button
-                            className="action-btn move-down-btn"
-                            onClick={() => moveDown(memo.id)}
-                            title="1つ下に移動"
-                            disabled={filteredMemos.findIndex(m => m.id === memo.id) === filteredMemos.length - 1}
-                          >
-                            ↓
-                          </button>
-                        </>
-                      )}
                       <button
                         className="action-btn edit-btn"
                         onClick={() => editMemo(memo.id)}
@@ -1635,6 +1615,26 @@ export default function QuickMemoApp() {
                       >
                         🗑️
                       </button>
+                      {currentSort === 'manual' && (
+                        <>
+                          <button
+                            className="action-btn move-up-btn"
+                            onClick={() => moveUp(memo.id)}
+                            title="1つ上に移動"
+                            disabled={filteredMemos.findIndex(m => m.id === memo.id) === 0}
+                          >
+                            ↑
+                          </button>
+                          <button
+                            className="action-btn move-down-btn"
+                            onClick={() => moveDown(memo.id)}
+                            title="1つ下に移動"
+                            disabled={filteredMemos.findIndex(m => m.id === memo.id) === filteredMemos.length - 1}
+                          >
+                            ↓
+                          </button>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
