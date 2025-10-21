@@ -78,8 +78,8 @@ const defaultCategories: { [key: string]: Category } = {
 }
 
 // 利用可能なアイコンと色
-const availableIcons = ['💡', '💬', '📄', '📅', '📚', '🙏', '⭐', '❗', '✅', '🎯', '🔔', '📌', '🏷️', '💰', '🏠', '🚗', '✈️', '🍴', '💊', '🎉', '✨', '📝']
-const availableColors = ['#fbbf24', '#3b82f6', '#10b981', '#f43f5e', '#8b5cf6', '#fb923c', '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#6366f1', '#14b8a6']
+const availableIcons = ['💡', '💬', '📄', '📅', '📚', '🙏', '⭐', '❗', '✅', '🎯', '🔔', '📌', '🏷️', '💰', '🏠', '🚗', '✈️', '🍴', '💊', '🎉', '✨', '📝', '🎮', '🎵', '🎨', '💻', '📱', '⚡', '🔥', '🌟']
+const availableColors = ['#fbbf24', '#3b82f6', '#10b981', '#f43f5e', '#8b5cf6', '#fb923c', '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#6366f1', '#14b8a6', '#ef4444', '#a855f7', '#22c55e', '#0ea5e9', '#f59e0b', '#10b981', '#64748b', '#71717a']
 
 export default function QuickMemoApp() {
   const [categories, setCategories] = useState<{ [key: string]: Category }>(defaultCategories)
@@ -1013,29 +1013,34 @@ export default function QuickMemoApp() {
   }
 
   // カテゴリを追加
-  const addNewCategory = () => {
+  const addNewCategory = async () => {
     if (!newCategoryName.trim()) return
 
     const key = 'custom_' + Date.now()
     const randomIcon = availableIcons[Math.floor(Math.random() * availableIcons.length)]
     const randomColor = availableColors[Math.floor(Math.random() * availableColors.length)]
 
-    setCategories(prev => ({
-      ...prev,
+    // 🔧 修正: 更新後のデータを明示的に計算してから保存
+    const updatedCategories = {
+      ...categories,
       [key]: {
         name: newCategoryName.trim(),
         icon: randomIcon,
         color: randomColor
       }
-    }))
+    }
+    const updatedCategoryOrder = [...categoryOrder, key]
 
-    setCategoryOrder(prev => [...prev, key])
+    setCategories(updatedCategories)
+    setCategoryOrder(updatedCategoryOrder)
     setNewCategoryName('')
-    saveCategories()
+
+    // 更新後のデータを明示的に保存
+    await saveCategories(updatedCategories, updatedCategoryOrder)
   }
 
   // カテゴリを削除
-  const deleteCategory = (key: string) => {
+  const deleteCategory = async (key: string) => {
     const memosInCategory = memos.filter(m => m.category === key).length
 
     if (memosInCategory > 0) {
@@ -1044,10 +1049,13 @@ export default function QuickMemoApp() {
     }
 
     if (confirm(`"${categories[key].name}" カテゴリーを削除しますか？`)) {
+      // 🔧 修正: 更新後のデータを明示的に計算してから保存
       const newCategories = { ...categories }
       delete newCategories[key]
+      const newCategoryOrder = categoryOrder.filter(k => k !== key)
+
       setCategories(newCategories)
-      setCategoryOrder(prev => prev.filter(k => k !== key))
+      setCategoryOrder(newCategoryOrder)
 
       if (selectedCategory === key) {
         setSelectedCategory(Object.keys(newCategories)[0])
@@ -1057,18 +1065,23 @@ export default function QuickMemoApp() {
         setCurrentFilter('all')
       }
 
-      saveCategories()
+      // 更新後のデータを明示的に保存
+      await saveCategories(newCategories, newCategoryOrder)
     }
   }
 
   // カテゴリ名を更新
-  const updateCategoryName = (key: string, newName: string) => {
+  const updateCategoryName = async (key: string, newName: string) => {
     if (newName.trim()) {
-      setCategories(prev => ({
-        ...prev,
-        [key]: { ...prev[key], name: newName.trim() }
-      }))
-      saveCategories()
+      // 🔧 修正: 更新後のデータを明示的に計算してから保存
+      const updatedCategories = {
+        ...categories,
+        [key]: { ...categories[key], name: newName.trim() }
+      }
+      setCategories(updatedCategories)
+
+      // 更新後のデータを明示的に保存
+      await saveCategories(updatedCategories, categoryOrder)
     }
   }
 
@@ -1817,12 +1830,14 @@ export default function QuickMemoApp() {
                         <div
                           key={icon}
                           className="icon-option"
-                          onClick={() => {
-                            setCategories(prev => ({
-                              ...prev,
-                              [key]: { ...prev[key], icon }
-                            }))
-                            saveCategories()
+                          onClick={async () => {
+                            // 🔧 修正: 更新後のデータを明示的に計算してから保存
+                            const updatedCategories = {
+                              ...categories,
+                              [key]: { ...categories[key], icon }
+                            }
+                            setCategories(updatedCategories)
+                            await saveCategories(updatedCategories, categoryOrder)
                             setShowIconPicker(null)
                           }}
                         >
@@ -1839,12 +1854,14 @@ export default function QuickMemoApp() {
                           key={color}
                           className="color-option"
                           style={{ backgroundColor: color }}
-                          onClick={() => {
-                            setCategories(prev => ({
-                              ...prev,
-                              [key]: { ...prev[key], color }
-                            }))
-                            saveCategories()
+                          onClick={async () => {
+                            // 🔧 修正: 更新後のデータを明示的に計算してから保存
+                            const updatedCategories = {
+                              ...categories,
+                              [key]: { ...categories[key], color }
+                            }
+                            setCategories(updatedCategories)
+                            await saveCategories(updatedCategories, categoryOrder)
                             setShowColorPicker(null)
                           }}
                         />
