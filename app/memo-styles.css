@@ -999,11 +999,12 @@ input, textarea {
     .input-row input {
         min-width: 0;
         flex: 1 1 200px;
+        padding: 8px 10px;
     }
 
     .voice-btn, .add-btn {
         flex: 0 0 auto;
-        padding: 12px 16px;
+        padding: 8px 14px;
         font-size: 15px;
     }
 
@@ -1041,8 +1042,12 @@ input, textarea {
         font-size: 9px;
     }
 
+    .input-row input {
+        padding: 7px 9px;
+    }
+
     .voice-btn, .add-btn {
-        padding: 10px 14px;
+        padding: 7px 12px;
         font-size: 14px;
     }
 
