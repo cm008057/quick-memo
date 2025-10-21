@@ -115,6 +115,8 @@ export default function QuickMemoApp() {
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
   const isSelectingFileRef = useRef<boolean>(false) // ファイル選択ダイアログ表示中フラグ
+  const scrollPositionRef = useRef<number>(0) // スクロール位置を保存
+  const lastFocusTimeRef = useRef<number>(0) // 最後のフォーカス時刻を保存
 
   // カテゴリーの順序を取得
   const getOrderedCategories = (): [string, Category][] => {
@@ -169,7 +171,7 @@ export default function QuickMemoApp() {
   const loadDataTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Supabaseからデータを読み込み（デバウンス付き）
-  const loadDataFromSupabase = useCallback(async (debounceMs: number = 0) => {
+  const loadDataFromSupabase = useCallback(async (debounceMs: number = 0, preserveScroll: boolean = false) => {
     // 削除処理中は読み込みをスキップ（重要：削除の妨害を防ぐ）
     // ただしインポート中は読み込みを許可
     if (isDeleting && !isImporting) {
@@ -193,7 +195,7 @@ export default function QuickMemoApp() {
     if (debounceMs > 0) {
       return new Promise<void>((resolve) => {
         loadDataTimerRef.current = setTimeout(async () => {
-          await loadDataFromSupabase(0) // デバウンスなしで実際の処理を実行
+          await loadDataFromSupabase(0, preserveScroll) // デバウンスなしで実際の処理を実行
           resolve()
         }, debounceMs)
       })
@@ -203,6 +205,11 @@ export default function QuickMemoApp() {
     if (isSyncing) {
       console.log('⏳ 既に同期中のため、スキップします')
       return
+    }
+
+    // スクロール位置を保存
+    if (preserveScroll) {
+      scrollPositionRef.current = window.scrollY || document.documentElement.scrollTop
     }
 
     console.log('📥 Supabaseデータ読み込み開始')
@@ -312,6 +319,13 @@ export default function QuickMemoApp() {
     } finally {
       setIsLoading(false)
       setIsSyncing(false)
+
+      // スクロール位置を復元
+      if (preserveScroll && scrollPositionRef.current > 0) {
+        setTimeout(() => {
+          window.scrollTo(0, scrollPositionRef.current)
+        }, 50)
+      }
     }
   }, [isDeleting, isImporting, isSaving, isSyncing]) // memosの依存関係を削除して無限ループを防止
 
@@ -376,21 +390,23 @@ export default function QuickMemoApp() {
       console.log('🔄 削除イベントを受信、データを再読み込み:', event.detail)
       // 削除後は即座にデータを再読み込み
       setTimeout(() => {
-        loadDataFromSupabase(0)
+        loadDataFromSupabase(0, true) // スクロール位置を保持
       }, 200)
     }
 
     // 削除イベントリスナーを追加
     window.addEventListener('memoDeleted', handleMemoDeleted as EventListener)
 
+    // モバイル判定
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
     // 定期的にデータをチェック（他のデバイスでの変更を検出）
-    // 🔧 修正: 間隔を30秒に延長し、保存/同期中のチェックを追加
+    // 🔧 修正: モバイルは60秒、PCは30秒間隔
     const syncInterval = setInterval(() => {
       if (user && !isLoading && !isDeleting && !isImporting && !isSaving && !isSyncing) {
-        console.log('🔄 定期同期チェック (30秒間隔)')
-        loadDataFromSupabase(0)
+        console.log(`🔄 定期同期チェック (${isMobile ? '60' : '30'}秒間隔)`)
+        loadDataFromSupabase(0, true) // スクロール位置を保持
       }
-    }, 30000) // 30秒ごと（Race Condition防止のため延長）
+    }, isMobile ? 60000 : 30000) // モバイルは60秒、PCは30秒ごと
 
     return () => {
       window.removeEventListener('memoDeleted', handleMemoDeleted as EventListener)
@@ -406,10 +422,19 @@ export default function QuickMemoApp() {
         console.log('📂 ファイル選択中のため、フォーカス同期をスキップ')
         return
       }
+
+      // 🔧 修正: 頻繁なフォーカスイベントを防ぐため、5秒以内の再フォーカスはスキップ
+      const now = Date.now()
+      if (now - lastFocusTimeRef.current < 5000) {
+        console.log('⏭️ フォーカスイベントが頻繁すぎるためスキップ（5秒以内）')
+        return
+      }
+      lastFocusTimeRef.current = now
+
       // 🔧 修正: 保存/同期中のチェックを追加
       if (user && !isLoading && !isDeleting && !isImporting && !isSaving && !isSyncing) {
-        console.log('👁️ ウィンドウフォーカス検出 - 即座にデータ同期')
-        loadDataFromSupabase(0)
+        console.log('👁️ ウィンドウフォーカス検出 - データ同期')
+        loadDataFromSupabase(0, true) // スクロール位置を保持
       }
     }
 
@@ -419,10 +444,19 @@ export default function QuickMemoApp() {
         console.log('📂 ファイル選択中のため、可視性同期をスキップ')
         return
       }
+
+      // 🔧 修正: 頻繁なイベントを防ぐため、5秒以内の再発火はスキップ
+      const now = Date.now()
+      if (now - lastFocusTimeRef.current < 5000) {
+        console.log('⏭️ 可視性イベントが頻繁すぎるためスキップ（5秒以内）')
+        return
+      }
+      lastFocusTimeRef.current = now
+
       // 🔧 修正: 保存/同期中のチェックを追加
       if (document.visibilityState === 'visible' && user && !isLoading && !isDeleting && !isImporting && !isSaving && !isSyncing) {
-        console.log('📱 ページ可視化検出 - 即座にデータ同期（モバイル対応）')
-        loadDataFromSupabase(0)
+        console.log('📱 ページ可視化検出 - データ同期')
+        loadDataFromSupabase(0, true) // スクロール位置を保持
       }
     }
 
