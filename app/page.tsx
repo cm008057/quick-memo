@@ -1350,10 +1350,14 @@ export default function QuickMemoApp() {
               <button className="import-btn" onClick={() => {
                 console.log('📂 インポートボタンがクリックされました')
                 console.log('📁 inputRef:', importInputRef.current)
+                console.log('📁 inputRef.value (リセット前):', importInputRef.current?.value)
                 // 🔧 重要: valueをリセットして同じファイルの再選択を可能にする
                 if (importInputRef.current) {
                   importInputRef.current.value = ''
+                  console.log('✅ input.value をリセットしました')
                 }
+                console.log('📁 inputRef.value (リセット後):', importInputRef.current?.value)
+                console.log('🖱️ input.click() を実行します')
                 importInputRef.current?.click()
               }} title="データをインポート">
                 📂
@@ -1363,7 +1367,11 @@ export default function QuickMemoApp() {
                 ref={importInputRef}
                 className="import-input"
                 accept=".json"
-                onChange={handleImport}
+                onChange={(e) => {
+                  console.log('🔔 onChange イベントが発火しました!', e.target.files)
+                  handleImport(e)
+                }}
+                onClick={() => console.log('🖱️ input要素がクリックされました')}
               />
             </div>
           </div>
