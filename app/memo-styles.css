@@ -379,6 +379,18 @@ input, textarea {
     color: white;
 }
 
+/* モバイル用のカテゴリー・日付圧縮 */
+@media (max-width: 600px) {
+    .memo-date {
+        font-size: 11px;
+    }
+
+    .memo-category {
+        padding: 3px 6px;
+        font-size: 11px;
+    }
+}
+
 .memo-actions {
     display: flex;
     gap: 5px;
@@ -769,9 +781,9 @@ input, textarea {
 
     .memo-item {
         flex-direction: row;
-        padding: 14px;
-        padding-bottom: 20px;
-        margin-bottom: 10px;
+        padding: 10px;
+        padding-bottom: 14px;
+        margin-bottom: 8px;
         width: 100%;
         overflow: hidden;
         min-height: auto;
@@ -783,14 +795,14 @@ input, textarea {
 
     .memo-content {
         width: 100%;
-        margin-bottom: 5px;
+        margin-bottom: 4px;
         overflow: hidden;
-        padding-bottom: 8px;
+        padding-bottom: 6px;
     }
 
     .memo-text {
-        font-size: 15px;
-        margin: 0 0 15px 0;
+        font-size: 14px;
+        margin: 0 0 10px 0;
         width: 19em; /* スマホ版は幅制限維持 */
         max-width: 100%;
         word-wrap: break-word;
@@ -807,22 +819,23 @@ input, textarea {
 
     .memo-item {
         flex-direction: column;
-        padding: 10px;
-        padding-bottom: 12px;
+        padding: 8px;
+        padding-bottom: 10px;
+        margin-bottom: 8px;
     }
 
     .memo-content {
         width: 100%;
-        margin-bottom: 10px;
-        padding: 6px 10px;
+        margin-bottom: 8px;
+        padding: 5px 8px;
     }
 
     .memo-actions {
         width: 100%;
         justify-content: flex-end;
         border-top: 1px solid #eee;
-        padding-top: 6px;
-        margin-top: 6px;
+        padding-top: 4px;
+        margin-top: 4px;
     }
 
     .drag-handle-area {
@@ -923,13 +936,13 @@ input, textarea {
 
     .memo-actions {
         gap: 2px;
-        padding-top: 5px;
-        margin-top: 5px;
+        padding-top: 4px;
+        margin-top: 4px;
     }
 
     .action-btn {
-        font-size: 18px;
-        padding: 6px;
+        font-size: 17px;
+        padding: 5px;
     }
 
     .controls {
