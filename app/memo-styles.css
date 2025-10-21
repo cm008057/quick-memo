@@ -278,7 +278,7 @@ input, textarea {
     margin: 0 0 8px 0;
     color: #333;
     cursor: text;
-    width: 19em;
+    width: 100%;
     max-width: 100%;
     word-wrap: break-word;
     overflow-wrap: break-word;
@@ -720,7 +720,7 @@ input, textarea {
     .memo-text {
         font-size: 15px;
         margin: 0 0 15px 0;
-        width: 19em;
+        width: 19em; /* スマホ版は幅制限維持 */
         max-width: 100%;
         word-wrap: break-word;
         overflow-wrap: break-word;
