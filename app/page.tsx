@@ -1495,16 +1495,15 @@ export default function QuickMemoApp() {
             </button>
           ))}
         </div>
-      </div>
-
-      <div className="show-completed">
-        <input
-          type="checkbox"
-          id="showCompleted"
-          checked={showCompleted}
-          onChange={(e) => setShowCompleted(e.target.checked)}
-        />
-        <label htmlFor="showCompleted">完了したメモも表示</label>
+        <div className="show-completed">
+          <input
+            type="checkbox"
+            id="showCompleted"
+            checked={showCompleted}
+            onChange={(e) => setShowCompleted(e.target.checked)}
+          />
+          <label htmlFor="showCompleted">完了したメモも表示</label>
+        </div>
       </div>
 
       <div className="sort-wrapper">

@@ -143,15 +143,19 @@ input, textarea {
 
 .controls {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
     gap: 15px;
     margin-bottom: 15px;
+    flex-wrap: wrap;
 }
 
 .filter-tabs {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+    flex: 1;
 }
 
 .filter-tab {
@@ -472,8 +476,9 @@ input, textarea {
     display: flex;
     align-items: center;
     gap: 5px;
-    font-size: 14px;
-    margin-bottom: 12px;
+    font-size: 13px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .show-completed input {
@@ -875,14 +880,20 @@ input, textarea {
         padding: 6px;
     }
 
-    .show-completed {
-        font-size: 13px;
-        margin-bottom: 8px;
+    .controls {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 12px;
     }
 
-    .controls {
-        gap: 12px;
-        margin-bottom: 12px;
+    .filter-tabs {
+        flex: none;
+        width: 100%;
+    }
+
+    .show-completed {
+        font-size: 13px;
     }
 
     .input-row {
