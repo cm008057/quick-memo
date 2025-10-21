@@ -212,8 +212,9 @@ export default function QuickMemoApp() {
       console.log('📥 Supabaseデータ読み込み開始')
       const { categories: dbCategories, categoryOrder: dbCategoryOrder } = await dataService.loadCategories()
       const dbMemos = await dataService.loadMemos()
+      const dbMemoOrder = await dataService.loadMemoOrder()
 
-      console.log(`✅ 読み込み完了: ${dbMemos.length}件のメモ, ${Object.keys(dbCategories).length}個のカテゴリー`)
+      console.log(`✅ 読み込み完了: ${dbMemos.length}件のメモ, ${Object.keys(dbCategories).length}個のカテゴリー, 並び順: ${dbMemoOrder.length}件`)
 
       // データがあるかどうかに関わらず、Supabaseの結果を表示
       setCategories(Object.keys(dbCategories).length > 0 ? dbCategories : defaultCategories)
@@ -228,40 +229,67 @@ export default function QuickMemoApp() {
 
       // 表示順序の決定
       let sortedMemos: Memo[]
+      let finalMemoOrder: number[]
 
-      // 現在のページに表示されているメモの順序を取得
-      const currentDisplayOrder = memos.length > 0 ? memos.map(m => m.id) : []
+      if (dbMemoOrder.length > 0) {
+        // 保存された並び順がある場合はそれを使用
+        console.log(`📋 保存された並び順を使用: ${dbMemoOrder.length}件`)
 
-      if (currentDisplayOrder.length > 0) {
-        // 既にメモが表示されている場合は、その順序を保持
-        const orderedMemos = currentDisplayOrder
+        // 保存された順序に従ってメモを並べ替え
+        const orderedMemos = dbMemoOrder
           .map(id => validMemos.find(m => m.id === id))
           .filter((m): m is Memo => m !== undefined)
 
-        // 新しく追加されたメモ（現在の順序にないもの）を先頭に追加
-        const newMemos = validMemos.filter(m => !currentDisplayOrder.includes(m.id))
-        newMemos.sort((a, b) => {
-          const timeA = new Date(a.timestamp).getTime()
-          const timeB = new Date(b.timestamp).getTime()
-          return timeB - timeA
-        })
+        // 新しく追加されたメモ（順序にないもの）を先頭に追加
+        const newMemos = validMemos.filter(m => !dbMemoOrder.includes(m.id))
+        if (newMemos.length > 0) {
+          newMemos.sort((a, b) => {
+            const timeA = new Date(a.timestamp).getTime()
+            const timeB = new Date(b.timestamp).getTime()
+            return timeB - timeA
+          })
+          console.log(`🆕 新規メモ${newMemos.length}件を先頭に追加`)
+        }
 
         sortedMemos = [...newMemos, ...orderedMemos]
-        if (newMemos.length > 0) {
-          console.log(`🔄 順序保持: 新規${newMemos.length}件 + 既存${orderedMemos.length}件 = 合計${sortedMemos.length}件`)
-        }
+        finalMemoOrder = sortedMemos.map(m => m.id)
       } else {
-        // 初回読み込み時のみ最新順
-        console.log('🆕 初回読み込み - 最新順で表示')
-        sortedMemos = validMemos.sort((a, b) => {
-          const timeA = new Date(a.timestamp).getTime()
-          const timeB = new Date(b.timestamp).getTime()
-          return timeB - timeA
-        })
+        // 保存された並び順がない場合
+        // 現在のページに表示されているメモの順序を取得
+        const currentDisplayOrder = memos.length > 0 ? memos.map(m => m.id) : []
+
+        if (currentDisplayOrder.length > 0) {
+          // 既にメモが表示されている場合は、その順序を保持
+          const orderedMemos = currentDisplayOrder
+            .map(id => validMemos.find(m => m.id === id))
+            .filter((m): m is Memo => m !== undefined)
+
+          // 新しく追加されたメモ（現在の順序にないもの）を先頭に追加
+          const newMemos = validMemos.filter(m => !currentDisplayOrder.includes(m.id))
+          newMemos.sort((a, b) => {
+            const timeA = new Date(a.timestamp).getTime()
+            const timeB = new Date(b.timestamp).getTime()
+            return timeB - timeA
+          })
+
+          sortedMemos = [...newMemos, ...orderedMemos]
+          if (newMemos.length > 0) {
+            console.log(`🔄 順序保持: 新規${newMemos.length}件 + 既存${orderedMemos.length}件 = 合計${sortedMemos.length}件`)
+          }
+        } else {
+          // 初回読み込み時のみ最新順
+          console.log('🆕 初回読み込み - 最新順で表示')
+          sortedMemos = validMemos.sort((a, b) => {
+            const timeA = new Date(a.timestamp).getTime()
+            const timeB = new Date(b.timestamp).getTime()
+            return timeB - timeA
+          })
+        }
+        finalMemoOrder = sortedMemos.map(m => m.id)
       }
 
       setMemos(sortedMemos)
-      setMemoOrder(sortedMemos.map(m => m.id))
+      setMemoOrder(finalMemoOrder)
 
       setSelectedCategory(Object.keys(dbCategories)[0] || Object.keys(defaultCategories)[0])
       console.log(`✅ データ設定完了: ${sortedMemos.length}件`)

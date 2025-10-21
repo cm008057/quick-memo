@@ -630,7 +630,10 @@ export const dataService = {
 
   async loadMemoOrder(): Promise<number[]> {
     const user = await this.getCurrentUser()
-    if (!user) return []
+    if (!user) {
+      // 認証なしの場合はtest-user-123で読み込み
+      return this.loadMemoOrderForUser('test-user-123')
+    }
 
     const supabase = createClient()
     if (!supabase) return []
@@ -639,6 +642,20 @@ export const dataService = {
       .from('memo_orders')
       .select('memo_order')
       .eq('user_id', user.id)
+      .single()
+
+    if (error) return []
+    return data?.memo_order || []
+  },
+
+  async loadMemoOrderForUser(userId: string): Promise<number[]> {
+    const supabase = createClient()
+    if (!supabase) return []
+
+    const { data, error } = await supabase
+      .from('memo_orders')
+      .select('memo_order')
+      .eq('user_id', userId)
       .single()
 
     if (error) return []
