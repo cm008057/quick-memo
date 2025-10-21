@@ -1350,6 +1350,10 @@ export default function QuickMemoApp() {
               <button className="import-btn" onClick={() => {
                 console.log('📂 インポートボタンがクリックされました')
                 console.log('📁 inputRef:', importInputRef.current)
+                // 🔧 重要: valueをリセットして同じファイルの再選択を可能にする
+                if (importInputRef.current) {
+                  importInputRef.current.value = ''
+                }
                 importInputRef.current?.click()
               }} title="データをインポート">
                 📂
