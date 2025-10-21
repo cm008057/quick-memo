@@ -1484,69 +1484,67 @@ export default function QuickMemoApp() {
         </div>
       </div>
 
-      <div className="filter-search-sticky-header">
-        <div className="controls">
-          <div className="filter-tabs">
+      <div className="controls">
+        <div className="filter-tabs">
+          <button
+            className={`filter-tab ${currentFilter === 'all' ? 'active' : ''}`}
+            onClick={() => setCurrentFilter('all')}
+          >
+            すべて <span>{counts.all}</span>
+          </button>
+          {orderedCategories.map(([key, cat]) => (
             <button
-              className={`filter-tab ${currentFilter === 'all' ? 'active' : ''}`}
-              onClick={() => setCurrentFilter('all')}
+              key={key}
+              className={`filter-tab ${currentFilter === key ? 'active' : ''}`}
+              onClick={() => setCurrentFilter(key)}
             >
-              すべて <span>{counts.all}</span>
+              {cat.name} <span>{counts[key] || 0}</span>
             </button>
-            {orderedCategories.map(([key, cat]) => (
-              <button
-                key={key}
-                className={`filter-tab ${currentFilter === key ? 'active' : ''}`}
-                onClick={() => setCurrentFilter(key)}
-              >
-                {cat.name} <span>{counts[key] || 0}</span>
-              </button>
-            ))}
-          </div>
-          <div className="show-completed">
-            <input
-              type="checkbox"
-              id="showCompleted"
-              checked={showCompleted}
-              onChange={(e) => setShowCompleted(e.target.checked)}
-            />
-            <label htmlFor="showCompleted">完了したメモも表示</label>
-          </div>
+          ))}
         </div>
+        <div className="show-completed">
+          <input
+            type="checkbox"
+            id="showCompleted"
+            checked={showCompleted}
+            onChange={(e) => setShowCompleted(e.target.checked)}
+          />
+          <label htmlFor="showCompleted">完了したメモも表示</label>
+        </div>
+      </div>
 
-        <div className="sort-search-wrapper">
-          <div className="sort-wrapper">
-            <label className="sort-label">並び順:</label>
-            <select
-              className="sort-select"
-              value={currentSort}
-              onChange={(e) => setCurrentSort(e.target.value)}
+      <div className="sort-search-wrapper">
+        <div className="sort-wrapper">
+          <label className="sort-label">並び順:</label>
+          <select
+            className="sort-select"
+            value={currentSort}
+            onChange={(e) => setCurrentSort(e.target.value)}
+          >
+            <option value="manual">手動並べ替え</option>
+            <option value="newest">新しい順</option>
+            <option value="oldest">古い順</option>
+            <option value="category">カテゴリー順</option>
+          </select>
+        </div>
+        <div className="search-wrapper">
+          <label className="search-label">🔍</label>
+          <input
+            type="text"
+            className="search-input"
+            placeholder="検索..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button
+              className="search-clear"
+              onClick={() => setSearchQuery('')}
+              title="クリア"
             >
-              <option value="manual">手動並べ替え</option>
-              <option value="newest">新しい順</option>
-              <option value="oldest">古い順</option>
-              <option value="category">カテゴリー順</option>
-            </select>
-          </div>
-          <div className="search-wrapper">
-            <label className="search-label">🔍</label>
-            <input
-              type="text"
-              className="search-input"
-              placeholder="検索..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && (
-              <button
-                className="search-clear"
-                onClick={() => setSearchQuery('')}
-                title="クリア"
-              >
-                ✕
-              </button>
-            )}
-          </div>
+              ✕
+            </button>
+          )}
         </div>
       </div>
 
