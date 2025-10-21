@@ -113,6 +113,7 @@ export default function QuickMemoApp() {
 
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
+  const isSelectingFileRef = useRef<boolean>(false) // ファイル選択ダイアログ表示中フラグ
 
   // カテゴリーの順序を取得
   const getOrderedCategories = (): [string, Category][] => {
@@ -341,6 +342,11 @@ export default function QuickMemoApp() {
   // ウィンドウフォーカスとページ可視性変更時の即座同期（他のデバイスでの変更を検出）
   useEffect(() => {
     const handleWindowFocus = () => {
+      // 🔧 修正: ファイル選択中はスキップ
+      if (isSelectingFileRef.current) {
+        console.log('📂 ファイル選択中のため、フォーカス同期をスキップ')
+        return
+      }
       // 🔧 修正: 保存/同期中のチェックを追加
       if (user && !isLoading && !isDeleting && !isImporting && !isSaving && !isSyncing) {
         console.log('👁️ ウィンドウフォーカス検出 - 即座にデータ同期')
@@ -349,6 +355,11 @@ export default function QuickMemoApp() {
     }
 
     const handleVisibilityChange = () => {
+      // 🔧 修正: ファイル選択中はスキップ
+      if (isSelectingFileRef.current) {
+        console.log('📂 ファイル選択中のため、可視性同期をスキップ')
+        return
+      }
       // 🔧 修正: 保存/同期中のチェックを追加
       if (document.visibilityState === 'visible' && user && !isLoading && !isDeleting && !isImporting && !isSaving && !isSyncing) {
         console.log('📱 ページ可視化検出 - 即座にデータ同期（モバイル対応）')
@@ -1358,6 +1369,9 @@ export default function QuickMemoApp() {
                 }
                 console.log('📁 inputRef.value (リセット後):', importInputRef.current?.value)
                 console.log('🖱️ input.click() を実行します')
+                // 🔧 修正: ファイル選択ダイアログが開いている間、フォーカスイベントを無視
+                isSelectingFileRef.current = true
+                console.log('🚩 ファイル選択フラグを立てました')
                 importInputRef.current?.click()
               }} title="データをインポート">
                 📂
@@ -1369,9 +1383,21 @@ export default function QuickMemoApp() {
                 accept=".json"
                 onChange={(e) => {
                   console.log('🔔 onChange イベントが発火しました!', e.target.files)
+                  isSelectingFileRef.current = false
+                  console.log('✅ ファイル選択フラグをクリアしました（onChange）')
                   handleImport(e)
                 }}
-                onClick={() => console.log('🖱️ input要素がクリックされました')}
+                onClick={() => {
+                  console.log('🖱️ input要素がクリックされました')
+                  // ファイル選択ダイアログが開いた後、キャンセルまたは選択完了時にフラグをクリア
+                  // onClickは実際にはダイアログを開く前に発火するため、ここでは何もしない
+                }}
+                onBlur={() => {
+                  // ダイアログが閉じられた（キャンセルまたは選択完了）
+                  console.log('🔚 input要素からフォーカスが外れました（ダイアログ終了）')
+                  isSelectingFileRef.current = false
+                  console.log('✅ ファイル選択フラグをクリアしました（onBlur）')
+                }}
               />
             </div>
           </div>
