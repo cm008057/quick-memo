@@ -1288,7 +1288,8 @@ export default function QuickMemoApp() {
             </div>
             <div className="category-actions">
               <button className="manage-btn" onClick={() => setShowCategoryModal(true)} title="カテゴリー管理">
-                ⚙️
+                <span className="btn-icon">⚙️</span>
+                <span className="btn-label">管理</span>
               </button>
               {user ? (
                 <button
@@ -1299,7 +1300,8 @@ export default function QuickMemoApp() {
                   }}
                   title="ログアウト"
                 >
-                  👤
+                  <span className="btn-icon">👤</span>
+                  <span className="btn-label">ログアウト</span>
                 </button>
               ) : (
                 <button
@@ -1307,11 +1309,13 @@ export default function QuickMemoApp() {
                   onClick={() => setShowAuthModal(true)}
                   title="ログイン・アカウント作成"
                 >
-                  🔒
+                  <span className="btn-icon">🔒</span>
+                  <span className="btn-label">ログイン</span>
                 </button>
               )}
               <button className="export-btn" onClick={exportData} title="データをエクスポート">
-                💾
+                <span className="btn-icon">💾</span>
+                <span className="btn-label">保存</span>
               </button>
               <button className="import-btn" onClick={() => {
                 console.log('📂 インポートボタンがクリックされました')
@@ -1329,7 +1333,8 @@ export default function QuickMemoApp() {
                 console.log('🚩 ファイル選択フラグを立てました')
                 importInputRef.current?.click()
               }} title="データをインポート">
-                📂
+                <span className="btn-icon">📂</span>
+                <span className="btn-label">復元</span>
               </button>
               <input
                 type="file"

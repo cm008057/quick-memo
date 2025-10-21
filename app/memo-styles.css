@@ -73,13 +73,23 @@ h1 {
     background: white;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 16px;
     color: #666;
     transition: all 0.2s;
-    min-width: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+.btn-icon {
+    font-size: 14px;
+    line-height: 1;
+}
+
+.btn-label {
+    font-size: 11px;
+    font-weight: 500;
 }
 
 .manage-btn:hover, .add-category-btn:hover, .export-btn:hover, .import-btn:hover {
@@ -763,9 +773,16 @@ input, textarea {
     }
 
     .manage-btn, .export-btn, .import-btn {
-        font-size: 15px;
-        padding: 5px 8px;
-        min-width: 32px;
+        padding: 5px 7px;
+        gap: 3px;
+    }
+
+    .btn-icon {
+        font-size: 13px;
+    }
+
+    .btn-label {
+        font-size: 10px;
     }
 
     .filter-tabs {
@@ -883,9 +900,16 @@ input, textarea {
     }
 
     .manage-btn, .export-btn, .import-btn {
-        font-size: 14px;
         padding: 4px 6px;
-        min-width: 28px;
+        gap: 2px;
+    }
+
+    .btn-icon {
+        font-size: 12px;
+    }
+
+    .btn-label {
+        font-size: 9px;
     }
 
     .voice-btn, .add-btn {
