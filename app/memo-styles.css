@@ -174,12 +174,78 @@ input, textarea {
     color: white;
 }
 
+.sort-search-wrapper {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.sort-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sort-label {
+    font-size: 14px;
+    color: #666;
+    white-space: nowrap;
+}
+
 .sort-select {
     padding: 8px 12px;
     border: 1px solid #ddd;
     border-radius: 6px;
     font-size: 14px;
     background: white;
+}
+
+.search-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+}
+
+.search-label {
+    font-size: 16px;
+}
+
+.search-input {
+    flex: 1;
+    padding: 8px 32px 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    min-width: 150px;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+.search-clear {
+    position: absolute;
+    right: 8px;
+    background: none;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.search-clear:hover {
+    background: #f0f0f0;
+    color: #666;
 }
 
 .memo-item {
@@ -837,20 +903,6 @@ input, textarea {
         font-size: 10px;
     }
 
-    .sort-wrapper {
-        margin-bottom: 12px;
-    }
-
-    .sort-label {
-        font-size: 13px;
-    }
-
-    .sort-select {
-        width: 100%;
-        font-size: 14px;
-        max-width: none;
-    }
-
     .drag-handle-area {
         width: 50px;
         font-size: 24px;
@@ -894,6 +946,36 @@ input, textarea {
 
     .show-completed {
         font-size: 13px;
+    }
+
+    .sort-search-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+
+    .sort-wrapper {
+        width: 100%;
+    }
+
+    .search-wrapper {
+        width: 100%;
+        min-width: auto;
+    }
+
+    .sort-label {
+        font-size: 13px;
+    }
+
+    .sort-select {
+        flex: 1;
+        font-size: 14px;
+    }
+
+    .search-input {
+        font-size: 14px;
+        min-width: auto;
     }
 
     .input-row {
@@ -957,6 +1039,16 @@ input, textarea {
     .sort-select {
         font-size: 13px;
         padding: 6px 10px;
+    }
+
+    .search-input {
+        font-size: 13px;
+        padding: 6px 28px 6px 10px;
+    }
+
+    .search-clear {
+        font-size: 14px;
+        right: 6px;
     }
 }
 

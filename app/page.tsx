@@ -99,6 +99,7 @@ export default function QuickMemoApp() {
   const [editingMemo, setEditingMemo] = useState<number | null>(null)
   const [editText, setEditText] = useState<string>('')
   const [showCategoryMenu, setShowCategoryMenu] = useState<number | null>(null)
+  const [searchQuery, setSearchQuery] = useState<string>('')
 
   // 認証関連のstate
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1115,6 +1116,12 @@ export default function QuickMemoApp() {
       filtered = filtered.filter(m => !m.completed)
     }
 
+    // 検索フィルター
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(m => m.text.toLowerCase().includes(query))
+    }
+
     return sortMemos(filtered)
   }
 
@@ -1506,18 +1513,39 @@ export default function QuickMemoApp() {
         </div>
       </div>
 
-      <div className="sort-wrapper">
-        <label className="sort-label">並び順:</label>
-        <select
-          className="sort-select"
-          value={currentSort}
-          onChange={(e) => setCurrentSort(e.target.value)}
-        >
-          <option value="manual">手動並べ替え</option>
-          <option value="newest">新しい順</option>
-          <option value="oldest">古い順</option>
-          <option value="category">カテゴリー順</option>
-        </select>
+      <div className="sort-search-wrapper">
+        <div className="sort-wrapper">
+          <label className="sort-label">並び順:</label>
+          <select
+            className="sort-select"
+            value={currentSort}
+            onChange={(e) => setCurrentSort(e.target.value)}
+          >
+            <option value="manual">手動並べ替え</option>
+            <option value="newest">新しい順</option>
+            <option value="oldest">古い順</option>
+            <option value="category">カテゴリー順</option>
+          </select>
+        </div>
+        <div className="search-wrapper">
+          <label className="search-label">🔍</label>
+          <input
+            type="text"
+            className="search-input"
+            placeholder="検索..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button
+              className="search-clear"
+              onClick={() => setSearchQuery('')}
+              title="クリア"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
 
       <div id="memoList" style={{ width: '100%' }}>
