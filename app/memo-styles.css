@@ -141,6 +141,12 @@ input, textarea {
     color: white;
 }
 
+.filter-search-sticky-header {
+    background: #f5f5f5;
+    margin: 0 -20px;
+    padding: 0 20px;
+}
+
 .controls {
     display: flex;
     flex-direction: row;
@@ -767,6 +773,16 @@ input, textarea {
         max-width: 100%;
     }
 
+    .filter-search-sticky-header {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        margin: 0 -10px 10px -10px;
+        padding: 10px 10px 10px 10px;
+        background: #f5f5f5;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
     .memo-item {
         flex-direction: row;
         padding: 14px;
@@ -803,6 +819,16 @@ input, textarea {
 @media (max-width: 600px) {
     body {
         padding: 15px;
+    }
+
+    .filter-search-sticky-header {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        margin: 0 -15px 15px -15px;
+        padding: 10px 15px 10px 15px;
+        background: #f5f5f5;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
     .memo-item {
