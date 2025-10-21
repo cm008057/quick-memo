@@ -687,6 +687,12 @@ export default function QuickMemoApp() {
   const addMemo = async () => {
     if (!memoInput.trim()) return
 
+    // 🔧 重要: インポート中・削除中・保存中は操作を禁止
+    if (isImporting || isDeleting || isSaving) {
+      console.log('🚫 処理中のためメモ追加をスキップ')
+      return
+    }
+
     const newMemo: Memo = {
       id: Date.now(),
       text: memoInput.trim(),
@@ -736,6 +742,14 @@ export default function QuickMemoApp() {
   }
 
   const saveMemoEdit = async (id: number) => {
+    // 🔧 重要: インポート中・削除中・保存中は操作を禁止
+    if (isImporting || isDeleting || isSaving) {
+      console.log('🚫 処理中のためメモ編集保存をスキップ')
+      setEditingMemo(null)
+      setEditText('')
+      return
+    }
+
     if (editText.trim()) {
       // 🔧 修正: 更新後のメモを明示的に計算してから保存
       const updatedMemos = memos.map(m =>
@@ -755,6 +769,12 @@ export default function QuickMemoApp() {
 
   // メモを完了/未完了切り替え
   const toggleComplete = async (id: number) => {
+    // 🔧 重要: インポート中・削除中・保存中は操作を禁止
+    if (isImporting || isDeleting || isSaving) {
+      console.log('🚫 処理中のため完了状態変更をスキップ')
+      return
+    }
+
     // 🔧 修正: 更新後のメモを明示的に計算してから保存
     const updatedMemos = memos.map(m =>
       m.id === id ? { ...m, completed: !m.completed, updated_at: new Date().toISOString() } : m
@@ -765,6 +785,20 @@ export default function QuickMemoApp() {
 
   // メモを削除（ソフト削除）
   const deleteMemo = async (id: number) => {
+    // 🔧 重要: インポート中は削除を禁止（データ破損防止）
+    if (isImporting) {
+      console.log('🚫 インポート処理中のため削除をブロック')
+      alert('インポート処理中は削除できません。インポート完了後にお試しください。')
+      return
+    }
+
+    // 🔧 重要: 保存中は削除を禁止（Race Condition防止）
+    if (isSaving) {
+      console.log('🚫 保存処理中のため削除をブロック')
+      alert('保存処理中は削除できません。少々お待ちください。')
+      return
+    }
+
     if (confirm('このメモを削除しますか？')) {
       console.log(`🗑️ 削除処理開始: ID=${id}`)
 
@@ -828,6 +862,12 @@ export default function QuickMemoApp() {
 
   // カテゴリを移動
   const moveToCategory = async (memoId: number, newCategory: string) => {
+    // 🔧 重要: インポート中・削除中・保存中は操作を禁止
+    if (isImporting || isDeleting || isSaving) {
+      console.log('🚫 処理中のためカテゴリ移動をスキップ')
+      return
+    }
+
     const updatedMemos = memos.map(m =>
       m.id === memoId ? { ...m, category: newCategory, updated_at: new Date().toISOString() } : m
     )
@@ -841,6 +881,12 @@ export default function QuickMemoApp() {
 
   // カテゴリにコピー
   const copyToCategory = async (memoId: number, targetCategory: string) => {
+    // 🔧 重要: インポート中・削除中・保存中は操作を禁止
+    if (isImporting || isDeleting || isSaving) {
+      console.log('🚫 処理中のためカテゴリコピーをスキップ')
+      return
+    }
+
     const originalMemo = memos.find(m => m.id === memoId)
     if (!originalMemo) return
 
