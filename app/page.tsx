@@ -315,6 +315,26 @@ export default function QuickMemoApp() {
     }
   }, [isDeleting, isImporting, isSaving, isSyncing]) // memosの依存関係を削除して無限ループを防止
 
+  // ピッカーの外側クリックで閉じる
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      // ピッカー自体、またはアイコン/カラーボタンをクリックした場合は何もしない
+      if (target.closest('.icon-picker') || target.closest('.color-picker') ||
+          target.closest('.category-icon') || target.closest('.category-color')) {
+        return
+      }
+      // それ以外をクリックしたらピッカーを閉じる
+      setShowIconPicker(null)
+      setShowColorPicker(null)
+    }
+
+    if (showIconPicker !== null || showColorPicker !== null) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [showIconPicker, showColorPicker])
+
   // 認証状態の監視と初期化
   useEffect(() => {
     // 環境変数のデバッグ
@@ -1825,7 +1845,7 @@ export default function QuickMemoApp() {
                   </button>
 
                   {showIconPicker === key && (
-                    <div className="icon-picker active" style={{ position: 'absolute', zIndex: 1001 }}>
+                    <div className="icon-picker active">
                       {availableIcons.map(icon => (
                         <div
                           key={icon}
@@ -1848,7 +1868,7 @@ export default function QuickMemoApp() {
                   )}
 
                   {showColorPicker === key && (
-                    <div className="color-picker active" style={{ position: 'absolute', zIndex: 1001 }}>
+                    <div className="color-picker active">
                       {availableColors.map(color => (
                         <div
                           key={color}
