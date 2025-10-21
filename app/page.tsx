@@ -917,6 +917,62 @@ export default function QuickMemoApp() {
     alert(message)
   }
 
+  // メモを1つ上に移動
+  const moveUp = async (id: number) => {
+    // 🔧 重要: インポート中・削除中・保存中は操作を禁止
+    if (isImporting || isDeleting || isSaving) {
+      console.log('🚫 処理中のため移動をスキップ')
+      return
+    }
+
+    const currentIndex = filteredMemos.findIndex(m => m.id === id)
+    if (currentIndex <= 0) return // 最上位または見つからない場合は何もしない
+
+    // フィルター済みリストでの隣接メモを取得
+    const currentMemo = filteredMemos[currentIndex]
+    const prevMemo = filteredMemos[currentIndex - 1]
+
+    // 全体のmemoOrderでの位置を探す
+    const currentOrderIndex = memoOrder.indexOf(currentMemo.id)
+    const prevOrderIndex = memoOrder.indexOf(prevMemo.id)
+
+    // memoOrderを入れ替え
+    const newMemoOrder = [...memoOrder]
+    newMemoOrder[currentOrderIndex] = prevMemo.id
+    newMemoOrder[prevOrderIndex] = currentMemo.id
+
+    setMemoOrder(newMemoOrder)
+    await saveMemos(memos, newMemoOrder)
+  }
+
+  // メモを1つ下に移動
+  const moveDown = async (id: number) => {
+    // 🔧 重要: インポート中・削除中・保存中は操作を禁止
+    if (isImporting || isDeleting || isSaving) {
+      console.log('🚫 処理中のため移動をスキップ')
+      return
+    }
+
+    const currentIndex = filteredMemos.findIndex(m => m.id === id)
+    if (currentIndex < 0 || currentIndex >= filteredMemos.length - 1) return // 最下位または見つからない場合は何もしない
+
+    // フィルター済みリストでの隣接メモを取得
+    const currentMemo = filteredMemos[currentIndex]
+    const nextMemo = filteredMemos[currentIndex + 1]
+
+    // 全体のmemoOrderでの位置を探す
+    const currentOrderIndex = memoOrder.indexOf(currentMemo.id)
+    const nextOrderIndex = memoOrder.indexOf(nextMemo.id)
+
+    // memoOrderを入れ替え
+    const newMemoOrder = [...memoOrder]
+    newMemoOrder[currentOrderIndex] = nextMemo.id
+    newMemoOrder[nextOrderIndex] = currentMemo.id
+
+    setMemoOrder(newMemoOrder)
+    await saveMemos(memos, newMemoOrder)
+  }
+
   // カテゴリを追加
   const addNewCategory = () => {
     if (!newCategoryName.trim()) return
@@ -1493,6 +1549,26 @@ export default function QuickMemoApp() {
                     </>
                   ) : (
                     <>
+                      {currentSort === 'manual' && (
+                        <>
+                          <button
+                            className="action-btn move-up-btn"
+                            onClick={() => moveUp(memo.id)}
+                            title="1つ上に移動"
+                            disabled={filteredMemos.findIndex(m => m.id === memo.id) === 0}
+                          >
+                            ↑
+                          </button>
+                          <button
+                            className="action-btn move-down-btn"
+                            onClick={() => moveDown(memo.id)}
+                            title="1つ下に移動"
+                            disabled={filteredMemos.findIndex(m => m.id === memo.id) === filteredMemos.length - 1}
+                          >
+                            ↓
+                          </button>
+                        </>
+                      )}
                       <button
                         className="action-btn edit-btn"
                         onClick={() => editMemo(memo.id)}
