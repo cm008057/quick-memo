@@ -41,6 +41,60 @@ export const dataService = {
     }
   },
 
+  // インポート時に既存データを全削除
+  async deleteAllUserData() {
+    const user = await this.getCurrentUser()
+    if (!user) {
+      console.log('認証なし - テストユーザーのデータを削除')
+      const testUserId = 'test-user-123'
+      return this.deleteAllUserDataWithUserId(testUserId)
+    }
+
+    const supabase = createClient()
+    if (!supabase) {
+      console.warn('Supabaseクライアントが利用できません')
+      return
+    }
+
+    console.log('🗑️ 既存データを全削除中...')
+
+    // メモを削除
+    const { error: memosError } = await supabase
+      .from('memos')
+      .delete()
+      .eq('user_id', user.id)
+
+    if (memosError) {
+      console.error('メモの削除エラー:', memosError)
+      throw memosError
+    }
+
+    // カテゴリを削除
+    const { error: categoriesError } = await supabase
+      .from('categories')
+      .delete()
+      .eq('user_id', user.id)
+
+    if (categoriesError) {
+      console.error('カテゴリの削除エラー:', categoriesError)
+      throw categoriesError
+    }
+
+    console.log('✅ 既存データの削除完了')
+  },
+
+  async deleteAllUserDataWithUserId(userId: string) {
+    const supabase = createClient()
+    if (!supabase) return
+
+    console.log('🗑️ 既存データを全削除中... (userId:', userId, ')')
+
+    await supabase.from('memos').delete().eq('user_id', userId)
+    await supabase.from('categories').delete().eq('user_id', userId)
+
+    console.log('✅ 既存データの削除完了')
+  },
+
   async saveMemos(memos: Memo[]) {
     // テスト用: 認証チェックを一時的に無効化
     const user = await this.getCurrentUser()

@@ -1127,6 +1127,10 @@ export default function QuickMemoApp() {
 
           // Supabaseに保存（最新のStateを使用）
           try {
+            // 🔧 重要: インポート時は既存データを全削除してから新規データを保存
+            console.log('🗑️ 既存データを削除中...')
+            await dataService.deleteAllUserData()
+
             console.log(`📤 ${processedMemos.length}件のメモをSupabaseに緊急保存中...`)
 
             // 強制的に全データを上書き保存（deleted属性を明示的に設定）
