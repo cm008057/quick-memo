@@ -1287,122 +1287,27 @@ export default function QuickMemoApp() {
               ))}
             </div>
             <div className="category-actions">
-              <button className="manage-btn" onClick={() => setShowCategoryModal(true)}>
-                カテゴリー管理
+              <button className="manage-btn" onClick={() => setShowCategoryModal(true)} title="カテゴリー管理">
+                ⚙️
               </button>
               {user ? (
-                <>
-                  <button
-                    className="manage-btn"
-                    onClick={async () => {
-                      const proceed = confirm(`🛡️ 安全な完全同期\n\n現在のローカルデータ（${memos.length}件）をクラウドに完全保存します。\n\n⚠️ クラウドの既存データは上書きされます。\n\n続行しますか？`)
-                      if (!proceed) return
-
-                      try {
-                        console.log('安全な完全同期を開始...')
-                        console.log(`同期対象: ${memos.length}件のメモ`)
-
-                        // forceReplaceAllMemosを使用して確実に保存
-                        await dataService.forceReplaceAllMemos(memos)
-                        await saveCategories()
-
-                        alert(`✅ 安全な同期完了！\n\n• ${memos.length}件のメモを完全保存\n• ${Object.keys(categories).length}個のカテゴリー\n\n🔒 データ完全性を保証`)
-                      } catch (error) {
-                        console.error('同期エラー:', error)
-                        alert('同期に失敗しました: ' + (error as Error).message)
-                      }
-                    }}
-                    title="安全な完全同期（データ損失なし保証）"
-                    style={{ backgroundColor: '#059669', color: 'white', fontWeight: 'bold' }}
-                  >
-                    🛡️ 安全同期
-                  </button>
-                  <button
-                    className="manage-btn"
-                    onClick={() => {
-                      exportData()
-                      alert(`🛡️ バックアップ完了！\n\n現在のデータ（${memos.length}件）をダウンロードしました。`)
-                    }}
-                    title="データをバックアップ"
-                    style={{ backgroundColor: '#f59e0b', color: 'white' }}
-                  >
-                    💾 バックアップ
-                  </button>
-                  <button
-                    className="manage-btn"
-                    onClick={async () => {
-                      console.log('🔍 データ診断開始')
-                      console.log(`ローカルメモ数: ${memos.length}`)
-
-                      // ID重複チェック
-                      const ids = memos.map((m: Memo) => m.id)
-                      const uniqueIds = new Set(ids)
-                      console.log(`ユニークID数: ${uniqueIds.size}`)
-                      if (ids.length !== uniqueIds.size) {
-                        console.warn('⚠️ ID重複検出!')
-                        const duplicates = ids.filter((id: number, index: number) => ids.indexOf(id) !== index)
-                        console.log('重複ID:', duplicates)
-                      }
-
-                      // データ形式チェック
-                      const invalidMemos = memos.filter((m: Memo) => !m.id || !m.text || !m.category)
-                      console.log(`不正メモ数: ${invalidMemos.length}`)
-                      if (invalidMemos.length > 0) {
-                        console.log('不正メモ:', invalidMemos.slice(0, 5))
-                      }
-
-                      // 認証状況確認
-                      const currentUser = await dataService.getCurrentUser()
-                      console.log('👤 認証状況:', currentUser ? `ログイン中 (${currentUser.email})` : '未ログイン (test-user-123)')
-
-                      // クラウドデータ確認
-                      let cloudMemos: Memo[] = []
-                      let cloudError = null
-                      try {
-                        cloudMemos = await dataService.loadMemos()
-                        console.log(`☁️ クラウドメモ数: ${cloudMemos.length}`)
-                        console.log('クラウド最新5件:', cloudMemos.slice(0, 5).map(m => ({ id: m.id, text: m.text?.substring(0, 20) + '...' })))
-                      } catch (error) {
-                        console.error('❌ クラウドデータ読み込みエラー:', error)
-                        cloudError = error
-                      }
-
-                      // 同期状況確認
-                      const localIds = new Set(memos.map(m => m.id))
-                      const cloudIds = new Set(cloudMemos.map(m => m.id))
-                      const onlyLocal = memos.filter(m => !cloudIds.has(m.id)).length
-                      const onlyCloud = cloudMemos.filter(m => !localIds.has(m.id)).length
-
-                      console.log(`🔄 同期状況:`)
-                      console.log(`- ローカルのみ: ${onlyLocal}件`)
-                      console.log(`- クラウドのみ: ${onlyCloud}件`)
-                      console.log(`- 共通: ${memos.filter(m => cloudIds.has(m.id)).length}件`)
-
-                      alert(`🔍 詳細診断完了\n\n👤 認証: ${currentUser ? `ログイン中` : '未ログイン'}\n📱 ローカル: ${memos.length}件\n☁️ クラウド: ${cloudMemos.length}件\n🔄 ローカル限定: ${onlyLocal}件\n🔄 クラウド限定: ${onlyCloud}件\n❌ エラー: ${cloudError ? 'あり' : 'なし'}\n\n詳細はコンソールを確認`)
-                    }}
-                    title="データ整合性診断"
-                    style={{ backgroundColor: '#8b5cf6', color: 'white' }}
-                  >
-                    🔍 診断
-                  </button>
-                  <button
-                    className="manage-btn"
-                    onClick={async () => {
-                      await authService.signOut()
-                      alert('ログアウトしました')
-                    }}
-                    title="ログアウト"
-                  >
-                    👤 ログアウト
-                  </button>
-                </>
+                <button
+                  className="manage-btn"
+                  onClick={async () => {
+                    await authService.signOut()
+                    alert('ログアウトしました')
+                  }}
+                  title="ログアウト"
+                >
+                  👤
+                </button>
               ) : (
                 <button
                   className="manage-btn"
                   onClick={() => setShowAuthModal(true)}
                   title="ログイン・アカウント作成"
                 >
-                  🔒 ログイン
+                  🔒
                 </button>
               )}
               <button className="export-btn" onClick={exportData} title="データをエクスポート">

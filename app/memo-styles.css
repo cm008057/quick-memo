@@ -13,39 +13,40 @@ body {
 h1 {
     text-align: center;
     color: #333;
-    margin-bottom: 30px;
+    margin-bottom: 15px;
+    font-size: 24px;
 }
 
 .input-area {
     background: white;
-    padding: 20px;
+    padding: 15px;
     border-radius: 10px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    margin-bottom: 20px;
+    margin-bottom: 15px;
 }
 
 .category-section {
-    margin-bottom: 15px;
+    margin-bottom: 10px;
 }
 
 .category-header {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
 }
 
 .category-buttons {
     display: flex;
-    gap: 10px;
+    gap: 6px;
     flex-wrap: wrap;
 }
 
 .category-btn {
-    padding: 8px 16px;
+    padding: 6px 12px;
     border: none;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px;
     transition: all 0.3s;
     position: relative;
 }
@@ -62,18 +63,23 @@ h1 {
 
 .category-actions {
     display: flex;
-    gap: 5px;
+    gap: 4px;
+    flex-shrink: 0;
 }
 
 .manage-btn, .add-category-btn, .export-btn, .import-btn {
-    padding: 6px 12px;
+    padding: 6px 10px;
     border: 1px solid #ddd;
     background: white;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 13px;
+    font-size: 16px;
     color: #666;
     transition: all 0.2s;
+    min-width: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .manage-btn:hover, .add-category-btn:hover, .export-btn:hover, .import-btn:hover {
@@ -644,11 +650,13 @@ input, textarea {
     .category-header {
         flex-direction: row;
         justify-content: space-between;
-        align-items: center;
+        align-items: flex-start;
+        gap: 10px;
     }
 
     .category-buttons {
         flex: 1;
+        max-width: calc(100% - 200px);
     }
 }
 
@@ -745,17 +753,19 @@ input, textarea {
 
     .category-btn {
         flex-shrink: 0;
-        font-size: 13px;
-        padding: 6px 12px;
+        font-size: 12px;
+        padding: 5px 10px;
     }
 
     .category-actions {
         flex-shrink: 0;
+        gap: 3px;
     }
 
     .manage-btn, .export-btn, .import-btn {
-        font-size: 12px;
-        padding: 5px 10px;
+        font-size: 15px;
+        padding: 5px 8px;
+        min-width: 32px;
     }
 
     .filter-tabs {
@@ -873,8 +883,9 @@ input, textarea {
     }
 
     .manage-btn, .export-btn, .import-btn {
-        font-size: 11px;
-        padding: 4px 8px;
+        font-size: 14px;
+        padding: 4px 6px;
+        min-width: 28px;
     }
 
     .voice-btn, .add-btn {
