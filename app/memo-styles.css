@@ -220,7 +220,7 @@ input, textarea {
     padding: 8px 32px 8px 12px;
     border: 1px solid #ddd;
     border-radius: 6px;
-    font-size: 14px;
+    font-size: 16px;
     background: white;
     min-width: 150px;
 }
@@ -974,7 +974,7 @@ input, textarea {
     }
 
     .search-input {
-        font-size: 14px;
+        font-size: 16px;
         min-width: auto;
     }
 
@@ -1042,7 +1042,7 @@ input, textarea {
     }
 
     .search-input {
-        font-size: 13px;
+        font-size: 16px;
         padding: 6px 28px 6px 10px;
     }
 
