@@ -1532,55 +1532,58 @@ export default function QuickMemoApp() {
               ))}
             </div>
             <div className="category-actions">
-              <button
-                className="manage-btn"
-                onClick={undo}
-                disabled={historyIndex <= 0}
-                title="元に戻す"
-              >
-                <span className="btn-icon">↶</span>
-                <span className="btn-label">戻る</span>
-              </button>
-              <button
-                className="manage-btn"
-                onClick={redo}
-                disabled={historyIndex >= history.length - 1}
-                title="やり直す"
-              >
-                <span className="btn-icon">↷</span>
-                <span className="btn-label">進む</span>
-              </button>
-              <button className="manage-btn" onClick={() => setShowCategoryModal(true)} title="カテゴリー管理">
-                <span className="btn-icon">⚙️</span>
-                <span className="btn-label">管理</span>
-              </button>
-              {user ? (
+              <div className="action-group-1">
                 <button
                   className="manage-btn"
-                  onClick={async () => {
-                    await authService.signOut()
-                    alert('ログアウトしました')
-                  }}
-                  title="ログアウト"
+                  onClick={undo}
+                  disabled={historyIndex <= 0}
+                  title="元に戻す"
                 >
-                  <span className="btn-icon">👤</span>
-                  <span className="btn-label">ログアウト</span>
+                  <span className="btn-icon">↶</span>
+                  <span className="btn-label">戻る</span>
                 </button>
-              ) : (
                 <button
                   className="manage-btn"
-                  onClick={() => setShowAuthModal(true)}
-                  title="ログイン・アカウント作成"
+                  onClick={redo}
+                  disabled={historyIndex >= history.length - 1}
+                  title="やり直す"
                 >
-                  <span className="btn-icon">🔒</span>
-                  <span className="btn-label">ログイン</span>
+                  <span className="btn-icon">↷</span>
+                  <span className="btn-label">進む</span>
                 </button>
-              )}
-              <button className="export-btn" onClick={exportData} title="データをエクスポート">
-                <span className="btn-icon">💾</span>
-                <span className="btn-label">保存</span>
-              </button>
-              <button className="import-btn" onClick={() => {
+                <button className="manage-btn" onClick={() => setShowCategoryModal(true)} title="カテゴリー管理">
+                  <span className="btn-icon">⚙️</span>
+                  <span className="btn-label">管理</span>
+                </button>
+                {user ? (
+                  <button
+                    className="manage-btn"
+                    onClick={async () => {
+                      await authService.signOut()
+                      alert('ログアウトしました')
+                    }}
+                    title="ログアウト"
+                  >
+                    <span className="btn-icon">👤</span>
+                    <span className="btn-label">ログアウト</span>
+                  </button>
+                ) : (
+                  <button
+                    className="manage-btn"
+                    onClick={() => setShowAuthModal(true)}
+                    title="ログイン・アカウント作成"
+                  >
+                    <span className="btn-icon">🔒</span>
+                    <span className="btn-label">ログイン</span>
+                  </button>
+                )}
+              </div>
+              <div className="action-group-2">
+                <button className="export-btn" onClick={exportData} title="データをエクスポート">
+                  <span className="btn-icon">💾</span>
+                  <span className="btn-label">保存</span>
+                </button>
+                <button className="import-btn" onClick={() => {
                 console.log('📂 インポートボタンがクリックされました')
                 console.log('📁 inputRef:', importInputRef.current)
                 console.log('📁 inputRef.value (リセット前):', importInputRef.current?.value)
@@ -1622,6 +1625,7 @@ export default function QuickMemoApp() {
                   console.log('✅ ファイル選択フラグをクリアしました（onBlur）')
                 }}
               />
+              </div>
             </div>
           </div>
         </div>

@@ -65,6 +65,12 @@ h1 {
     display: flex;
     gap: 4px;
     flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.action-group-1, .action-group-2 {
+    display: flex;
+    gap: 4px;
 }
 
 .manage-btn, .add-category-btn, .export-btn, .import-btn {
@@ -815,15 +821,22 @@ input, textarea {
 
 @media (min-width: 768px) {
     .category-header {
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 10px;
+        flex-direction: column;
+        gap: 8px;
     }
 
     .category-buttons {
         flex: 1;
-        max-width: calc(100% - 200px);
+        width: 100%;
+    }
+
+    .category-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .action-group-1, .action-group-2 {
+        flex-wrap: nowrap;
     }
 }
 
@@ -929,6 +942,20 @@ input, textarea {
     .category-actions {
         flex-shrink: 0;
         gap: 3px;
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .action-group-1, .action-group-2 {
+        gap: 3px;
+    }
+
+    .action-group-1 {
+        flex: 1;
+    }
+
+    .action-group-2 {
+        flex-shrink: 0;
     }
 
     .manage-btn, .export-btn, .import-btn {
