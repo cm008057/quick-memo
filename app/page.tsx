@@ -107,6 +107,8 @@ export default function QuickMemoApp() {
 
   // ツリー管理画面の状態
   const [viewMode, setViewMode] = useState<'quick' | 'tree'>('quick') // 画面切り替え
+  const [setParentForMemoId, setSetParentForMemoId] = useState<number | null>(null) // 親を設定するメモID
+  const [showParentSelectorModal, setShowParentSelectorModal] = useState<boolean>(false) // 親選択モーダル
 
   // 認証関連のstate
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1118,6 +1120,28 @@ export default function QuickMemoApp() {
         }, 3000)
       }
     }
+  }
+
+  // 親子関係を設定
+  const setParentForMemo = async (childMemoId: number, parentMemoId: number | null) => {
+    // 履歴に追加（操作前の状態を保存）
+    saveToHistory(memos, memoOrder)
+
+    // メモを更新
+    const updatedMemos = memos.map(m =>
+      m.id === childMemoId
+        ? { ...m, parentId: parentMemoId }
+        : m
+    )
+
+    setMemos(updatedMemos)
+    await saveMemos(updatedMemos, memoOrder)
+
+    // モーダルを閉じる
+    setShowParentSelectorModal(false)
+    setSetParentForMemoId(null)
+
+    console.log(`✅ 親子関係を設定: 子=${childMemoId}, 親=${parentMemoId}`)
   }
 
   // カテゴリを移動
@@ -2185,10 +2209,90 @@ export default function QuickMemoApp() {
       {/* ツリー管理画面 */}
       {viewMode === 'tree' && (
         <div style={{ padding: '20px', backgroundColor: '#f9fafb', borderRadius: '8px', minHeight: '400px' }}>
-          <p style={{ fontSize: '16px', color: '#666', textAlign: 'center', marginTop: '40px' }}>
-            🌲 ツリー管理画面（4カテゴリーのシンプルリスト表示）
-          </p>
-          <div style={{ marginTop: '30px' }}>
+          <div style={{ marginTop: '20px' }}>
+            {/* 未分類エリア */}
+            {(() => {
+              const uncategorizedMemos = memos.filter(m =>
+                ['goal', 'challenge', 'idea', 'homework'].includes(m.category) &&
+                !m.parentId
+              )
+
+              return (
+                <div style={{ marginBottom: '40px', padding: '15px', backgroundColor: '#fff3cd', borderRadius: '8px', border: '2px dashed #ffc107' }}>
+                  <h3 style={{
+                    fontSize: '18px',
+                    color: '#856404',
+                    marginBottom: '15px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    📦 未分類 ({uncategorizedMemos.length}件)
+                    <span style={{ fontSize: '12px', fontWeight: 'normal', color: '#856404' }}>
+                      - 親を設定して整理しましょう
+                    </span>
+                  </h3>
+
+                  {uncategorizedMemos.length === 0 ? (
+                    <p style={{ fontSize: '14px', color: '#856404', paddingLeft: '20px' }}>
+                      すべて整理されています！
+                    </p>
+                  ) : (
+                    <div style={{ paddingLeft: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {uncategorizedMemos.map(memo => {
+                        const cat = categories[memo.category]
+                        return (
+                          <div
+                            key={memo.id}
+                            style={{
+                              padding: '12px',
+                              backgroundColor: 'white',
+                              borderRadius: '6px',
+                              borderLeft: '4px solid ' + (cat?.color || '#999'),
+                              fontSize: '14px',
+                              color: '#374151',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: '12px', color: cat?.color, marginBottom: '4px', fontWeight: 'bold' }}>
+                                {cat?.icon} {cat?.name}
+                              </div>
+                              {memo.text}
+                              <div style={{ fontSize: '12px', color: '#999', marginTop: '6px' }}>
+                                📅 {memo.timestamp}
+                              </div>
+                            </div>
+                            <button
+                              style={{
+                                padding: '6px 12px',
+                                fontSize: '12px',
+                                backgroundColor: '#3b82f6',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap'
+                              }}
+                              onClick={() => {
+                                setSetParentForMemoId(memo.id)
+                                setShowParentSelectorModal(true)
+                              }}
+                            >
+                              🔗 親を設定
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* カテゴリー別表示 */}
             {['goal', 'challenge', 'idea', 'homework'].map(categoryKey => {
               const cat = categories[categoryKey]
               if (!cat) return null
@@ -2351,6 +2455,103 @@ export default function QuickMemoApp() {
               onKeyPress={(e) => e.key === 'Enter' && addNewCategory()}
             />
             <button onClick={addNewCategory}>追加</button>
+          </div>
+        </div>
+      </div>
+
+      {/* 親選択モーダル */}
+      <div className={`modal ${showParentSelectorModal ? 'active' : ''}`}>
+        <div className="modal-content">
+          <div className="modal-header">
+            <h2 className="modal-title">親メモを選択</h2>
+            <button className="close-btn" onClick={() => {
+              setShowParentSelectorModal(false)
+              setSetParentForMemoId(null)
+            }}>
+              &times;
+            </button>
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            {setParentForMemoId && (() => {
+              const currentMemo = memos.find(m => m.id === setParentForMemoId)
+              if (!currentMemo) return null
+
+              // 親候補のメモ（同じカテゴリーで、自分自身ではないもの）
+              const potentialParents = memos.filter(m =>
+                m.category === currentMemo.category &&
+                m.id !== currentMemo.id &&
+                !m.deleted
+              )
+
+              return (
+                <>
+                  <p style={{ fontSize: '14px', color: '#666', marginBottom: '15px' }}>
+                    <strong>{currentMemo.text}</strong> の親メモを選択してください
+                  </p>
+
+                  {/* 親なし（未分類に戻す）オプション */}
+                  <div
+                    style={{
+                      padding: '12px',
+                      marginBottom: '10px',
+                      backgroundColor: '#fff3cd',
+                      borderRadius: '6px',
+                      border: '2px solid #ffc107',
+                      cursor: 'pointer',
+                      fontSize: '14px'
+                    }}
+                    onClick={() => setParentForMemo(currentMemo.id, null)}
+                  >
+                    📦 <strong>親なし（未分類に戻す）</strong>
+                  </div>
+
+                  {potentialParents.length === 0 ? (
+                    <p style={{ fontSize: '14px', color: '#999', padding: '20px', textAlign: 'center' }}>
+                      親に設定できるメモがありません
+                    </p>
+                  ) : (
+                    <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                      {potentialParents.map(parentMemo => {
+                        const cat = categories[parentMemo.category]
+                        return (
+                          <div
+                            key={parentMemo.id}
+                            style={{
+                              padding: '12px',
+                              marginBottom: '10px',
+                              backgroundColor: 'white',
+                              borderRadius: '6px',
+                              borderLeft: '4px solid ' + (cat?.color || '#999'),
+                              cursor: 'pointer',
+                              fontSize: '14px',
+                              transition: 'all 0.2s'
+                            }}
+                            onClick={() => setParentForMemo(currentMemo.id, parentMemo.id)}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#f0f9ff'
+                              e.currentTarget.style.transform = 'translateX(4px)'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'white'
+                              e.currentTarget.style.transform = 'translateX(0)'
+                            }}
+                          >
+                            <div style={{ fontSize: '12px', color: cat?.color, marginBottom: '4px', fontWeight: 'bold' }}>
+                              {cat?.icon} {cat?.name}
+                            </div>
+                            {parentMemo.text}
+                            <div style={{ fontSize: '12px', color: '#999', marginTop: '6px' }}>
+                              📅 {parentMemo.timestamp}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </>
+              )
+            })()}
           </div>
         </div>
       </div>
