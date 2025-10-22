@@ -1813,7 +1813,6 @@ export default function QuickMemoApp() {
             追加
           </button>
         </div>
-      </div>
 
       <div className="controls">
         <div className="filter-tabs">
@@ -2112,6 +2111,7 @@ export default function QuickMemoApp() {
             )
           })
         )}
+      </div>
       </div>
       )}
 
