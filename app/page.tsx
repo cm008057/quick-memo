@@ -1127,10 +1127,10 @@ export default function QuickMemoApp() {
     // 履歴に追加（操作前の状態を保存）
     saveToHistory(memos, memoOrder)
 
-    // メモを更新
+    // メモを更新（nullをundefinedに変換）
     const updatedMemos = memos.map(m =>
       m.id === childMemoId
-        ? { ...m, parentId: parentMemoId }
+        ? { ...m, parentId: parentMemoId === null ? undefined : parentMemoId }
         : m
     )
 
