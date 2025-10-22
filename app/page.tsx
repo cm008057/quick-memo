@@ -1711,15 +1711,30 @@ export default function QuickMemoApp() {
                 })
               }
             }}
-            onFocus={() => {
-              // スマホ版のみスクロールを固定
-              if (window.innerWidth <= 600) {
+            onTouchStart={() => {
+              // スマホ版: タッチした瞬間に固定（フォーカスより前）
+              if (window.innerWidth <= 600 && !isSearchFocusedRef.current) {
                 isSearchFocusedRef.current = true
 
-                // 現在のスクロール位置を保存（画面を一切動かさない）
+                // 現在のスクロール位置を保存
                 searchScrollPositionRef.current = window.scrollY || document.documentElement.scrollTop
 
-                // bodyを即座に固定（現在の位置のまま）
+                // bodyを即座に固定
+                document.body.style.overflow = 'hidden'
+                document.body.style.position = 'fixed'
+                document.body.style.width = '100%'
+                document.body.style.top = `-${searchScrollPositionRef.current}px`
+              }
+            }}
+            onFocus={() => {
+              // PC版やタッチ以外の場合用のフォールバック
+              if (window.innerWidth <= 600 && !isSearchFocusedRef.current) {
+                isSearchFocusedRef.current = true
+
+                // 現在のスクロール位置を保存
+                searchScrollPositionRef.current = window.scrollY || document.documentElement.scrollTop
+
+                // bodyを即座に固定
                 document.body.style.overflow = 'hidden'
                 document.body.style.position = 'fixed'
                 document.body.style.width = '100%'
