@@ -125,6 +125,8 @@ export default function QuickMemoApp() {
   const searchScrollPositionRef = useRef<number>(0) // 検索中のスクロール位置を保存
   const isSearchFocusedRef = useRef<boolean>(false) // 検索フォーカス中フラグ
   const memoInputFocusedRef = useRef<boolean>(false) // メモ入力欄フォーカス中フラグ
+  const lastUserInteractionRef = useRef<number>(0) // 最後のユーザー操作時刻
+  const userInteractionTimerRef = useRef<NodeJS.Timeout | null>(null) // ユーザー操作タイマー
 
   // カテゴリーの順序を取得
   const getOrderedCategories = (): [string, Category][] => {
@@ -259,6 +261,13 @@ export default function QuickMemoApp() {
     }
     if (isSearchFocusedRef.current) {
       console.log('🚫 検索中のためデータ読み込みをスキップ')
+      return
+    }
+
+    // 🔧 重要: ユーザー操作後3秒以内は読み込みをスキップ
+    const timeSinceLastInteraction = Date.now() - lastUserInteractionRef.current
+    if (timeSinceLastInteraction < 3000) {
+      console.log(`🚫 ユーザー操作中のためデータ読み込みをスキップ（${Math.floor(timeSinceLastInteraction / 1000)}秒前）`)
       return
     }
 
@@ -405,6 +414,34 @@ export default function QuickMemoApp() {
       }
     }
   }, [isDeleting, isImporting, isSaving, isSyncing, editingMemo]) // editingMemoを依存関係に追加
+
+  // ユーザー操作の検出
+  useEffect(() => {
+    const updateLastInteraction = () => {
+      lastUserInteractionRef.current = Date.now()
+
+      // 既存のタイマーをクリア
+      if (userInteractionTimerRef.current) {
+        clearTimeout(userInteractionTimerRef.current)
+      }
+    }
+
+    // タッチ、クリック、スクロール、キーボード操作を検出
+    const events = ['touchstart', 'touchmove', 'scroll', 'click', 'keydown', 'wheel']
+
+    events.forEach(event => {
+      document.addEventListener(event, updateLastInteraction, { passive: true })
+    })
+
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, updateLastInteraction)
+      })
+      if (userInteractionTimerRef.current) {
+        clearTimeout(userInteractionTimerRef.current)
+      }
+    }
+  }, [])
 
   // ピッカーの外側クリックで閉じる
   useEffect(() => {
