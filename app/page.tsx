@@ -1559,8 +1559,6 @@ export default function QuickMemoApp() {
                     <span className="btn-label">ログイン</span>
                   </button>
                 )}
-              </div>
-              <div className="action-group-2">
                 <button className="export-btn" onClick={exportData} title="データをエクスポート">
                   <span className="btn-icon">💾</span>
                   <span className="btn-label">保存</span>
@@ -1607,6 +1605,8 @@ export default function QuickMemoApp() {
                   console.log('✅ ファイル選択フラグをクリアしました（onBlur）')
                 }}
               />
+              </div>
+              <div className="action-group-2">
                 <button
                   className="manage-btn"
                   onClick={undo}
