@@ -120,6 +120,7 @@ h1 {
 .input-row {
     display: flex;
     gap: 10px;
+    margin-bottom: 15px;
 }
 
 input, textarea {
