@@ -122,6 +122,8 @@ export default function QuickMemoApp() {
   const isSelectingFileRef = useRef<boolean>(false) // ファイル選択ダイアログ表示中フラグ
   const scrollPositionRef = useRef<number>(0) // スクロール位置を保存
   const lastFocusTimeRef = useRef<number>(0) // 最後のフォーカス時刻を保存
+  const searchScrollPositionRef = useRef<number>(0) // 検索中のスクロール位置を保存
+  const isSearchFocusedRef = useRef<boolean>(false) // 検索フォーカス中フラグ
 
   // カテゴリーの順序を取得
   const getOrderedCategories = (): [string, Category][] => {
@@ -1700,16 +1702,43 @@ export default function QuickMemoApp() {
             className="search-input"
             placeholder="検索..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value)
+              // 入力中はスクロール位置を強制的に固定
+              if (isSearchFocusedRef.current && window.innerWidth <= 600) {
+                requestAnimationFrame(() => {
+                  window.scrollTo(0, searchScrollPositionRef.current)
+                })
+              }
+            }}
             onFocus={() => {
-              // スマホ版のみスクロールを無効化
+              // スマホ版のみスクロールを固定
               if (window.innerWidth <= 600) {
+                isSearchFocusedRef.current = true
+                // 現在のスクロール位置を保存
+                searchScrollPositionRef.current = window.scrollY || document.documentElement.scrollTop
+
+                // bodyとhtmlの両方でスクロールを無効化
                 document.body.style.overflow = 'hidden'
+                document.body.style.position = 'fixed'
+                document.body.style.width = '100%'
+                document.body.style.top = `-${searchScrollPositionRef.current}px`
               }
             }}
             onBlur={() => {
               // スクロールを再度有効化
-              document.body.style.overflow = ''
+              if (window.innerWidth <= 600) {
+                isSearchFocusedRef.current = false
+                const scrollY = searchScrollPositionRef.current
+
+                document.body.style.overflow = ''
+                document.body.style.position = ''
+                document.body.style.width = ''
+                document.body.style.top = ''
+
+                // スクロール位置を復元
+                window.scrollTo(0, scrollY)
+              }
             }}
           />
           {searchQuery && (
