@@ -1701,6 +1701,16 @@ export default function QuickMemoApp() {
             placeholder="検索..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => {
+              // スマホ版のみスクロールを無効化
+              if (window.innerWidth <= 600) {
+                document.body.style.overflow = 'hidden'
+              }
+            }}
+            onBlur={() => {
+              // スクロールを再度有効化
+              document.body.style.overflow = ''
+            }}
           />
           {searchQuery && (
             <button
