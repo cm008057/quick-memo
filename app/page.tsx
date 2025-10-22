@@ -2180,7 +2180,6 @@ export default function QuickMemoApp() {
           </div>
         </div>
       )}
-      )}
 
       {/* ツリー管理画面 */}
       {viewMode === 'tree' && (
