@@ -112,6 +112,11 @@ export default function QuickMemoApp() {
   const [isSaving, setIsSaving] = useState<boolean>(false)
   const [isSyncing, setIsSyncing] = useState<boolean>(false)
 
+  // Undo/Redo用の履歴
+  const [history, setHistory] = useState<Array<{ memos: Memo[], memoOrder: number[] }>>([])
+  const [historyIndex, setHistoryIndex] = useState<number>(-1)
+  const isUndoRedoRef = useRef<boolean>(false) // Undo/Redo実行中フラグ
+
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
   const isSelectingFileRef = useRef<boolean>(false) // ファイル選択ダイアログ表示中フラグ
@@ -136,6 +141,61 @@ export default function QuickMemoApp() {
     })
 
     return ordered
+  }
+
+  // 履歴に追加
+  const saveToHistory = useCallback((currentMemos: Memo[], currentMemoOrder: number[]) => {
+    // Undo/Redo実行中は履歴に追加しない
+    if (isUndoRedoRef.current) return
+
+    setHistory(prev => {
+      // 現在の位置より後ろの履歴を削除
+      const newHistory = prev.slice(0, historyIndex + 1)
+      // 新しい状態を追加
+      newHistory.push({
+        memos: JSON.parse(JSON.stringify(currentMemos)),
+        memoOrder: [...currentMemoOrder]
+      })
+      // 最大50件まで保持
+      if (newHistory.length > 50) {
+        newHistory.shift()
+        return newHistory
+      }
+      return newHistory
+    })
+    setHistoryIndex(prev => Math.min(prev + 1, 49))
+  }, [historyIndex])
+
+  // Undo
+  const undo = async () => {
+    if (historyIndex <= 0) return
+
+    isUndoRedoRef.current = true
+    const previousState = history[historyIndex - 1]
+    setMemos(previousState.memos)
+    setMemoOrder(previousState.memoOrder)
+    setHistoryIndex(prev => prev - 1)
+
+    await saveMemos(previousState.memos, previousState.memoOrder)
+    setTimeout(() => {
+      isUndoRedoRef.current = false
+    }, 100)
+  }
+
+  // Redo
+  const redo = async () => {
+    if (historyIndex >= history.length - 1) return
+
+    isUndoRedoRef.current = true
+    const nextState = history[historyIndex + 1]
+    setMemos(nextState.memos)
+    setMemoOrder(nextState.memoOrder)
+    setHistoryIndex(prev => prev + 1)
+
+    await saveMemos(nextState.memos, nextState.memoOrder)
+    setTimeout(() => {
+      isUndoRedoRef.current = false
+    }, 100)
   }
 
   // LocalStorageからデータを読み込み
@@ -786,6 +846,9 @@ export default function QuickMemoApp() {
       return
     }
 
+    // 履歴に追加（操作前の状態を保存）
+    saveToHistory(memos, memoOrder)
+
     const newMemo: Memo = {
       id: Date.now(),
       text: memoInput.trim(),
@@ -844,6 +907,9 @@ export default function QuickMemoApp() {
     }
 
     if (editText.trim()) {
+      // 履歴に追加（操作前の状態を保存）
+      saveToHistory(memos, memoOrder)
+
       // 🔧 修正: 更新後のメモを明示的に計算してから保存
       const updatedMemos = memos.map(m =>
         m.id === id ? { ...m, text: editText.trim(), updated_at: new Date().toISOString() } : m
@@ -867,6 +933,9 @@ export default function QuickMemoApp() {
       console.log('🚫 処理中のため完了状態変更をスキップ')
       return
     }
+
+    // 履歴に追加（操作前の状態を保存）
+    saveToHistory(memos, memoOrder)
 
     // 🔧 修正: 更新後のメモを明示的に計算してから保存
     const updatedMemos = memos.map(m =>
@@ -893,6 +962,8 @@ export default function QuickMemoApp() {
     }
 
     if (confirm('このメモを削除しますか？')) {
+      // 履歴に追加（操作前の状態を保存）
+      saveToHistory(memos, memoOrder)
       console.log(`🗑️ 削除処理開始: ID=${id}`)
 
       // 削除処理中フラグを設定（自動保存を無効化）
@@ -1021,6 +1092,9 @@ export default function QuickMemoApp() {
     const currentIndex = filteredMemos.findIndex(m => m.id === id)
     if (currentIndex <= 0) return // 最上位または見つからない場合は何もしない
 
+    // 履歴に追加（操作前の状態を保存）
+    saveToHistory(memos, memoOrder)
+
     // フィルター済みリストでの隣接メモを取得
     const currentMemo = filteredMemos[currentIndex]
     const prevMemo = filteredMemos[currentIndex - 1]
@@ -1048,6 +1122,9 @@ export default function QuickMemoApp() {
 
     const currentIndex = filteredMemos.findIndex(m => m.id === id)
     if (currentIndex < 0 || currentIndex >= filteredMemos.length - 1) return // 最下位または見つからない場合は何もしない
+
+    // 履歴に追加（操作前の状態を保存）
+    saveToHistory(memos, memoOrder)
 
     // フィルター済みリストでの隣接メモを取得
     const currentMemo = filteredMemos[currentIndex]
@@ -1455,6 +1532,24 @@ export default function QuickMemoApp() {
               ))}
             </div>
             <div className="category-actions">
+              <button
+                className="manage-btn"
+                onClick={undo}
+                disabled={historyIndex <= 0}
+                title="元に戻す"
+              >
+                <span className="btn-icon">↶</span>
+                <span className="btn-label">戻る</span>
+              </button>
+              <button
+                className="manage-btn"
+                onClick={redo}
+                disabled={historyIndex >= history.length - 1}
+                title="やり直す"
+              >
+                <span className="btn-icon">↷</span>
+                <span className="btn-label">進む</span>
+              </button>
               <button className="manage-btn" onClick={() => setShowCategoryModal(true)} title="カテゴリー管理">
                 <span className="btn-icon">⚙️</span>
                 <span className="btn-label">管理</span>

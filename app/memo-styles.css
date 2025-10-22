@@ -96,6 +96,17 @@ h1 {
     background: #f0f0f0;
 }
 
+.manage-btn:disabled, .export-btn:disabled, .import-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: #f5f5f5;
+    color: #999;
+}
+
+.manage-btn:disabled:hover {
+    background: #f5f5f5;
+}
+
 .import-input {
     display: none;
 }
