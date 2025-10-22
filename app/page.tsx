@@ -1715,14 +1715,34 @@ export default function QuickMemoApp() {
               // スマホ版のみスクロールを固定
               if (window.innerWidth <= 600) {
                 isSearchFocusedRef.current = true
-                // 現在のスクロール位置を保存
-                searchScrollPositionRef.current = window.scrollY || document.documentElement.scrollTop
 
-                // bodyとhtmlの両方でスクロールを無効化
-                document.body.style.overflow = 'hidden'
-                document.body.style.position = 'fixed'
-                document.body.style.width = '100%'
-                document.body.style.top = `-${searchScrollPositionRef.current}px`
+                // まず検索窓を画面内の見える位置にスクロール
+                const searchInput = document.querySelector('.search-input') as HTMLElement
+                if (searchInput) {
+                  // 検索窓の位置を取得
+                  const rect = searchInput.getBoundingClientRect()
+                  const currentScrollY = window.scrollY || document.documentElement.scrollTop
+
+                  // 検索窓が画面上部から見えるようにスクロール位置を調整
+                  // 検索窓の絶対位置を計算
+                  const searchInputTop = rect.top + currentScrollY
+                  // 画面上部から少し余裕を持たせた位置（80px）にスクロール
+                  const targetScrollY = Math.max(0, searchInputTop - 80)
+
+                  // まずその位置にスクロール
+                  window.scrollTo(0, targetScrollY)
+
+                  // 少し待ってからスクロール位置を保存して固定
+                  setTimeout(() => {
+                    searchScrollPositionRef.current = targetScrollY
+
+                    // bodyを固定
+                    document.body.style.overflow = 'hidden'
+                    document.body.style.position = 'fixed'
+                    document.body.style.width = '100%'
+                    document.body.style.top = `-${targetScrollY}px`
+                  }, 50)
+                }
               }
             }}
             onBlur={() => {
