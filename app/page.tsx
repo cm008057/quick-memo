@@ -124,6 +124,7 @@ export default function QuickMemoApp() {
   const lastFocusTimeRef = useRef<number>(0) // 最後のフォーカス時刻を保存
   const searchScrollPositionRef = useRef<number>(0) // 検索中のスクロール位置を保存
   const isSearchFocusedRef = useRef<boolean>(false) // 検索フォーカス中フラグ
+  const memoInputFocusedRef = useRef<boolean>(false) // メモ入力欄フォーカス中フラグ
 
   // カテゴリーの順序を取得
   const getOrderedCategories = (): [string, Category][] => {
@@ -244,6 +245,20 @@ export default function QuickMemoApp() {
     // 保存処理中は読み込みをスキップ（Race Condition防止）
     if (isSaving) {
       console.log('🚫 保存処理中のためデータ読み込みをスキップ')
+      return
+    }
+
+    // 🔧 重要: 入力中・編集中・検索中は読み込みをスキップ
+    if (memoInputFocusedRef.current) {
+      console.log('🚫 メモ入力中のためデータ読み込みをスキップ')
+      return
+    }
+    if (editingMemo !== null) {
+      console.log('🚫 メモ編集中のためデータ読み込みをスキップ')
+      return
+    }
+    if (isSearchFocusedRef.current) {
+      console.log('🚫 検索中のためデータ読み込みをスキップ')
       return
     }
 
@@ -389,7 +404,7 @@ export default function QuickMemoApp() {
         }, 50)
       }
     }
-  }, [isDeleting, isImporting, isSaving, isSyncing]) // memosの依存関係を削除して無限ループを防止
+  }, [isDeleting, isImporting, isSaving, isSyncing, editingMemo]) // editingMemoを依存関係に追加
 
   // ピッカーの外側クリックで閉じる
   useEffect(() => {
@@ -1639,6 +1654,12 @@ export default function QuickMemoApp() {
             onChange={(e) => setMemoInput(e.target.value)}
             placeholder={`${categories[selectedCategory]?.name}を入力...`}
             onKeyPress={(e) => e.key === 'Enter' && addMemo()}
+            onFocus={() => {
+              memoInputFocusedRef.current = true
+            }}
+            onBlur={() => {
+              memoInputFocusedRef.current = false
+            }}
           />
           <button
             className={`voice-btn ${isListening ? 'listening' : ''}`}
