@@ -64,6 +64,10 @@ interface Memo {
   isEncrypted?: boolean
   updated_at?: string
   deleted?: boolean
+  // ツリー管理用（オプショナル = 既存データに影響なし）
+  parentId?: number      // 親メモのID（未設定 = 未分類）
+  treeOrder?: number     // ツリー内での表示順序
+  treeCollapsed?: boolean // 折りたたみ状態（デフォルト: false = 展開）
 }
 
 // デフォルトカテゴリー
@@ -100,6 +104,9 @@ export default function QuickMemoApp() {
   const [editText, setEditText] = useState<string>('')
   const [showCategoryMenu, setShowCategoryMenu] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState<string>('')
+
+  // ツリー管理画面の状態
+  const [viewMode, setViewMode] = useState<'quick' | 'tree'>('quick') // 画面切り替え
 
   // 認証関連のstate
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1604,7 +1611,51 @@ export default function QuickMemoApp() {
 
   return (
     <div>
-      <h1>クイックメモ 📝</h1>
+      {/* ヘッダー：画面切り替えボタン付き */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '10px',
+        flexWrap: 'wrap',
+        gap: '10px'
+      }}>
+        <h1 style={{ margin: 0 }}>
+          {viewMode === 'quick' ? 'クイックメモ 📝' : 'ツリー管理 🌲'}
+        </h1>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            onClick={() => setViewMode('quick')}
+            style={{
+              padding: '8px 16px',
+              fontSize: '14px',
+              borderRadius: '6px',
+              border: viewMode === 'quick' ? '2px solid #3b82f6' : '1px solid #ddd',
+              backgroundColor: viewMode === 'quick' ? '#eff6ff' : 'white',
+              color: viewMode === 'quick' ? '#3b82f6' : '#666',
+              cursor: 'pointer',
+              fontWeight: viewMode === 'quick' ? 'bold' : 'normal'
+            }}
+          >
+            📝 クイックメモ
+          </button>
+          <button
+            onClick={() => setViewMode('tree')}
+            style={{
+              padding: '8px 16px',
+              fontSize: '14px',
+              borderRadius: '6px',
+              border: viewMode === 'tree' ? '2px solid #10b981' : '1px solid #ddd',
+              backgroundColor: viewMode === 'tree' ? '#f0fdf4' : 'white',
+              color: viewMode === 'tree' ? '#10b981' : '#666',
+              cursor: 'pointer',
+              fontWeight: viewMode === 'tree' ? 'bold' : 'normal'
+            }}
+          >
+            🌲 ツリー管理
+          </button>
+        </div>
+      </div>
 
       {/* ユーザー情報表示 */}
       {user && (
@@ -1618,6 +1669,8 @@ export default function QuickMemoApp() {
         </div>
       )}
 
+      {/* クイックメモ画面 */}
+      {viewMode === 'quick' && (
       <div className="input-area">
         <div className="category-section">
           <div className="category-header">
@@ -2124,6 +2177,66 @@ export default function QuickMemoApp() {
                 後で
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      )}
+
+      {/* ツリー管理画面 */}
+      {viewMode === 'tree' && (
+        <div style={{ padding: '20px', backgroundColor: '#f9fafb', borderRadius: '8px', minHeight: '400px' }}>
+          <p style={{ fontSize: '16px', color: '#666', textAlign: 'center', marginTop: '40px' }}>
+            🌲 ツリー管理画面（4カテゴリーのシンプルリスト表示）
+          </p>
+          <div style={{ marginTop: '30px' }}>
+            {['goal', 'challenge', 'idea', 'homework'].map(categoryKey => {
+              const cat = categories[categoryKey]
+              if (!cat) return null
+
+              const categoryMemos = memos.filter(m => m.category === categoryKey)
+
+              return (
+                <div key={categoryKey} style={{ marginBottom: '30px' }}>
+                  <h3 style={{
+                    fontSize: '18px',
+                    color: '#374151',
+                    marginBottom: '15px',
+                    paddingBottom: '8px',
+                    borderBottom: '2px solid ' + cat.color
+                  }}>
+                    {cat.icon} {cat.name} ({categoryMemos.length}件)
+                  </h3>
+
+                  {categoryMemos.length === 0 ? (
+                    <p style={{ fontSize: '14px', color: '#999', paddingLeft: '20px' }}>
+                      メモがありません
+                    </p>
+                  ) : (
+                    <div style={{ paddingLeft: '10px' }}>
+                      {categoryMemos.map(memo => (
+                        <div
+                          key={memo.id}
+                          style={{
+                            padding: '12px',
+                            marginBottom: '10px',
+                            backgroundColor: 'white',
+                            borderRadius: '6px',
+                            borderLeft: '4px solid ' + cat.color,
+                            fontSize: '14px',
+                            color: '#374151'
+                          }}
+                        >
+                          {memo.text}
+                          <div style={{ fontSize: '12px', color: '#999', marginTop: '6px' }}>
+                            📅 {memo.timestamp}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
