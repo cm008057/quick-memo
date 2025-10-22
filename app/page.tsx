@@ -1704,11 +1704,15 @@ export default function QuickMemoApp() {
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value)
-              // 入力中はスクロール位置を強制的に固定
+              // 入力中は固定状態を維持（スクロール操作は不要）
               if (isSearchFocusedRef.current && window.innerWidth <= 600) {
-                requestAnimationFrame(() => {
-                  window.scrollTo(0, searchScrollPositionRef.current)
-                })
+                // position: fixedが維持されているか確認し、必要なら再適用
+                if (document.body.style.position !== 'fixed') {
+                  document.body.style.overflow = 'hidden'
+                  document.body.style.position = 'fixed'
+                  document.body.style.width = '100%'
+                  document.body.style.top = `-${searchScrollPositionRef.current}px`
+                }
               }
             }}
             onTouchStart={() => {
