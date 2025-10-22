@@ -2212,8 +2212,13 @@ export default function QuickMemoApp() {
           <div style={{ marginTop: '20px' }}>
             {/* 未分類エリア */}
             {(() => {
+              // 対象カテゴリーを名前で判定
+              const targetCategoryKeys = orderedCategories
+                .filter(([_, cat]) => ['目指す姿', '課題', 'アイデア', '宿題'].includes(cat.name))
+                .map(([key, _]) => key)
+
               const uncategorizedMemos = memos.filter(m =>
-                ['goal', 'challenge', 'idea', 'homework'].includes(m.category) &&
+                targetCategoryKeys.includes(m.category) &&
                 !m.parentId
               )
 
@@ -2293,11 +2298,10 @@ export default function QuickMemoApp() {
             })()}
 
             {/* カテゴリー別表示 */}
-            {['goal', 'challenge', 'idea', 'homework'].map(categoryKey => {
-              const cat = categories[categoryKey]
-              if (!cat) return null
-
-              const categoryMemos = memos.filter(m => m.category === categoryKey)
+            {orderedCategories
+              .filter(([_, cat]) => ['目指す姿', '課題', 'アイデア', '宿題'].includes(cat.name))
+              .map(([categoryKey, cat]) => {
+                const categoryMemos = memos.filter(m => m.category === categoryKey)
 
               return (
                 <div key={categoryKey} style={{ marginBottom: '30px' }}>
