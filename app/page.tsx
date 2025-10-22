@@ -2113,6 +2113,7 @@ export default function QuickMemoApp() {
           })
         )}
       </div>
+      )}
 
       {/* 認証モーダル */}
       <AuthModal
