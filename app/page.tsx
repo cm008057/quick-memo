@@ -1533,24 +1533,6 @@ export default function QuickMemoApp() {
             </div>
             <div className="category-actions">
               <div className="action-group-1">
-                <button
-                  className="manage-btn"
-                  onClick={undo}
-                  disabled={historyIndex <= 0}
-                  title="元に戻す"
-                >
-                  <span className="btn-icon">↶</span>
-                  <span className="btn-label">戻る</span>
-                </button>
-                <button
-                  className="manage-btn"
-                  onClick={redo}
-                  disabled={historyIndex >= history.length - 1}
-                  title="やり直す"
-                >
-                  <span className="btn-icon">↷</span>
-                  <span className="btn-label">進む</span>
-                </button>
                 <button className="manage-btn" onClick={() => setShowCategoryModal(true)} title="カテゴリー管理">
                   <span className="btn-icon">⚙️</span>
                   <span className="btn-label">管理</span>
@@ -1625,6 +1607,24 @@ export default function QuickMemoApp() {
                   console.log('✅ ファイル選択フラグをクリアしました（onBlur）')
                 }}
               />
+                <button
+                  className="manage-btn"
+                  onClick={undo}
+                  disabled={historyIndex <= 0}
+                  title="元に戻す"
+                >
+                  <span className="btn-icon">↶</span>
+                  <span className="btn-label">戻る</span>
+                </button>
+                <button
+                  className="manage-btn"
+                  onClick={redo}
+                  disabled={historyIndex >= history.length - 1}
+                  title="やり直す"
+                >
+                  <span className="btn-icon">↷</span>
+                  <span className="btn-label">進む</span>
+                </button>
               </div>
             </div>
           </div>
