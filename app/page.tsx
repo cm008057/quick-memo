@@ -1255,19 +1255,36 @@ export default function QuickMemoApp() {
     }
   }
 
-  // カテゴリ名を更新
-  const updateCategoryName = async (key: string, newName: string) => {
-    if (newName.trim()) {
-      // 🔧 修正: 更新後のデータを明示的に計算してから保存
-      const updatedCategories = {
-        ...categories,
-        [key]: { ...categories[key], name: newName.trim() }
-      }
-      setCategories(updatedCategories)
-
-      // 更新後のデータを明示的に保存
-      await saveCategories(updatedCategories, categoryOrder)
+  // カテゴリ名を更新（入力中）
+  const updateCategoryName = (key: string, newName: string) => {
+    // 入力中は空文字列も許可（全文字削除可能にする）
+    const updatedCategories = {
+      ...categories,
+      [key]: { ...categories[key], name: newName }
     }
+    setCategories(updatedCategories)
+  }
+
+  // カテゴリ名の最終確定（フォーカスが外れた時）
+  const finalizeCategoryName = async (key: string) => {
+    const category = categories[key]
+    if (!category.name.trim()) {
+      // 空の場合は元の名前に戻す（または警告を出す）
+      alert('カテゴリー名は空にできません')
+      // 元の名前を復元するために再読み込み
+      if (user) {
+        await loadDataFromSupabase(0, true)
+      }
+      return
+    }
+
+    // 名前をトリムして保存
+    const updatedCategories = {
+      ...categories,
+      [key]: { ...categories[key], name: category.name.trim() }
+    }
+    setCategories(updatedCategories)
+    await saveCategories(updatedCategories, categoryOrder)
   }
 
   // メモをソート
@@ -2085,6 +2102,12 @@ export default function QuickMemoApp() {
                     className="category-name-input"
                     value={cat.name}
                     onChange={(e) => updateCategoryName(key, e.target.value)}
+                    onBlur={() => finalizeCategoryName(key)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.currentTarget.blur() // Enterキーでフォーカスを外して確定
+                      }
+                    }}
                   />
                   <button
                     className="category-delete-btn"
