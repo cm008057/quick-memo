@@ -443,6 +443,41 @@ export default function QuickMemoApp() {
     }
   }, [])
 
+  // 検索フィールド外のクリックで画面固定を解除
+  useEffect(() => {
+    const handleClickOutsideSearch = (e: MouseEvent | TouchEvent) => {
+      // 検索フィールドがフォーカスされていない場合は何もしない
+      if (!isSearchFocusedRef.current) return
+
+      const target = e.target as HTMLElement
+      // 検索フィールドまたは検索クリアボタンをクリックした場合は何もしない
+      if (target.closest('.search-input') || target.closest('.search-clear')) {
+        return
+      }
+
+      // それ以外をクリック/タッチしたら画面固定を解除
+      if (window.innerWidth <= 600) {
+        isSearchFocusedRef.current = false
+        const scrollY = searchScrollPositionRef.current
+
+        document.body.style.overflow = ''
+        document.body.style.position = ''
+        document.body.style.width = ''
+        document.body.style.top = ''
+
+        window.scrollTo(0, scrollY)
+      }
+    }
+
+    document.addEventListener('click', handleClickOutsideSearch)
+    document.addEventListener('touchstart', handleClickOutsideSearch)
+
+    return () => {
+      document.removeEventListener('click', handleClickOutsideSearch)
+      document.removeEventListener('touchstart', handleClickOutsideSearch)
+    }
+  }, [])
+
   // ピッカーの外側クリックで閉じる
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -1778,9 +1813,23 @@ export default function QuickMemoApp() {
             placeholder="検索..."
             value={searchQuery}
             onChange={(e) => {
-              setSearchQuery(e.target.value)
+              const newValue = e.target.value
+              setSearchQuery(newValue)
+
+              // 検索テキストが空になった場合は画面固定を解除
+              if (!newValue && window.innerWidth <= 600 && isSearchFocusedRef.current) {
+                isSearchFocusedRef.current = false
+                const scrollY = searchScrollPositionRef.current
+
+                document.body.style.overflow = ''
+                document.body.style.position = ''
+                document.body.style.width = ''
+                document.body.style.top = ''
+
+                window.scrollTo(0, scrollY)
+              }
               // 入力中は固定状態を維持（スクロール操作は不要）
-              if (isSearchFocusedRef.current && window.innerWidth <= 600) {
+              else if (isSearchFocusedRef.current && window.innerWidth <= 600) {
                 // position: fixedが維持されているか確認し、必要なら再適用
                 if (document.body.style.position !== 'fixed') {
                   document.body.style.overflow = 'hidden'
@@ -1839,7 +1888,21 @@ export default function QuickMemoApp() {
           {searchQuery && (
             <button
               className="search-clear"
-              onClick={() => setSearchQuery('')}
+              onClick={() => {
+                setSearchQuery('')
+                // 検索クリア時に画面固定を解除
+                if (window.innerWidth <= 600 && isSearchFocusedRef.current) {
+                  isSearchFocusedRef.current = false
+                  const scrollY = searchScrollPositionRef.current
+
+                  document.body.style.overflow = ''
+                  document.body.style.position = ''
+                  document.body.style.width = ''
+                  document.body.style.top = ''
+
+                  window.scrollTo(0, scrollY)
+                }
+              }}
               title="クリア"
             >
               ✕
