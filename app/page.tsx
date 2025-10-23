@@ -64,10 +64,24 @@ interface Memo {
   isEncrypted?: boolean
   updated_at?: string
   deleted?: boolean
-  // ツリー管理用（オプショナル = 既存データに影響なし）
-  parentId?: number      // 親メモのID（未設定 = 未分類）
-  treeOrder?: number     // ツリー内での表示順序
-  treeCollapsed?: boolean // 折りたたみ状態（デフォルト: false = 展開）
+}
+
+// 新しいツリー管理用のデータ構造
+interface TreeNode {
+  id: string
+  text: string
+  completed: boolean
+  children: TreeNode[]
+  collapsed: boolean
+  level: number
+  templateType?: string  // 大項目タイプ（オプション）
+}
+
+interface TreeTemplate {
+  id: string
+  name: string  // 「目指す姿」など
+  order: number
+  prefix: string  // 「【目指す姿】」などのプレフィックス
 }
 
 // デフォルトカテゴリー
@@ -84,6 +98,15 @@ const defaultCategories: { [key: string]: Category } = {
 // 利用可能なアイコンと色
 const availableIcons = ['💡', '💬', '📄', '📅', '📚', '🙏', '⭐', '❗', '✅', '🎯', '🔔', '📌', '🏷️', '💰', '🏠', '🚗', '✈️', '🍴', '💊', '🎉', '✨', '📝', '🎮', '🎵', '🎨', '💻', '📱', '⚡', '🔥', '🌟']
 const availableColors = ['#fbbf24', '#3b82f6', '#10b981', '#f43f5e', '#8b5cf6', '#fb923c', '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#6366f1', '#14b8a6', '#ef4444', '#a855f7', '#22c55e', '#0ea5e9', '#f59e0b', '#10b981', '#64748b', '#71717a']
+
+// デフォルトのツリーテンプレート
+const defaultTreeTemplates: TreeTemplate[] = [
+  { id: 'life-purpose', name: '人生の目的', order: 1, prefix: '【人生の目的】' },
+  { id: 'goal', name: '目指す姿', order: 2, prefix: '【目指す姿】' },
+  { id: 'challenge', name: '課題', order: 3, prefix: '【課題】' },
+  { id: 'idea', name: 'アイデア', order: 4, prefix: '【アイデア】' },
+  { id: 'homework', name: '宿題', order: 5, prefix: '【宿題】' }
+]
 
 export default function QuickMemoApp() {
   const [categories, setCategories] = useState<{ [key: string]: Category }>(defaultCategories)
@@ -107,8 +130,10 @@ export default function QuickMemoApp() {
 
   // ツリー管理画面の状態
   const [viewMode, setViewMode] = useState<'quick' | 'tree'>('quick') // 画面切り替え
-  const [setParentForMemoId, setSetParentForMemoId] = useState<number | null>(null) // 親を設定するメモID
-  const [showParentSelectorModal, setShowParentSelectorModal] = useState<boolean>(false) // 親選択モーダル
+  const [treeNodes, setTreeNodes] = useState<TreeNode[]>([]) // ツリーのノード
+  const [treeTemplates, setTreeTemplates] = useState<TreeTemplate[]>(defaultTreeTemplates) // テンプレート
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null) // 編集中のノードID
+  const [showMemoPickerFor, setShowMemoPickerFor] = useState<string | null>(null) // メモピッカーを表示するノードID
 
   // 認証関連のstate
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1122,26 +1147,69 @@ export default function QuickMemoApp() {
     }
   }
 
-  // 親子関係を設定
-  const setParentForMemo = async (childMemoId: number, parentMemoId: number | null) => {
-    // 履歴に追加（操作前の状態を保存）
-    saveToHistory(memos, memoOrder)
+  // ツリー管理：新しいノードを追加
+  const addTreeNode = (parentId: string | null = null, templateType?: string) => {
+    const newNode: TreeNode = {
+      id: Date.now().toString(),
+      text: templateType ? treeTemplates.find(t => t.id === templateType)?.prefix || '' : '',
+      completed: false,
+      children: [],
+      collapsed: false,
+      level: parentId ? findNodeLevel(treeNodes, parentId) + 1 : 0,
+      templateType
+    }
 
-    // メモを更新（nullをundefinedに変換）
-    const updatedMemos = memos.map(m =>
-      m.id === childMemoId
-        ? { ...m, parentId: parentMemoId === null ? undefined : parentMemoId }
-        : m
-    )
+    if (parentId) {
+      setTreeNodes(prev => addChildToNode(prev, parentId, newNode))
+    } else {
+      setTreeNodes(prev => [...prev, newNode])
+    }
 
-    setMemos(updatedMemos)
-    await saveMemos(updatedMemos, memoOrder)
+    setEditingNodeId(newNode.id)
+  }
 
-    // モーダルを閉じる
-    setShowParentSelectorModal(false)
-    setSetParentForMemoId(null)
+  // ノードのレベルを見つける（ヘルパー関数）
+  const findNodeLevel = (nodes: TreeNode[], nodeId: string, currentLevel: number = 0): number => {
+    for (const node of nodes) {
+      if (node.id === nodeId) return currentLevel
+      const found = findNodeLevel(node.children, nodeId, currentLevel + 1)
+      if (found !== -1) return found
+    }
+    return -1
+  }
 
-    console.log(`✅ 親子関係を設定: 子=${childMemoId}, 親=${parentMemoId}`)
+  // 子ノードを追加（ヘルパー関数）
+  const addChildToNode = (nodes: TreeNode[], parentId: string, newChild: TreeNode): TreeNode[] => {
+    return nodes.map(node => {
+      if (node.id === parentId) {
+        return { ...node, children: [...node.children, newChild] }
+      }
+      return { ...node, children: addChildToNode(node.children, parentId, newChild) }
+    })
+  }
+
+  // ノードを更新
+  const updateTreeNode = (nodeId: string, updates: Partial<TreeNode>) => {
+    const updateNode = (nodes: TreeNode[]): TreeNode[] => {
+      return nodes.map(node => {
+        if (node.id === nodeId) {
+          return { ...node, ...updates }
+        }
+        return { ...node, children: updateNode(node.children) }
+      })
+    }
+    setTreeNodes(prev => updateNode(prev))
+  }
+
+  // ノードを削除
+  const deleteTreeNode = (nodeId: string) => {
+    const deleteNode = (nodes: TreeNode[]): TreeNode[] => {
+      return nodes.filter(node => node.id !== nodeId).map(node => ({
+        ...node,
+        children: deleteNode(node.children)
+      }))
+    }
+    setTreeNodes(prev => deleteNode(prev))
   }
 
   // カテゴリを移動
@@ -2206,145 +2274,121 @@ export default function QuickMemoApp() {
         </div>
       )}
 
-      {/* ツリー管理画面 */}
+      {/* ツリー管理画面（新しいアウトライナー形式） */}
       {viewMode === 'tree' && (
         <div style={{ padding: '20px', backgroundColor: '#f9fafb', borderRadius: '8px', minHeight: '400px' }}>
-          <div style={{ marginTop: '20px' }}>
-            {/* 未分類エリア */}
-            {(() => {
-              // 対象カテゴリーを名前で判定
-              const targetCategoryKeys = orderedCategories
-                .filter(([_, cat]) => ['目指す姿', '課題', 'アイデア', '宿題'].includes(cat.name))
-                .map(([key, _]) => key)
+          <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '20px', color: '#374151' }}>構造化ツリー</h2>
+              <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: '#666' }}>
+                Enter: 新規項目 / Tab: 子項目作成 / +/-: 展開・折りたたみ
+              </p>
+            </div>
+            <button
+              onClick={() => addTreeNode(null, treeTemplates[0]?.id)}
+              style={{
+                padding: '10px 20px',
+                fontSize: '14px',
+                backgroundColor: '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer'
+              }}
+            >
+              ➕ 大項目を追加
+            </button>
+          </div>
 
-              const uncategorizedMemos = memos.filter(m =>
-                targetCategoryKeys.includes(m.category) &&
-                !m.parentId
-              )
-
-              return (
-                <div style={{ marginBottom: '40px', padding: '15px', backgroundColor: '#fff3cd', borderRadius: '8px', border: '2px dashed #ffc107' }}>
-                  <h3 style={{
-                    fontSize: '18px',
-                    color: '#856404',
-                    marginBottom: '15px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}>
-                    📦 未分類 ({uncategorizedMemos.length}件)
-                    <span style={{ fontSize: '12px', fontWeight: 'normal', color: '#856404' }}>
-                      - 親を設定して整理しましょう
-                    </span>
-                  </h3>
-
-                  {uncategorizedMemos.length === 0 ? (
-                    <p style={{ fontSize: '14px', color: '#856404', paddingLeft: '20px' }}>
-                      すべて整理されています！
-                    </p>
-                  ) : (
-                    <div style={{ paddingLeft: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {uncategorizedMemos.map(memo => {
-                        const cat = categories[memo.category]
-                        return (
-                          <div
-                            key={memo.id}
-                            style={{
-                              padding: '12px',
-                              backgroundColor: 'white',
-                              borderRadius: '6px',
-                              borderLeft: '4px solid ' + (cat?.color || '#999'),
-                              fontSize: '14px',
-                              color: '#374151',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center'
-                            }}
-                          >
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: '12px', color: cat?.color, marginBottom: '4px', fontWeight: 'bold' }}>
-                                {cat?.icon} {cat?.name}
-                              </div>
-                              {memo.text}
-                              <div style={{ fontSize: '12px', color: '#999', marginTop: '6px' }}>
-                                📅 {memo.timestamp}
-                              </div>
-                            </div>
-                            <button
-                              style={{
-                                padding: '6px 12px',
-                                fontSize: '12px',
-                                backgroundColor: '#3b82f6',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                whiteSpace: 'nowrap'
-                              }}
-                              onClick={() => {
-                                setSetParentForMemoId(memo.id)
-                                setShowParentSelectorModal(true)
-                              }}
-                            >
-                              🔗 親を設定
-                            </button>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
-
-            {/* カテゴリー別表示 */}
-            {orderedCategories
-              .filter(([_, cat]) => ['目指す姿', '課題', 'アイデア', '宿題'].includes(cat.name))
-              .map(([categoryKey, cat]) => {
-                const categoryMemos = memos.filter(m => m.category === categoryKey)
-
-              return (
-                <div key={categoryKey} style={{ marginBottom: '30px' }}>
-                  <h3 style={{
-                    fontSize: '18px',
-                    color: '#374151',
-                    marginBottom: '15px',
-                    paddingBottom: '8px',
-                    borderBottom: '2px solid ' + cat.color
-                  }}>
-                    {cat.icon} {cat.name} ({categoryMemos.length}件)
-                  </h3>
-
-                  {categoryMemos.length === 0 ? (
-                    <p style={{ fontSize: '14px', color: '#999', paddingLeft: '20px' }}>
-                      メモがありません
-                    </p>
-                  ) : (
-                    <div style={{ paddingLeft: '10px' }}>
-                      {categoryMemos.map(memo => (
-                        <div
-                          key={memo.id}
+          {/* ツリーノードの表示（再帰的） */}
+          <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '15px', minHeight: '300px' }}>
+            {treeNodes.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px', color: '#999' }}>
+                <div style={{ fontSize: '48px', marginBottom: '10px' }}>🌲</div>
+                <p style={{ fontSize: '16px' }}>まだ項目がありません</p>
+                <p style={{ fontSize: '14px' }}>「大項目を追加」ボタンから始めましょう</p>
+              </div>
+            ) : (
+              <div>
+                {treeNodes.map(node => (
+                  <div key={node.id} style={{ marginBottom: '5px' }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '8px',
+                      backgroundColor: editingNodeId === node.id ? '#f0f9ff' : 'transparent',
+                      borderRadius: '4px'
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={node.completed}
+                        onChange={() => updateTreeNode(node.id, { completed: !node.completed })}
+                        style={{ marginRight: '8px' }}
+                      />
+                      {editingNodeId === node.id ? (
+                        <input
+                          type="text"
+                          value={node.text}
+                          onChange={(e) => updateTreeNode(node.id, { text: e.target.value })}
+                          onBlur={() => setEditingNodeId(null)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              setEditingNodeId(null)
+                              addTreeNode(null, treeTemplates[(treeNodes.indexOf(node) + 1) % treeTemplates.length]?.id)
+                            }
+                          }}
+                          autoFocus
                           style={{
-                            padding: '12px',
-                            marginBottom: '10px',
-                            backgroundColor: 'white',
-                            borderRadius: '6px',
-                            borderLeft: '4px solid ' + cat.color,
+                            flex: 1,
+                            padding: '4px 8px',
                             fontSize: '14px',
-                            color: '#374151'
+                            border: '1px solid #3b82f6',
+                            borderRadius: '4px'
+                          }}
+                        />
+                      ) : (
+                        <span
+                          onClick={() => setEditingNodeId(node.id)}
+                          style={{
+                            flex: 1,
+                            cursor: 'pointer',
+                            textDecoration: node.completed ? 'line-through' : 'none',
+                            color: node.completed ? '#999' : '#374151'
                           }}
                         >
-                          {memo.text}
-                          <div style={{ fontSize: '12px', color: '#999', marginTop: '6px' }}>
-                            📅 {memo.timestamp}
-                          </div>
-                        </div>
-                      ))}
+                          {node.text || '（空白）'}
+                        </span>
+                      )}
+                      <button
+                        onClick={() => deleteTreeNode(node.id)}
+                        style={{
+                          marginLeft: '8px',
+                          padding: '4px 8px',
+                          fontSize: '12px',
+                          backgroundColor: '#fee',
+                          border: '1px solid #fcc',
+                          borderRadius: '4px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        🗑️
+                      </button>
                     </div>
-                  )}
-                </div>
-              )
-            })}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* クイックメモから挿入 */}
+          <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#fff', borderRadius: '8px' }}>
+            <h3 style={{ fontSize: '16px', color: '#374151', marginBottom: '10px' }}>
+              📝 クイックメモから挿入
+            </h3>
+            <p style={{ fontSize: '14px', color: '#666', marginBottom: '10px' }}>
+              クイックメモの内容をツリーに追加できます（近日実装予定）
+            </p>
           </div>
         </div>
       )}
@@ -2463,102 +2507,6 @@ export default function QuickMemoApp() {
         </div>
       </div>
 
-      {/* 親選択モーダル */}
-      <div className={`modal ${showParentSelectorModal ? 'active' : ''}`}>
-        <div className="modal-content">
-          <div className="modal-header">
-            <h2 className="modal-title">親メモを選択</h2>
-            <button className="close-btn" onClick={() => {
-              setShowParentSelectorModal(false)
-              setSetParentForMemoId(null)
-            }}>
-              &times;
-            </button>
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            {setParentForMemoId && (() => {
-              const currentMemo = memos.find(m => m.id === setParentForMemoId)
-              if (!currentMemo) return null
-
-              // 親候補のメモ（同じカテゴリーで、自分自身ではないもの）
-              const potentialParents = memos.filter(m =>
-                m.category === currentMemo.category &&
-                m.id !== currentMemo.id &&
-                !m.deleted
-              )
-
-              return (
-                <>
-                  <p style={{ fontSize: '14px', color: '#666', marginBottom: '15px' }}>
-                    <strong>{currentMemo.text}</strong> の親メモを選択してください
-                  </p>
-
-                  {/* 親なし（未分類に戻す）オプション */}
-                  <div
-                    style={{
-                      padding: '12px',
-                      marginBottom: '10px',
-                      backgroundColor: '#fff3cd',
-                      borderRadius: '6px',
-                      border: '2px solid #ffc107',
-                      cursor: 'pointer',
-                      fontSize: '14px'
-                    }}
-                    onClick={() => setParentForMemo(currentMemo.id, null)}
-                  >
-                    📦 <strong>親なし（未分類に戻す）</strong>
-                  </div>
-
-                  {potentialParents.length === 0 ? (
-                    <p style={{ fontSize: '14px', color: '#999', padding: '20px', textAlign: 'center' }}>
-                      親に設定できるメモがありません
-                    </p>
-                  ) : (
-                    <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                      {potentialParents.map(parentMemo => {
-                        const cat = categories[parentMemo.category]
-                        return (
-                          <div
-                            key={parentMemo.id}
-                            style={{
-                              padding: '12px',
-                              marginBottom: '10px',
-                              backgroundColor: 'white',
-                              borderRadius: '6px',
-                              borderLeft: '4px solid ' + (cat?.color || '#999'),
-                              cursor: 'pointer',
-                              fontSize: '14px',
-                              transition: 'all 0.2s'
-                            }}
-                            onClick={() => setParentForMemo(currentMemo.id, parentMemo.id)}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = '#f0f9ff'
-                              e.currentTarget.style.transform = 'translateX(4px)'
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'white'
-                              e.currentTarget.style.transform = 'translateX(0)'
-                            }}
-                          >
-                            <div style={{ fontSize: '12px', color: cat?.color, marginBottom: '4px', fontWeight: 'bold' }}>
-                              {cat?.icon} {cat?.name}
-                            </div>
-                            {parentMemo.text}
-                            <div style={{ fontSize: '12px', color: '#999', marginTop: '6px' }}>
-                              📅 {parentMemo.timestamp}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </>
-              )
-            })()}
-          </div>
-        </div>
-      </div>
     </div>
   )
 }
