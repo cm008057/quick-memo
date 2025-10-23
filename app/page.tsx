@@ -895,6 +895,39 @@ export default function QuickMemoApp() {
     }
   }, [])
 
+  // ツリーデータの初期化（LocalStorageから読み込み）
+  useEffect(() => {
+    try {
+      const savedNodes = localStorage.getItem('treeNodes')
+      const savedTemplates = localStorage.getItem('treeTemplates')
+
+      if (savedNodes) {
+        const parsedNodes = JSON.parse(savedNodes)
+        setTreeNodes(parsedNodes)
+        console.log(`✅ ツリーノードを復元: ${parsedNodes.length}ノード`)
+      }
+
+      if (savedTemplates) {
+        const parsedTemplates = JSON.parse(savedTemplates)
+        setTreeTemplates(parsedTemplates)
+        console.log(`✅ ツリーテンプレートを復元: ${parsedTemplates.length}個`)
+      }
+    } catch (error) {
+      console.error('ツリーデータの読み込みエラー:', error)
+    }
+  }, [])
+
+  // ツリーデータの自動保存（変更時）
+  useEffect(() => {
+    if (treeNodes.length > 0 || treeTemplates.length > 0) {
+      const timer = setTimeout(() => {
+        saveTreeData()
+      }, 500) // 500ms後に保存
+
+      return () => clearTimeout(timer)
+    }
+  }, [treeNodes, treeTemplates])
+
   // データ保存（認証状態に応じて自動選択）
   // 🔧 修正: 引数で保存するデータを受け取るように変更（Race Condition防止）
   const saveMemos = async (memosToSave?: Memo[], memoOrderToSave?: number[]) => {
@@ -935,6 +968,38 @@ export default function QuickMemoApp() {
       }
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  // ツリーデータを保存
+  const saveTreeData = async (nodesToSave?: TreeNode[], templatesToSave?: TreeTemplate[]) => {
+    const finalNodes = nodesToSave ?? treeNodes
+    const finalTemplates = templatesToSave ?? treeTemplates
+
+    try {
+      if (user) {
+        try {
+          // TODO: Supabaseに保存（テーブルが作成されたら実装）
+          // await dataService.saveTreeNodes(finalNodes)
+          // await dataService.saveTreeTemplates(finalTemplates)
+
+          // 現時点ではLocalStorageにも保存
+          localStorage.setItem('treeNodes', JSON.stringify(finalNodes))
+          localStorage.setItem('treeTemplates', JSON.stringify(finalTemplates))
+          console.log(`✅ ツリーデータ保存完了: ${finalNodes.length}ノード`)
+        } catch (error) {
+          console.error('ツリーデータの保存に失敗:', error)
+          // フォールバック：LocalStorageに保存
+          localStorage.setItem('treeNodes', JSON.stringify(finalNodes))
+          localStorage.setItem('treeTemplates', JSON.stringify(finalTemplates))
+        }
+      } else {
+        // 未ログイン：LocalStorageに保存
+        localStorage.setItem('treeNodes', JSON.stringify(finalNodes))
+        localStorage.setItem('treeTemplates', JSON.stringify(finalTemplates))
+      }
+    } catch (error) {
+      console.error('ツリーデータの保存エラー:', error)
     }
   }
 
@@ -1210,6 +1275,157 @@ export default function QuickMemoApp() {
       }))
     }
     setTreeNodes(prev => deleteNode(prev))
+  }
+
+  // ノードの親を見つける（親のIDとパスを返す）
+  const findParentNode = (nodes: TreeNode[], targetId: string, parent: TreeNode | null = null): { parent: TreeNode | null, grandparent: TreeNode | null } | null => {
+    for (const node of nodes) {
+      if (node.id === targetId) {
+        return { parent, grandparent: null }
+      }
+      const found = node.children.find(child => child.id === targetId)
+      if (found) {
+        return { parent: node, grandparent: parent }
+      }
+      const deepSearch = findParentNode(node.children, targetId, node)
+      if (deepSearch) return deepSearch
+    }
+    return null
+  }
+
+  // ノードを1階層上に移動（アンインデント）
+  const unindentTreeNode = (nodeId: string) => {
+    const parentInfo = findParentNode(treeNodes, nodeId)
+    if (!parentInfo || !parentInfo.parent) {
+      // すでにルートレベルの場合は何もしない
+      return
+    }
+
+    setTreeNodes(prev => {
+      // ノードを親から削除
+      const removeFromParent = (nodes: TreeNode[]): TreeNode[] => {
+        return nodes.map(node => {
+          if (node.id === parentInfo.parent!.id) {
+            return {
+              ...node,
+              children: node.children.filter(child => child.id !== nodeId)
+            }
+          }
+          return {
+            ...node,
+            children: removeFromParent(node.children)
+          }
+        })
+      }
+
+      // 削除されたノードを取得
+      let targetNode: TreeNode | null = null
+      const findNode = (nodes: TreeNode[]): void => {
+        for (const node of nodes) {
+          if (node.id === nodeId) {
+            targetNode = node
+            return
+          }
+          findNode(node.children)
+        }
+      }
+      findNode(prev)
+
+      if (!targetNode) return prev
+
+      // レベルを更新
+      const updatedNode = {
+        ...targetNode,
+        level: targetNode.level - 1
+      }
+
+      let result = removeFromParent(prev)
+
+      // 祖父母がいる場合は祖父母の子として追加、いない場合はルートに追加
+      if (parentInfo.grandparent) {
+        result = result.map(node => {
+          if (node.id === parentInfo.grandparent!.id) {
+            // 親の後に追加
+            const parentIndex = node.children.findIndex(c => c.id === parentInfo.parent!.id)
+            const newChildren = [...node.children]
+            newChildren.splice(parentIndex + 1, 0, updatedNode)
+            return {
+              ...node,
+              children: newChildren
+            }
+          }
+          return {
+            ...node,
+            children: node.children.map(child => {
+              if (child.id === parentInfo.grandparent!.id) {
+                const parentIndex = child.children.findIndex(c => c.id === parentInfo.parent!.id)
+                const newChildren = [...child.children]
+                newChildren.splice(parentIndex + 1, 0, updatedNode)
+                return {
+                  ...child,
+                  children: newChildren
+                }
+              }
+              return child
+            })
+          }
+        })
+      } else {
+        // ルートレベルに追加（親の後）
+        const parentIndex = result.findIndex(n => n.id === parentInfo.parent!.id)
+        result.splice(parentIndex + 1, 0, updatedNode)
+      }
+
+      return result
+    })
+  }
+
+  // ノードの後に兄弟ノードを追加（Enterキー用）
+  const addSiblingAfterNode = (nodeId: string) => {
+    const parentInfo = findParentNode(treeNodes, nodeId)
+
+    const newNode: TreeNode = {
+      id: Date.now().toString(),
+      text: '',
+      completed: false,
+      children: [],
+      collapsed: false,
+      level: parentInfo?.parent ? findNodeLevel(treeNodes, nodeId) : 0,
+      templateType: undefined
+    }
+
+    setTreeNodes(prev => {
+      if (!parentInfo || !parentInfo.parent) {
+        // ルートレベル: 現在のノードの後に追加
+        const nodeIndex = prev.findIndex(n => n.id === nodeId)
+        const result = [...prev]
+        result.splice(nodeIndex + 1, 0, newNode)
+        return result
+      }
+
+      // 親の子として、現在のノードの後に追加
+      const addAfter = (nodes: TreeNode[]): TreeNode[] => {
+        return nodes.map(node => {
+          if (node.id === parentInfo.parent!.id) {
+            const childIndex = node.children.findIndex(c => c.id === nodeId)
+            const newChildren = [...node.children]
+            newChildren.splice(childIndex + 1, 0, newNode)
+            return {
+              ...node,
+              children: newChildren
+            }
+          }
+          return {
+            ...node,
+            children: addAfter(node.children)
+          }
+        })
+      }
+
+      return addAfter(prev)
+    })
+
+    setEditingNodeId(newNode.id)
   }
 
   // カテゴリを移動
@@ -2310,85 +2526,229 @@ export default function QuickMemoApp() {
               </div>
             ) : (
               <div>
-                {treeNodes.map(node => (
-                  <div key={node.id} style={{ marginBottom: '5px' }}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '8px',
-                      backgroundColor: editingNodeId === node.id ? '#f0f9ff' : 'transparent',
-                      borderRadius: '4px'
-                    }}>
-                      <input
-                        type="checkbox"
-                        checked={node.completed}
-                        onChange={() => updateTreeNode(node.id, { completed: !node.completed })}
-                        style={{ marginRight: '8px' }}
-                      />
-                      {editingNodeId === node.id ? (
-                        <input
-                          type="text"
-                          value={node.text}
-                          onChange={(e) => updateTreeNode(node.id, { text: e.target.value })}
-                          onBlur={() => setEditingNodeId(null)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault()
-                              setEditingNodeId(null)
-                              addTreeNode(null, treeTemplates[(treeNodes.indexOf(node) + 1) % treeTemplates.length]?.id)
-                            }
-                          }}
-                          autoFocus
-                          style={{
-                            flex: 1,
-                            padding: '4px 8px',
-                            fontSize: '14px',
-                            border: '1px solid #3b82f6',
-                            borderRadius: '4px'
-                          }}
-                        />
-                      ) : (
-                        <span
-                          onClick={() => setEditingNodeId(node.id)}
-                          style={{
-                            flex: 1,
-                            cursor: 'pointer',
-                            textDecoration: node.completed ? 'line-through' : 'none',
-                            color: node.completed ? '#999' : '#374151'
-                          }}
-                        >
-                          {node.text || '（空白）'}
-                        </span>
-                      )}
-                      <button
-                        onClick={() => deleteTreeNode(node.id)}
-                        style={{
-                          marginLeft: '8px',
-                          padding: '4px 8px',
-                          fontSize: '12px',
-                          backgroundColor: '#fee',
-                          border: '1px solid #fcc',
+                {/* 再帰的なツリーノード表示 */}
+                {(() => {
+                  const renderNode = (node: TreeNode, depth: number = 0): JSX.Element => {
+                    const hasChildren = node.children && node.children.length > 0
+                    const isCollapsed = node.collapsed
+
+                    return (
+                      <div key={node.id} style={{ marginBottom: '3px' }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '8px',
+                          paddingLeft: `${8 + depth * 24}px`,
+                          backgroundColor: editingNodeId === node.id ? '#f0f9ff' : 'transparent',
                           borderRadius: '4px',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                          borderLeft: depth > 0 ? '2px solid #e5e7eb' : 'none',
+                          marginLeft: depth > 0 ? '12px' : '0'
+                        }}>
+                          {/* 折りたたみボタン */}
+                          {hasChildren && (
+                            <button
+                              onClick={() => updateTreeNode(node.id, { collapsed: !node.collapsed })}
+                              style={{
+                                marginRight: '6px',
+                                padding: '2px 6px',
+                                fontSize: '12px',
+                                backgroundColor: 'transparent',
+                                border: '1px solid #ddd',
+                                borderRadius: '3px',
+                                cursor: 'pointer',
+                                minWidth: '24px'
+                              }}
+                            >
+                              {isCollapsed ? '▶' : '▼'}
+                            </button>
+                          )}
+                          {!hasChildren && <span style={{ width: '30px', display: 'inline-block' }}></span>}
+
+                          {/* チェックボックス */}
+                          <input
+                            type="checkbox"
+                            checked={node.completed}
+                            onChange={() => updateTreeNode(node.id, { completed: !node.completed })}
+                            style={{ marginRight: '8px' }}
+                          />
+
+                          {/* テキスト入力/表示 */}
+                          {editingNodeId === node.id ? (
+                            <input
+                              type="text"
+                              value={node.text}
+                              onChange={(e) => updateTreeNode(node.id, { text: e.target.value })}
+                              onBlur={() => setEditingNodeId(null)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault()
+                                  setEditingNodeId(null)
+                                  // Enterで同じ階層に兄弟項目を追加
+                                  addSiblingAfterNode(node.id)
+                                } else if (e.key === 'Tab') {
+                                  e.preventDefault()
+                                  if (e.shiftKey) {
+                                    // Shift+Tab: インデント解除（1階層上に移動）
+                                    setEditingNodeId(null)
+                                    unindentTreeNode(node.id)
+                                  } else {
+                                    // Tab: 子項目作成
+                                    setEditingNodeId(null)
+                                    addTreeNode(node.id)
+                                  }
+                                }
+                              }}
+                              autoFocus
+                              style={{
+                                flex: 1,
+                                padding: '4px 8px',
+                                fontSize: '14px',
+                                border: '1px solid #3b82f6',
+                                borderRadius: '4px'
+                              }}
+                            />
+                          ) : (
+                            <span
+                              onClick={() => setEditingNodeId(node.id)}
+                              style={{
+                                flex: 1,
+                                cursor: 'pointer',
+                                textDecoration: node.completed ? 'line-through' : 'none',
+                                color: node.completed ? '#999' : '#374151',
+                                fontSize: '14px'
+                              }}
+                            >
+                              {node.text || '（空白）'}
+                            </span>
+                          )}
+
+                          {/* クイックメモ挿入ボタン */}
+                          <button
+                            onClick={() => setShowMemoPickerFor(node.id)}
+                            style={{
+                              marginLeft: '8px',
+                              padding: '4px 8px',
+                              fontSize: '12px',
+                              backgroundColor: '#eff6ff',
+                              border: '1px solid #bfdbfe',
+                              borderRadius: '4px',
+                              cursor: 'pointer'
+                            }}
+                            title="クイックメモから挿入"
+                          >
+                            📝+
+                          </button>
+
+                          {/* 削除ボタン */}
+                          <button
+                            onClick={() => deleteTreeNode(node.id)}
+                            style={{
+                              marginLeft: '8px',
+                              padding: '4px 8px',
+                              fontSize: '12px',
+                              backgroundColor: '#fee',
+                              border: '1px solid #fcc',
+                              borderRadius: '4px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            🗑️
+                          </button>
+                        </div>
+
+                        {/* 子ノードを再帰的に表示 */}
+                        {hasChildren && !isCollapsed && (
+                          <div>
+                            {node.children.map(child => renderNode(child, depth + 1))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  }
+
+                  return <>{treeNodes.map(node => renderNode(node, 0))}</>
+                })()}
               </div>
             )}
           </div>
 
-          {/* クイックメモから挿入 */}
-          <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#fff', borderRadius: '8px' }}>
-            <h3 style={{ fontSize: '16px', color: '#374151', marginBottom: '10px' }}>
-              📝 クイックメモから挿入
-            </h3>
-            <p style={{ fontSize: '14px', color: '#666', marginBottom: '10px' }}>
-              クイックメモの内容をツリーに追加できます（近日実装予定）
-            </p>
+        </div>
+      )}
+
+      {/* クイックメモピッカーモーダル */}
+      {showMemoPickerFor && (
+        <div className="modal active">
+          <div className="modal-content" style={{ maxWidth: '600px', maxHeight: '80vh', overflow: 'auto' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">クイックメモから挿入</h3>
+              <button
+                onClick={() => setShowMemoPickerFor(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#666'
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div style={{ padding: '20px' }}>
+              <p style={{ fontSize: '14px', color: '#666', marginBottom: '15px' }}>
+                挿入したいメモを選択してください
+              </p>
+
+              {/* カテゴリー別にメモを表示 */}
+              {orderedCategories.map(([categoryKey, category]) => {
+                const categoryMemos = memos.filter(m => m.category === categoryKey && !m.deleted_at)
+                if (categoryMemos.length === 0) return null
+
+                return (
+                  <div key={categoryKey} style={{ marginBottom: '20px' }}>
+                    <h4 style={{ fontSize: '14px', fontWeight: 'bold', color: '#374151', marginBottom: '8px' }}>
+                      {category.emoji} {category.name}
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {categoryMemos.map(memo => (
+                        <button
+                          key={memo.id}
+                          onClick={() => {
+                            // メモのテキストを現在のノードに挿入
+                            updateTreeNode(showMemoPickerFor, { text: memo.text })
+                            setShowMemoPickerFor(null)
+                          }}
+                          style={{
+                            textAlign: 'left',
+                            padding: '10px 12px',
+                            fontSize: '14px',
+                            backgroundColor: '#f9fafb',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            transition: 'background-color 0.2s'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#eff6ff'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = '#f9fafb'
+                          }}
+                        >
+                          {memo.text}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+
+              {memos.filter(m => !m.deleted_at).length === 0 && (
+                <p style={{ fontSize: '14px', color: '#999', textAlign: 'center', padding: '20px' }}>
+                  メモがありません
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}
