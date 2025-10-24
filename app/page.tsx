@@ -2531,7 +2531,7 @@ export default function QuickMemoApp() {
               <div>
                 {/* 再帰的なツリーノード表示 */}
                 {(() => {
-                  const renderNode = (node: TreeNode, depth: number = 0): JSX.Element => {
+                  const renderNode = (node: TreeNode, depth: number = 0) => {
                     const hasChildren = node.children && node.children.length > 0
                     const isCollapsed = node.collapsed
 
