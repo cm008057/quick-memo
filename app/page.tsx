@@ -2710,7 +2710,7 @@ export default function QuickMemoApp() {
                 return (
                   <div key={categoryKey} style={{ marginBottom: '20px' }}>
                     <h4 style={{ fontSize: '14px', fontWeight: 'bold', color: '#374151', marginBottom: '8px' }}>
-                      {category.emoji} {category.name}
+                      {category.icon} {category.name}
                     </h4>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       {categoryMemos.map(memo => (
