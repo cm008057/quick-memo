@@ -2621,7 +2621,7 @@ export default function QuickMemoApp() {
             <div>
               <h2 style={{ margin: 0, fontSize: '20px', color: '#374151' }}>構造化ツリー</h2>
               <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: '#666' }}>
-                Enter: 入力確定 / Shift+Enter: 同じ大項目で新規行追加 / Tab: 階層を下げる / Shift+Tab: 階層を上げる
+                Shift+Enter: 新規行追加 / Tab: 階層を下げる / Shift+Tab: 階層を上げる / 外クリック: 入力確定
               </p>
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
@@ -2732,18 +2732,15 @@ export default function QuickMemoApp() {
                               onBlur={() => setEditingNodeId(null)}
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
+                                  e.preventDefault()
                                   if (e.shiftKey) {
                                     // Shift+Enter: 同じ大項目テンプレートの新しい項目を同じレベルに追加
-                                    e.preventDefault()
                                     setEditingNodeId(null)
                                     const currentNodeTemplateIndex = treeTemplates.findIndex(t => t.id === node.templateType)
                                     const sameIndex = currentNodeTemplateIndex >= 0 ? currentNodeTemplateIndex : 0
                                     addSiblingAfterNode(node.id, sameIndex)
-                                  } else {
-                                    // Enter: 入力を確定（編集モードを終了）
-                                    e.preventDefault()
-                                    setEditingNodeId(null)
                                   }
+                                  // 通常のEnter: 何もしない（入力を続けられる）
                                 } else if (e.key === 'Tab') {
                                   e.preventDefault()
                                   e.stopPropagation()
