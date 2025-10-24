@@ -912,27 +912,50 @@ export default function QuickMemoApp() {
     }
   }, [])
 
-  // ツリーデータの初期化（LocalStorageから読み込み）
+  // ツリーデータの初期化（Supabase or LocalStorageから読み込み）
   useEffect(() => {
-    try {
-      const savedNodes = localStorage.getItem('treeNodes')
-      const savedTemplates = localStorage.getItem('treeTemplates')
+    const loadTreeData = async () => {
+      try {
+        if (user) {
+          // ログイン中：Supabaseから読み込み
+          try {
+            const { nodes, templates } = await dataService.loadTreeData()
+            if (nodes.length > 0 || templates.length > 0) {
+              setTreeNodes(nodes)
+              setTreeTemplates(templates)
+              console.log(`✅ Supabaseからツリーデータを復元: ${nodes.length}ノード, ${templates.length}テンプレート`)
+              // LocalStorageにもバックアップとして保存
+              localStorage.setItem('treeNodes', JSON.stringify(nodes))
+              localStorage.setItem('treeTemplates', JSON.stringify(templates))
+              return
+            }
+          } catch (error) {
+            console.error('Supabaseからの読み込みエラー、LocalStorageから読み込みます:', error)
+          }
+        }
 
-      if (savedNodes) {
-        const parsedNodes = JSON.parse(savedNodes)
-        setTreeNodes(parsedNodes)
-        console.log(`✅ ツリーノードを復元: ${parsedNodes.length}ノード`)
-      }
+        // 未ログインまたはSupabase読み込み失敗時：LocalStorageから読み込み
+        const savedNodes = localStorage.getItem('treeNodes')
+        const savedTemplates = localStorage.getItem('treeTemplates')
 
-      if (savedTemplates) {
-        const parsedTemplates = JSON.parse(savedTemplates)
-        setTreeTemplates(parsedTemplates)
-        console.log(`✅ ツリーテンプレートを復元: ${parsedTemplates.length}個`)
+        if (savedNodes) {
+          const parsedNodes = JSON.parse(savedNodes)
+          setTreeNodes(parsedNodes)
+          console.log(`✅ LocalStorageからツリーノードを復元: ${parsedNodes.length}ノード`)
+        }
+
+        if (savedTemplates) {
+          const parsedTemplates = JSON.parse(savedTemplates)
+          setTreeTemplates(parsedTemplates)
+          console.log(`✅ LocalStorageからツリーテンプレートを復元: ${parsedTemplates.length}個`)
+        }
+      } catch (error) {
+        console.error('ツリーデータの読み込みエラー:', error)
       }
-    } catch (error) {
-      console.error('ツリーデータの読み込みエラー:', error)
     }
-  }, [])
+
+    loadTreeData()
+  }, [user])
 
   // ツリーデータの自動保存（変更時）
   useEffect(() => {
@@ -996,11 +1019,10 @@ export default function QuickMemoApp() {
     try {
       if (user) {
         try {
-          // TODO: Supabaseに保存（テーブルが作成されたら実装）
-          // await dataService.saveTreeNodes(finalNodes)
-          // await dataService.saveTreeTemplates(finalTemplates)
+          // Supabaseに保存
+          await dataService.saveTreeData(finalNodes, finalTemplates)
 
-          // 現時点ではLocalStorageにも保存
+          // LocalStorageにもバックアップとして保存
           localStorage.setItem('treeNodes', JSON.stringify(finalNodes))
           localStorage.setItem('treeTemplates', JSON.stringify(finalTemplates))
           console.log(`✅ ツリーデータ保存完了: ${finalNodes.length}ノード`)

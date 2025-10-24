@@ -19,6 +19,24 @@ export interface Category {
   isEncrypted?: boolean
 }
 
+export interface TreeNode {
+  id: string
+  text: string
+  completed: boolean
+  children: TreeNode[]
+  collapsed: boolean
+  level: number
+  templateType?: string
+}
+
+export interface TreeTemplate {
+  id: string
+  name: string
+  order: number
+  prefix: string
+  color: string
+}
+
 export const dataService = {
   async getCurrentUser() {
     const supabase = createClient()
@@ -660,5 +678,78 @@ export const dataService = {
 
     if (error) return []
     return data?.memo_order || []
+  },
+
+  // ツリーデータの保存
+  async saveTreeData(nodes: TreeNode[], templates: TreeTemplate[]) {
+    const user = await this.getCurrentUser()
+    if (!user) {
+      console.log('認証なし - ツリーデータはLocalStorageのみに保存')
+      return
+    }
+
+    const supabase = createClient()
+    if (!supabase) {
+      console.warn('Supabaseクライアントが利用できません')
+      return
+    }
+
+    console.log(`💾 ツリーデータをSupabaseに保存中... (ノード: ${nodes.length}個, テンプレート: ${templates.length}個)`)
+
+    const { error } = await supabase
+      .from('tree_data')
+      .upsert({
+        user_id: user.id,
+        nodes: nodes,
+        templates: templates,
+        updated_at: new Date().toISOString()
+      })
+
+    if (error) {
+      console.error('ツリーデータの保存エラー:', error)
+      throw error
+    }
+
+    console.log('✅ ツリーデータの保存完了')
+  },
+
+  // ツリーデータの読み込み
+  async loadTreeData(): Promise<{ nodes: TreeNode[], templates: TreeTemplate[] }> {
+    const user = await this.getCurrentUser()
+    if (!user) {
+      console.log('認証なし - ツリーデータを読み込めません')
+      return { nodes: [], templates: [] }
+    }
+
+    const supabase = createClient()
+    if (!supabase) {
+      console.warn('Supabaseクライアントが利用できません')
+      return { nodes: [], templates: [] }
+    }
+
+    console.log('📥 Supabaseからツリーデータを読み込み中...')
+
+    const { data, error } = await supabase
+      .from('tree_data')
+      .select('nodes, templates')
+      .eq('user_id', user.id)
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // データが存在しない場合
+        console.log('ツリーデータが存在しません（初回）')
+        return { nodes: [], templates: [] }
+      }
+      console.error('ツリーデータの読み込みエラー:', error)
+      throw error
+    }
+
+    console.log(`✅ ツリーデータ読み込み完了 (ノード: ${data?.nodes?.length || 0}個, テンプレート: ${data?.templates?.length || 0}個)`)
+
+    return {
+      nodes: data?.nodes || [],
+      templates: data?.templates || []
+    }
   }
 }
