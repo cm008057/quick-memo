@@ -1333,10 +1333,13 @@ export default function QuickMemoApp() {
 
       if (!targetNode) return prev
 
+      // nullチェック後の値を保存
+      const nodeToMove: TreeNode = targetNode
+
       // レベルを更新
-      const updatedNode = {
-        ...targetNode,
-        level: targetNode.level - 1
+      const updatedNode: TreeNode = {
+        ...nodeToMove,
+        level: nodeToMove.level - 1
       }
 
       let result = removeFromParent(prev)
@@ -2492,12 +2495,12 @@ export default function QuickMemoApp() {
 
       {/* ツリー管理画面（新しいアウトライナー形式） */}
       {viewMode === 'tree' && (
-        <div style={{ padding: '20px', backgroundColor: '#f9fafb', borderRadius: '8px', minHeight: '400px' }}>
-          <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '20px 20px 20px 0', backgroundColor: '#f9fafb', borderRadius: '8px', minHeight: '400px' }}>
+          <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingLeft: '15px' }}>
             <div>
               <h2 style={{ margin: 0, fontSize: '20px', color: '#374151' }}>構造化ツリー</h2>
               <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: '#666' }}>
-                Enter: 新規項目 / Tab: 子項目作成 / +/-: 展開・折りたたみ
+                Enter: 新規項目 / Tab: 子項目作成 / Shift+Tab: 階層を戻す / +/-: 展開・折りたたみ
               </p>
             </div>
             <button
@@ -2517,7 +2520,7 @@ export default function QuickMemoApp() {
           </div>
 
           {/* ツリーノードの表示（再帰的） */}
-          <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '15px', minHeight: '300px' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '10px 15px 15px 5px', minHeight: '300px' }}>
             {treeNodes.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px 20px', color: '#999' }}>
                 <div style={{ fontSize: '48px', marginBottom: '10px' }}>🌲</div>
@@ -2537,12 +2540,12 @@ export default function QuickMemoApp() {
                         <div style={{
                           display: 'flex',
                           alignItems: 'center',
-                          padding: '8px',
-                          paddingLeft: `${8 + depth * 24}px`,
+                          padding: '8px 8px 8px 0',
+                          paddingLeft: `${depth * 28}px`,
                           backgroundColor: editingNodeId === node.id ? '#f0f9ff' : 'transparent',
                           borderRadius: '4px',
                           borderLeft: depth > 0 ? '2px solid #e5e7eb' : 'none',
-                          marginLeft: depth > 0 ? '12px' : '0'
+                          marginLeft: depth > 0 ? '14px' : '0'
                         }}>
                           {/* 折りたたみボタン */}
                           {hasChildren && (
