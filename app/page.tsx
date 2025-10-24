@@ -2570,8 +2570,6 @@ export default function QuickMemoApp() {
                       <div key={node.id} style={{ marginBottom: '2px' }}>
                         {/* Tree node with base indent */}
                         <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
                           padding: '6px 8px 6px 4px',
                           paddingLeft: `${10 + nodeLevel * 20}px`,
                           backgroundColor: editingNodeId === node.id ? '#f0f9ff' : 'transparent',
@@ -2579,6 +2577,12 @@ export default function QuickMemoApp() {
                           borderLeft: nodeLevel > 0 ? '2px solid #e5e7eb' : 'none',
                           marginLeft: nodeLevel > 0 ? '8px' : '10px'
                         }}>
+                          {/* 1行目: テンプレート名 + テキスト */}
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            marginBottom: '4px'
+                          }}>
                           {/* 折りたたみボタン */}
                           <button
                             onClick={() => {
@@ -2687,13 +2691,20 @@ export default function QuickMemoApp() {
                               {node.text || '（空白）'}
                             </span>
                           )}
+                          </div>
 
+                          {/* 2行目: 操作ボタン */}
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            paddingLeft: '22px'
+                          }}>
                           {/* 階層操作ボタン */}
                           {nodeLevel > 0 && (
                             <button
                               onClick={() => unindentTreeNode(node.id)}
                               style={{
-                                marginLeft: '4px',
                                 padding: '1px 4px',
                                 fontSize: '12px',
                                 backgroundColor: '#fef3c7',
@@ -2712,7 +2723,6 @@ export default function QuickMemoApp() {
                             <button
                               onClick={() => indentTreeNode(node.id)}
                               style={{
-                                marginLeft: '2px',
                                 padding: '1px 4px',
                                 fontSize: '12px',
                                 backgroundColor: '#dbeafe',
@@ -2732,7 +2742,6 @@ export default function QuickMemoApp() {
                           <button
                             onClick={() => setShowMemoPickerFor(node.id)}
                             style={{
-                              marginLeft: '4px',
                               padding: '1px 4px',
                               fontSize: '12px',
                               backgroundColor: '#eff6ff',
@@ -2751,7 +2760,6 @@ export default function QuickMemoApp() {
                           <button
                             onClick={() => deleteTreeNode(node.id)}
                             style={{
-                              marginLeft: '4px',
                               padding: '1px 4px',
                               fontSize: '12px',
                               backgroundColor: '#fee',
@@ -2765,6 +2773,7 @@ export default function QuickMemoApp() {
                           >
                             🗑️
                           </button>
+                          </div>
                         </div>
 
                         {/* 子ノードを再帰的に表示 */}
