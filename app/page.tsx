@@ -1237,7 +1237,7 @@ export default function QuickMemoApp() {
 
     const newNode: TreeNode = {
       id: Date.now().toString(),
-      text: template ? template.name : '',
+      text: '', // 入力欄は空白から開始
       completed: false,
       children: [],
       collapsed: false,
@@ -2606,6 +2606,22 @@ export default function QuickMemoApp() {
                             {hasChildren ? (isCollapsed ? '+' : '-') : '-'}
                           </button>
 
+                          {/* 大項目名（左側に表示） */}
+                          {node.templateType && (
+                            <span
+                              style={{
+                                marginRight: '8px',
+                                color: treeTemplates.find(t => t.id === node.templateType)?.color || '#374151',
+                                fontSize: '14px',
+                                fontWeight: 'bold',
+                                minWidth: '100px',
+                                flexShrink: 0
+                              }}
+                            >
+                              {treeTemplates.find(t => t.id === node.templateType)?.name || ''}
+                            </span>
+                          )}
+
                           {/* テキスト入力/表示 */}
                           {editingNodeId === node.id ? (
                             <input
@@ -2641,10 +2657,13 @@ export default function QuickMemoApp() {
                                 }
                               }}
                               autoFocus
+                              placeholder="入力してください"
                               style={{
                                 flex: 1,
                                 padding: '4px 8px',
                                 fontSize: '14px',
+                                color: '#374151',
+                                fontWeight: 'normal',
                                 border: '1px solid #3b82f6',
                                 borderRadius: '4px'
                               }}
@@ -2655,9 +2674,9 @@ export default function QuickMemoApp() {
                               style={{
                                 flex: 1,
                                 cursor: 'pointer',
-                                color: node.templateType ? (treeTemplates.find(t => t.id === node.templateType)?.color || '#374151') : '#374151',
+                                color: '#374151',
                                 fontSize: '14px',
-                                fontWeight: node.templateType ? 'bold' : 'normal'
+                                fontWeight: 'normal'
                               }}
                             >
                               {node.text || '（空白）'}
