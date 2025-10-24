@@ -2716,7 +2716,7 @@ export default function QuickMemoApp() {
                               }}
                               title="階層を上げる"
                             >
-                              ↖
+                              ←
                             </button>
                           )}
                           {nodeLevel < treeTemplates.length - 1 && (
@@ -2734,7 +2734,7 @@ export default function QuickMemoApp() {
                               }}
                               title="階層を下げる"
                             >
-                              ↘
+                              →
                             </button>
                           )}
 
