@@ -1314,189 +1314,54 @@ export default function QuickMemoApp() {
     return null
   }
 
-  // ノードを1階層上に移動（アンインデント）
+  // ノードを1階層上に移動（アンインデント）- levelプロパティを変更
   const unindentTreeNode = (nodeId: string) => {
-    const parentInfo = findParentNode(treeNodes, nodeId)
-    if (!parentInfo || !parentInfo.parent) {
-      // すでにルートレベルの場合は何もしない
-      return
-    }
-
     setTreeNodes(prev => {
-      // ノードを親から削除
-      const removeFromParent = (nodes: TreeNode[]): TreeNode[] => {
+      const updateNodeLevel = (nodes: TreeNode[]): TreeNode[] => {
         return nodes.map(node => {
-          if (node.id === parentInfo.parent!.id) {
-            return {
-              ...node,
-              children: node.children.filter(child => child.id !== nodeId)
-            }
-          }
-          return {
-            ...node,
-            children: removeFromParent(node.children)
-          }
-        })
-      }
-
-      // 削除されたノードを取得
-      let targetNode: TreeNode | null = null
-      const findNode = (nodes: TreeNode[]): void => {
-        for (const node of nodes) {
           if (node.id === nodeId) {
-            targetNode = node
-            return
-          }
-          findNode(node.children)
-        }
-      }
-      findNode(prev)
-
-      if (!targetNode) return prev
-
-      // nullチェック後の値を保存
-      const nodeToMove: TreeNode = targetNode
-
-      // レベルを更新し、テンプレートも階層に応じて変更
-      const newLevel = nodeToMove.level - 1
-      const newTemplate = treeTemplates[newLevel] || treeTemplates[0]
-      const updatedNode: TreeNode = {
-        ...nodeToMove,
-        level: newLevel,
-        templateType: newTemplate.id
-      }
-
-      let result = removeFromParent(prev)
-
-      // 祖父母がいる場合は祖父母の子として追加、いない場合はルートに追加
-      if (parentInfo.grandparent) {
-        result = result.map(node => {
-          if (node.id === parentInfo.grandparent!.id) {
-            // 親の後に追加
-            const parentIndex = node.children.findIndex(c => c.id === parentInfo.parent!.id)
-            const newChildren = [...node.children]
-            newChildren.splice(parentIndex + 1, 0, updatedNode)
+            const newLevel = Math.max(0, (node.level || 0) - 1)
+            const newTemplate = treeTemplates[newLevel]
             return {
               ...node,
-              children: newChildren
+              level: newLevel,
+              templateType: newTemplate?.id || node.templateType
             }
           }
           return {
             ...node,
-            children: node.children.map(child => {
-              if (child.id === parentInfo.grandparent!.id) {
-                const parentIndex = child.children.findIndex(c => c.id === parentInfo.parent!.id)
-                const newChildren = [...child.children]
-                newChildren.splice(parentIndex + 1, 0, updatedNode)
-                return {
-                  ...child,
-                  children: newChildren
-                }
-              }
-              return child
-            })
+            children: updateNodeLevel(node.children)
           }
         })
-      } else {
-        // ルートレベルに追加（親の後）
-        const parentIndex = result.findIndex(n => n.id === parentInfo.parent!.id)
-        result.splice(parentIndex + 1, 0, updatedNode)
       }
-
-      return result
+      return updateNodeLevel(prev)
     })
   }
 
-  // ノードを1階層下に移動（インデント）- 直前の兄弟の子にする
+  // ノードを1階層下に移動（インデント）- levelプロパティを変更
   const indentTreeNode = (nodeId: string) => {
     setTreeNodes(prev => {
-      // 現在のノードと親を見つける
-      const parentInfo = findParentNode(prev, nodeId)
-
-      // 現在のノードを取得
-      let targetNode: TreeNode | null = null
-      const findNode = (nodes: TreeNode[]): void => {
-        for (const node of nodes) {
-          if (node.id === nodeId) {
-            targetNode = node
-            return
-          }
-          findNode(node.children)
-        }
-      }
-      findNode(prev)
-
-      if (!targetNode) return prev
-
-      // nullチェック後の値を保存
-      const nodeToMove: TreeNode = targetNode
-
-      // 階層制限チェック
-      if (nodeToMove.level >= treeTemplates.length - 1) {
-        return prev
-      }
-
-      // 兄弟ノードを取得
-      const siblings = parentInfo?.parent ? parentInfo.parent.children : prev
-      const currentIndex = siblings.findIndex(s => s.id === nodeId)
-
-      if (currentIndex <= 0) {
-        // 直前の兄弟がいない場合はインデントできない
-        return prev
-      }
-
-      const previousSibling = siblings[currentIndex - 1]
-
-      // ノードを親から削除
-      const removeFromParent = (nodes: TreeNode[]): TreeNode[] => {
-        if (parentInfo?.parent) {
-          return nodes.map(node => {
-            if (node.id === parentInfo.parent!.id) {
-              return {
-                ...node,
-                children: node.children.filter(child => child.id !== nodeId)
-              }
-            }
-            return {
-              ...node,
-              children: removeFromParent(node.children)
-            }
-          })
-        } else {
-          // ルートレベルから削除
-          return nodes.filter(n => n.id !== nodeId)
-        }
-      }
-
-      // レベルを更新し、テンプレートも階層に応じて変更
-      const newLevel = nodeToMove.level + 1
-      const newTemplate = treeTemplates[newLevel] || treeTemplates[treeTemplates.length - 1]
-      const updatedNode: TreeNode = {
-        ...nodeToMove,
-        level: newLevel,
-        templateType: newTemplate.id
-      }
-
-      let result = removeFromParent(prev)
-
-      // 直前の兄弟の子として追加
-      const addToSibling = (nodes: TreeNode[]): TreeNode[] => {
+      const updateNodeLevel = (nodes: TreeNode[]): TreeNode[] => {
         return nodes.map(node => {
-          if (node.id === previousSibling.id) {
+          if (node.id === nodeId) {
+            const newLevel = (node.level || 0) + 1
+            if (newLevel >= treeTemplates.length) {
+              return node // 最大階層に達している場合は変更しない
+            }
+            const newTemplate = treeTemplates[newLevel]
             return {
               ...node,
-              children: [...node.children, updatedNode]
+              level: newLevel,
+              templateType: newTemplate?.id || node.templateType
             }
           }
           return {
             ...node,
-            children: addToSibling(node.children)
+            children: updateNodeLevel(node.children)
           }
         })
       }
-
-      result = addToSibling(result)
-      return result
+      return updateNodeLevel(prev)
     })
   }
 
@@ -2668,9 +2533,10 @@ export default function QuickMemoApp() {
               <div>
                 {/* 再帰的なツリーノード表示 */}
                 {(() => {
-                  const renderNode = (node: TreeNode, depth: number = 0) => {
+                  const renderNode = (node: TreeNode) => {
                     const hasChildren = node.children && node.children.length > 0
                     const isCollapsed = node.collapsed
+                    const nodeLevel = node.level || 0
 
                     return (
                       <div key={node.id} style={{ marginBottom: '2px' }}>
@@ -2679,11 +2545,11 @@ export default function QuickMemoApp() {
                           display: 'flex',
                           alignItems: 'center',
                           padding: '6px 8px 6px 4px',
-                          paddingLeft: `${20 + depth * 24}px`,
+                          paddingLeft: `${20 + nodeLevel * 24}px`,
                           backgroundColor: editingNodeId === node.id ? '#f0f9ff' : 'transparent',
                           borderRadius: '4px',
-                          borderLeft: depth > 0 ? '2px solid #e5e7eb' : 'none',
-                          marginLeft: depth > 0 ? '10px' : '20px'
+                          borderLeft: nodeLevel > 0 ? '2px solid #e5e7eb' : 'none',
+                          marginLeft: nodeLevel > 0 ? '10px' : '20px'
                         }}>
                           {/* 折りたたみボタン */}
                           <button
@@ -2709,8 +2575,8 @@ export default function QuickMemoApp() {
 
                           {/* 大項目名（左側に表示） */}
                           {(() => {
-                            // templateTypeでテンプレートを検索、見つからない場合はdepth基準
-                            const template = treeTemplates.find(t => t.id === node.templateType) || treeTemplates[depth] || treeTemplates[0]
+                            // templateTypeでテンプレートを検索、見つからない場合はnodeLevel基準
+                            const template = treeTemplates.find(t => t.id === node.templateType) || treeTemplates[nodeLevel] || treeTemplates[0]
                             return template ? (
                               <span
                                 style={{
@@ -2751,12 +2617,12 @@ export default function QuickMemoApp() {
 
                                   if (e.shiftKey) {
                                     // Shift+Tab: 現在の行の階層を上げる（アンインデント）
-                                    if (depth > 0) {
+                                    if (nodeLevel > 0) {
                                       unindentTreeNode(node.id)
                                     }
                                   } else {
                                     // Tab: 現在の行の階層を下げる（インデント）
-                                    if (depth < treeTemplates.length - 1) {
+                                    if (nodeLevel < treeTemplates.length - 1) {
                                       indentTreeNode(node.id)
                                     }
                                   }
@@ -2790,7 +2656,7 @@ export default function QuickMemoApp() {
                           )}
 
                           {/* 階層操作ボタン */}
-                          {depth > 0 && (
+                          {nodeLevel > 0 && (
                             <button
                               onClick={() => unindentTreeNode(node.id)}
                               style={{
@@ -2807,11 +2673,11 @@ export default function QuickMemoApp() {
                               ↖
                             </button>
                           )}
-                          {depth < treeTemplates.length - 1 && (
+                          {nodeLevel < treeTemplates.length - 1 && (
                             <button
                               onClick={() => indentTreeNode(node.id)}
                               style={{
-                                marginLeft: depth > 0 ? '4px' : '8px',
+                                marginLeft: nodeLevel > 0 ? '4px' : '8px',
                                 padding: '4px 8px',
                                 fontSize: '12px',
                                 backgroundColor: '#dbeafe',
@@ -2862,14 +2728,14 @@ export default function QuickMemoApp() {
                         {/* 子ノードを再帰的に表示 */}
                         {hasChildren && !isCollapsed && (
                           <div>
-                            {node.children.map(child => renderNode(child, depth + 1))}
+                            {node.children.map(child => renderNode(child))}
                           </div>
                         )}
                       </div>
                     )
                   }
 
-                  return <>{treeNodes.map(node => renderNode(node, 0))}</>
+                  return <>{treeNodes.map(node => renderNode(node))}</>
                 })()}
               </div>
             )}
