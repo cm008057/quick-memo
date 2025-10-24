@@ -2621,7 +2621,7 @@ export default function QuickMemoApp() {
                                   whiteSpace: 'nowrap'
                                 }}
                               >
-                                {nodeLevel === 0 ? `【${template.name}】` : template.name}
+                                {`【${template.name}】`}
                               </span>
                             ) : null
                           })()}
