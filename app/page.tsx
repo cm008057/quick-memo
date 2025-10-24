@@ -2708,20 +2708,24 @@ export default function QuickMemoApp() {
                           </button>
 
                           {/* 大項目名（左側に表示） */}
-                          {node.templateType && (
-                            <span
-                              style={{
-                                marginRight: '8px',
-                                color: treeTemplates.find(t => t.id === node.templateType)?.color || '#374151',
-                                fontSize: '14px',
-                                fontWeight: 'bold',
-                                minWidth: '100px',
-                                flexShrink: 0
-                              }}
-                            >
-                              {treeTemplates.find(t => t.id === node.templateType)?.name || ''}
-                            </span>
-                          )}
+                          {(() => {
+                            // templateTypeでテンプレートを検索、見つからない場合はdepth基準
+                            const template = treeTemplates.find(t => t.id === node.templateType) || treeTemplates[depth] || treeTemplates[0]
+                            return template ? (
+                              <span
+                                style={{
+                                  marginRight: '8px',
+                                  color: template.color || '#374151',
+                                  fontSize: '14px',
+                                  fontWeight: 'bold',
+                                  minWidth: '100px',
+                                  flexShrink: 0
+                                }}
+                              >
+                                {template.name}
+                              </span>
+                            ) : null
+                          })()}
 
                           {/* テキスト入力/表示 */}
                           {editingNodeId === node.id ? (
