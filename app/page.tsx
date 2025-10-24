@@ -1428,8 +1428,11 @@ export default function QuickMemoApp() {
 
       if (!targetNode) return prev
 
+      // nullチェック後の値を保存
+      const nodeToMove: TreeNode = targetNode
+
       // 階層制限チェック
-      if (targetNode.level >= treeTemplates.length - 1) {
+      if (nodeToMove.level >= treeTemplates.length - 1) {
         return prev
       }
 
@@ -1466,10 +1469,10 @@ export default function QuickMemoApp() {
       }
 
       // レベルを更新し、テンプレートも階層に応じて変更
-      const newLevel = targetNode.level + 1
+      const newLevel = nodeToMove.level + 1
       const newTemplate = treeTemplates[newLevel] || treeTemplates[treeTemplates.length - 1]
       const updatedNode: TreeNode = {
-        ...targetNode,
+        ...nodeToMove,
         level: newLevel,
         templateType: newTemplate.id
       }
