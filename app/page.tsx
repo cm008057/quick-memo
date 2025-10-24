@@ -2521,7 +2521,7 @@ export default function QuickMemoApp() {
             <div>
               <h2 style={{ margin: 0, fontSize: '20px', color: '#374151' }}>構造化ツリー</h2>
               <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: '#666' }}>
-                Enter: 次の大項目 / Tab: 大項目切替 / Ctrl+Tab: 前の大項目 / Shift+Tab: 階層戻す
+                Enter: 同じ大項目で新規 / Tab: 次の大項目で新規 / Ctrl+Tab: 前の大項目で新規 / Shift+Tab: 階層戻す
               </p>
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
@@ -2617,32 +2617,26 @@ export default function QuickMemoApp() {
                                 if (e.key === 'Enter') {
                                   e.preventDefault()
                                   setEditingNodeId(null)
-                                  // Enterで次の大項目テンプレートに移動して兄弟項目を追加
-                                  const nextIndex = (currentTemplateIndex + 1) % treeTemplates.length
-                                  setCurrentTemplateIndex(nextIndex)
-                                  addTreeNode(null, undefined, nextIndex)
+                                  // Enterで同じ大項目テンプレートの新しい項目を追加
+                                  addTreeNode(null, undefined, currentTemplateIndex)
                                 } else if (e.key === 'Tab') {
                                   e.preventDefault()
                                   if (e.ctrlKey || e.metaKey) {
-                                    // Ctrl+Tab: 前の大項目テンプレートに戻る
+                                    // Ctrl+Tab: 前の大項目テンプレートで新しい項目を追加
                                     const prevIndex = (currentTemplateIndex - 1 + treeTemplates.length) % treeTemplates.length
                                     setCurrentTemplateIndex(prevIndex)
-                                    updateTreeNode(node.id, {
-                                      text: treeTemplates[prevIndex]?.name || '',
-                                      templateType: treeTemplates[prevIndex]?.id
-                                    })
+                                    setEditingNodeId(null)
+                                    addTreeNode(null, undefined, prevIndex)
                                   } else if (e.shiftKey) {
                                     // Shift+Tab: インデント解除（1階層上に移動）
                                     setEditingNodeId(null)
                                     unindentTreeNode(node.id)
                                   } else {
-                                    // Tab: 次の大項目テンプレートに切り替え
+                                    // Tab: 次の大項目テンプレートで新しい項目を追加（段落を下げる）
                                     const nextIndex = (currentTemplateIndex + 1) % treeTemplates.length
                                     setCurrentTemplateIndex(nextIndex)
-                                    updateTreeNode(node.id, {
-                                      text: treeTemplates[nextIndex]?.name || '',
-                                      templateType: treeTemplates[nextIndex]?.id
-                                    })
+                                    setEditingNodeId(null)
+                                    addTreeNode(null, undefined, nextIndex)
                                   }
                                 }
                               }}
@@ -2877,16 +2871,22 @@ export default function QuickMemoApp() {
                       }}
                       placeholder={`大項目 ${index + 1}`}
                     />
-                    <div
+                    <input
+                      type="color"
+                      value={template.color}
+                      onChange={(e) => {
+                        const newTemplates = [...treeTemplates]
+                        newTemplates[index] = { ...template, color: e.target.value }
+                        setTreeTemplates(newTemplates)
+                      }}
                       style={{
-                        width: '40px',
+                        width: '50px',
                         height: '40px',
-                        backgroundColor: template.color,
-                        borderRadius: '4px',
                         border: '2px solid #e5e7eb',
+                        borderRadius: '4px',
                         cursor: 'pointer'
                       }}
-                      title="色"
+                      title="色を選択"
                     />
                     <button
                       onClick={() => {
