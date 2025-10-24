@@ -2570,6 +2570,10 @@ export default function QuickMemoApp() {
                       <div key={node.id} style={{ marginBottom: '2px' }}>
                         {/* Tree node with base indent */}
                         <div style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          alignItems: 'center',
+                          gap: '4px',
                           padding: '6px 8px 6px 4px',
                           paddingLeft: `${10 + nodeLevel * 20}px`,
                           backgroundColor: editingNodeId === node.id ? '#f0f9ff' : 'transparent',
@@ -2577,11 +2581,12 @@ export default function QuickMemoApp() {
                           borderLeft: nodeLevel > 0 ? '2px solid #e5e7eb' : 'none',
                           marginLeft: nodeLevel > 0 ? '8px' : '10px'
                         }}>
-                          {/* 1行目: テンプレート名 + テキスト */}
+                          {/* テンプレート名 + テキスト部分 */}
                           <div style={{
                             display: 'flex',
                             alignItems: 'center',
-                            marginBottom: '4px'
+                            flex: '1 1 300px',
+                            minWidth: '200px'
                           }}>
                           {/* 折りたたみボタン */}
                           <button
@@ -2693,12 +2698,12 @@ export default function QuickMemoApp() {
                           )}
                           </div>
 
-                          {/* 2行目: 操作ボタン */}
+                          {/* 操作ボタン（PC: 同じ行、スマホ: 折り返し） */}
                           <div style={{
                             display: 'flex',
                             alignItems: 'center',
                             gap: '3px',
-                            paddingLeft: '22px'
+                            flexShrink: 0
                           }}>
                           {/* 階層操作ボタン */}
                           {nodeLevel > 0 && (
