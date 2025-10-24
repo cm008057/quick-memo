@@ -23,7 +23,6 @@ export interface TreeNode {
   id: string
   text: string
   completed: boolean
-  children: TreeNode[]
   collapsed: boolean
   level: number
   templateType?: string

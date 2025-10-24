@@ -71,7 +71,6 @@ interface TreeNode {
   id: string
   text: string
   completed: boolean
-  children: TreeNode[]
   collapsed: boolean
   level: number
   templateType?: string  // 大項目タイプ（オプション）
@@ -1263,250 +1262,129 @@ export default function QuickMemoApp() {
       id: Date.now().toString(),
       text: '', // 入力欄は空白から開始
       completed: false,
-      children: [],
       collapsed: false,
-      level: parentId ? findNodeLevel(treeNodes, parentId) + 1 : 0,
+      level: 0, // デフォルトはレベル0
       templateType: template?.id
     }
 
-    if (parentId) {
-      setTreeNodes(prev => addChildToNode(prev, parentId, newNode))
-    } else {
-      setTreeNodes(prev => [...prev, newNode])
-    }
+    setTreeNodes(prev => [...prev, newNode])
 
     setEditingNodeId(newNode.id)
-  }
-
-  // ノードのレベルを見つける（ヘルパー関数）
-  const findNodeLevel = (nodes: TreeNode[], nodeId: string, currentLevel: number = 0): number => {
-    for (const node of nodes) {
-      if (node.id === nodeId) return currentLevel
-      const found = findNodeLevel(node.children, nodeId, currentLevel + 1)
-      if (found !== -1) return found
-    }
-    return -1
-  }
-
-  // 子ノードを追加（ヘルパー関数）
-  const addChildToNode = (nodes: TreeNode[], parentId: string, newChild: TreeNode): TreeNode[] => {
-    return nodes.map(node => {
-      if (node.id === parentId) {
-        return { ...node, children: [...node.children, newChild] }
-      }
-      return { ...node, children: addChildToNode(node.children, parentId, newChild) }
-    })
   }
 
   // ノードを更新
   const updateTreeNode = (nodeId: string, updates: Partial<TreeNode>) => {
-    const updateNode = (nodes: TreeNode[]): TreeNode[] => {
-      return nodes.map(node => {
-        if (node.id === nodeId) {
-          return { ...node, ...updates }
-        }
-        return { ...node, children: updateNode(node.children) }
-      })
-    }
-    setTreeNodes(prev => updateNode(prev))
+    setTreeNodes(prev => prev.map(node =>
+      node.id === nodeId ? { ...node, ...updates } : node
+    ))
   }
 
   // ノードを削除（子要素は1つ上の階層に移動）
   const deleteTreeNode = (nodeId: string) => {
-    const deleteNode = (nodes: TreeNode[]): TreeNode[] => {
-      const result: TreeNode[] = []
-      for (const node of nodes) {
-        if (node.id === nodeId) {
-          // 削除対象：子要素を1つ上の階層に移動
-          if (node.children && node.children.length > 0) {
-            const promotedChildren = node.children.map(child => ({
-              ...child,
-              level: Math.max(0, child.level - 1) // レベルを1つ上げる
-            }))
-            result.push(...promotedChildren)
-          }
-          // このノード自体は追加しない（削除）
-        } else {
-          // 削除対象でない：子要素も再帰的にチェック
-          result.push({
-            ...node,
-            children: deleteNode(node.children)
-          })
+    setTreeNodes(prev => {
+      const index = prev.findIndex(n => n.id === nodeId)
+      if (index === -1) return prev
+
+      const deletedNode = prev[index]
+      const result = [...prev]
+
+      // 削除対象を除去
+      result.splice(index, 1)
+
+      // 直後の子要素（levelが1つ大きい連続したノード）のlevelを1つ下げる
+      let i = index
+      while (i < result.length && result[i].level > deletedNode.level) {
+        if (result[i].level === deletedNode.level + 1) {
+          result[i] = { ...result[i], level: result[i].level - 1 }
         }
+        i++
       }
+
       return result
-    }
-    setTreeNodes(prev => deleteNode(prev))
+    })
   }
 
   // ドラッグアンドドロップ：ノードを並び替え
   const moveTreeNode = (draggedId: string, targetId: string, position: 'before' | 'after') => {
-    let draggedNode: TreeNode | null = null
-
-    // ドラッグされたノードを見つけて削除
-    const removeNode = (nodes: TreeNode[]): TreeNode[] => {
-      const result: TreeNode[] = []
-      for (const node of nodes) {
-        if (node.id === draggedId) {
-          draggedNode = node
-          // 削除せずスキップ
-        } else {
-          result.push({
-            ...node,
-            children: removeNode(node.children)
-          })
-        }
-      }
-      return result
-    }
-
-    // ターゲットノードの前後に挿入
-    const insertNode = (nodes: TreeNode[]): TreeNode[] => {
-      const result: TreeNode[] = []
-      for (const node of nodes) {
-        if (node.id === targetId) {
-          if (position === 'before' && draggedNode) {
-            result.push(draggedNode)
-            result.push(node)
-          } else if (position === 'after' && draggedNode) {
-            result.push(node)
-            result.push(draggedNode)
-          } else {
-            result.push(node)
-          }
-        } else {
-          result.push({
-            ...node,
-            children: insertNode(node.children)
-          })
-        }
-      }
-      return result
-    }
-
     setTreeNodes(prev => {
-      const withoutDragged = removeNode(prev)
-      return insertNode(withoutDragged)
-    })
-  }
+      const draggedIndex = prev.findIndex(n => n.id === draggedId)
+      const targetIndex = prev.findIndex(n => n.id === targetId)
 
-  // ノードの親を見つける（親のIDとパスを返す）
-  const findParentNode = (nodes: TreeNode[], targetId: string, parent: TreeNode | null = null): { parent: TreeNode | null, grandparent: TreeNode | null } | null => {
-    for (const node of nodes) {
-      if (node.id === targetId) {
-        return { parent, grandparent: null }
-      }
-      const found = node.children.find(child => child.id === targetId)
-      if (found) {
-        return { parent: node, grandparent: parent }
-      }
-      const deepSearch = findParentNode(node.children, targetId, node)
-      if (deepSearch) return deepSearch
-    }
-    return null
+      if (draggedIndex === -1 || targetIndex === -1) return prev
+
+      const result = [...prev]
+      const [draggedNode] = result.splice(draggedIndex, 1)
+
+      // targetIndexを再計算（draggedを削除したので変わる可能性がある）
+      const newTargetIndex = result.findIndex(n => n.id === targetId)
+      const insertIndex = position === 'before' ? newTargetIndex : newTargetIndex + 1
+
+      result.splice(insertIndex, 0, draggedNode)
+
+      return result
+    })
   }
 
   // ノードを1階層上に移動（アンインデント）- levelプロパティを変更
   const unindentTreeNode = (nodeId: string) => {
-    setTreeNodes(prev => {
-      const updateNodeLevel = (nodes: TreeNode[]): TreeNode[] => {
-        return nodes.map(node => {
-          if (node.id === nodeId) {
-            const newLevel = Math.max(0, (node.level || 0) - 1)
-            const newTemplate = treeTemplates[newLevel]
-            return {
-              ...node,
-              level: newLevel,
-              templateType: newTemplate?.id || node.templateType
-            }
-          }
-          return {
-            ...node,
-            children: updateNodeLevel(node.children)
-          }
-        })
+    setTreeNodes(prev => prev.map(node => {
+      if (node.id === nodeId) {
+        const newLevel = Math.max(0, (node.level || 0) - 1)
+        const newTemplate = treeTemplates[newLevel]
+        return {
+          ...node,
+          level: newLevel,
+          templateType: newTemplate?.id || node.templateType
+        }
       }
-      return updateNodeLevel(prev)
-    })
+      return node
+    }))
   }
 
   // ノードを1階層下に移動（インデント）- levelプロパティを変更
   const indentTreeNode = (nodeId: string) => {
-    setTreeNodes(prev => {
-      const updateNodeLevel = (nodes: TreeNode[]): TreeNode[] => {
-        return nodes.map(node => {
-          if (node.id === nodeId) {
-            const newLevel = (node.level || 0) + 1
-            if (newLevel >= treeTemplates.length) {
-              return node // 最大階層に達している場合は変更しない
-            }
-            const newTemplate = treeTemplates[newLevel]
-            return {
-              ...node,
-              level: newLevel,
-              templateType: newTemplate?.id || node.templateType
-            }
-          }
-          return {
-            ...node,
-            children: updateNodeLevel(node.children)
-          }
-        })
+    setTreeNodes(prev => prev.map(node => {
+      if (node.id === nodeId) {
+        const newLevel = (node.level || 0) + 1
+        if (newLevel >= treeTemplates.length) {
+          return node // 最大階層に達している場合は変更しない
+        }
+        const newTemplate = treeTemplates[newLevel]
+        return {
+          ...node,
+          level: newLevel,
+          templateType: newTemplate?.id || node.templateType
+        }
       }
-      return updateNodeLevel(prev)
-    })
+      return node
+    }))
   }
 
-  // ノードの後に兄弟ノードを追加（Enterキー用）
+  // ノードの後に兄弟ノードを追加（Shift+Enter用）
   const addSiblingAfterNode = (nodeId: string, templateIndex?: number) => {
-    const parentInfo = findParentNode(treeNodes, nodeId)
-
-    // テンプレートインデックスが指定されている場合はそれを使用、なければ現在のインデックス
-    const useTemplateIndex = templateIndex !== undefined ? templateIndex : currentTemplateIndex
-    const template = treeTemplates[useTemplateIndex]
-
-    const newNode: TreeNode = {
-      id: Date.now().toString(),
-      text: '',
-      completed: false,
-      children: [],
-      collapsed: false,
-      level: parentInfo?.parent ? findNodeLevel(treeNodes, nodeId) : 0,
-      templateType: template?.id
-    }
-
     setTreeNodes(prev => {
-      if (!parentInfo || !parentInfo.parent) {
-        // ルートレベル: 現在のノードの後に追加
-        const nodeIndex = prev.findIndex(n => n.id === nodeId)
-        const result = [...prev]
-        result.splice(nodeIndex + 1, 0, newNode)
-        return result
+      const nodeIndex = prev.findIndex(n => n.id === nodeId)
+      if (nodeIndex === -1) return prev
+
+      const currentNode = prev[nodeIndex]
+      const useTemplateIndex = templateIndex !== undefined ? templateIndex : currentTemplateIndex
+      const template = treeTemplates[useTemplateIndex]
+
+      const newNode: TreeNode = {
+        id: Date.now().toString(),
+        text: '',
+        completed: false,
+        collapsed: false,
+        level: currentNode.level, // 同じレベル
+        templateType: template?.id
       }
 
-      // 親の子として、現在のノードの後に追加
-      const addAfter = (nodes: TreeNode[]): TreeNode[] => {
-        return nodes.map(node => {
-          if (node.id === parentInfo.parent!.id) {
-            const childIndex = node.children.findIndex(c => c.id === nodeId)
-            const newChildren = [...node.children]
-            newChildren.splice(childIndex + 1, 0, newNode)
-            return {
-              ...node,
-              children: newChildren
-            }
-          }
-          return {
-            ...node,
-            children: addAfter(node.children)
-          }
-        })
-      }
-
-      return addAfter(prev)
+      const result = [...prev]
+      result.splice(nodeIndex + 1, 0, newNode)
+      return result
     })
 
-    setEditingNodeId(newNode.id)
+    setEditingNodeId((Date.now()).toString())
   }
 
   // カテゴリを移動
@@ -2629,12 +2507,14 @@ export default function QuickMemoApp() {
               </div>
             ) : (
               <div>
-                {/* 再帰的なツリーノード表示 */}
+                {/* フラット配列のツリーノード表示 */}
                 {(() => {
-                  const renderNode = (node: TreeNode) => {
-                    const hasChildren = node.children && node.children.length > 0
-                    const isCollapsed = node.collapsed
+                  const renderNode = (node: TreeNode, index: number) => {
                     const nodeLevel = node.level || 0
+                    // 次のノードが子要素かチェック
+                    const nextNode = treeNodes[index + 1]
+                    const hasChildren = nextNode && nextNode.level > nodeLevel
+                    const isCollapsed = node.collapsed
 
                     return (
                       <div key={node.id} style={{ marginBottom: '2px' }}>
@@ -2887,18 +2767,23 @@ export default function QuickMemoApp() {
                           </button>
                           </div>
                         </div>
-
-                        {/* 子ノードを再帰的に表示 */}
-                        {hasChildren && !isCollapsed && (
-                          <div>
-                            {node.children.map(child => renderNode(child))}
-                          </div>
-                        )}
                       </div>
                     )
                   }
 
-                  return <>{treeNodes.map(node => renderNode(node))}</>
+                  // フラットな配列を表示（折りたたみを考慮してスキップ）
+                  const result = []
+                  for (let i = 0; i < treeNodes.length; i++) {
+                    result.push(renderNode(treeNodes[i], i))
+                    // 折りたたまれている場合は子要素（levelが大きい連続したノード）をスキップ
+                    if (treeNodes[i].collapsed) {
+                      const currentLevel = treeNodes[i].level || 0
+                      while (i + 1 < treeNodes.length && (treeNodes[i + 1].level || 0) > currentLevel) {
+                        i++
+                      }
+                    }
+                  }
+                  return <>{result}</>
                 })()}
               </div>
             )}
