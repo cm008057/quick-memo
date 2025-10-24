@@ -1405,8 +1405,12 @@ export default function QuickMemoApp() {
   }
 
   // ノードの後に兄弟ノードを追加（Enterキー用）
-  const addSiblingAfterNode = (nodeId: string) => {
+  const addSiblingAfterNode = (nodeId: string, templateIndex?: number) => {
     const parentInfo = findParentNode(treeNodes, nodeId)
+
+    // テンプレートインデックスが指定されている場合はそれを使用、なければ現在のインデックス
+    const useTemplateIndex = templateIndex !== undefined ? templateIndex : currentTemplateIndex
+    const template = treeTemplates[useTemplateIndex]
 
     const newNode: TreeNode = {
       id: Date.now().toString(),
@@ -1415,7 +1419,7 @@ export default function QuickMemoApp() {
       children: [],
       collapsed: false,
       level: parentInfo?.parent ? findNodeLevel(treeNodes, nodeId) : 0,
-      templateType: undefined
+      templateType: template?.id
     }
 
     setTreeNodes(prev => {
@@ -2633,26 +2637,26 @@ export default function QuickMemoApp() {
                                 if (e.key === 'Enter') {
                                   e.preventDefault()
                                   setEditingNodeId(null)
-                                  // Enterで同じ大項目テンプレートの新しい項目を追加
-                                  addTreeNode(null, undefined, currentTemplateIndex)
+                                  // Enterで同じ大項目テンプレートの新しい項目を現在のノードの後に追加
+                                  addSiblingAfterNode(node.id, currentTemplateIndex)
                                 } else if (e.key === 'Tab') {
                                   e.preventDefault()
                                   if (e.ctrlKey || e.metaKey) {
-                                    // Ctrl+Tab: 前の大項目テンプレートで新しい項目を追加
+                                    // Ctrl+Tab: 前の大項目テンプレートで新しい項目を現在のノードの後に追加
                                     const prevIndex = (currentTemplateIndex - 1 + treeTemplates.length) % treeTemplates.length
                                     setCurrentTemplateIndex(prevIndex)
                                     setEditingNodeId(null)
-                                    addTreeNode(null, undefined, prevIndex)
+                                    addSiblingAfterNode(node.id, prevIndex)
                                   } else if (e.shiftKey) {
                                     // Shift+Tab: インデント解除（1階層上に移動）
                                     setEditingNodeId(null)
                                     unindentTreeNode(node.id)
                                   } else {
-                                    // Tab: 次の大項目テンプレートで新しい項目を追加（段落を下げる）
+                                    // Tab: 次の大項目テンプレートで新しい項目を現在のノードの後に追加（段落を下げる）
                                     const nextIndex = (currentTemplateIndex + 1) % treeTemplates.length
                                     setCurrentTemplateIndex(nextIndex)
                                     setEditingNodeId(null)
-                                    addTreeNode(null, undefined, nextIndex)
+                                    addSiblingAfterNode(node.id, nextIndex)
                                   }
                                 }
                               }}
