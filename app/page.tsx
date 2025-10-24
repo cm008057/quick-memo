@@ -2704,7 +2704,7 @@ export default function QuickMemoApp() {
 
               {/* カテゴリー別にメモを表示 */}
               {orderedCategories.map(([categoryKey, category]) => {
-                const categoryMemos = memos.filter(m => m.category === categoryKey && !m.deleted_at)
+                const categoryMemos = memos.filter(m => m.category === categoryKey && !m.deleted)
                 if (categoryMemos.length === 0) return null
 
                 return (
@@ -2746,7 +2746,7 @@ export default function QuickMemoApp() {
                 )
               })}
 
-              {memos.filter(m => !m.deleted_at).length === 0 && (
+              {memos.filter(m => !m.deleted).length === 0 && (
                 <p style={{ fontSize: '14px', color: '#999', textAlign: 'center', padding: '20px' }}>
                   メモがありません
                 </p>
