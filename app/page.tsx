@@ -2621,7 +2621,7 @@ export default function QuickMemoApp() {
                                   whiteSpace: 'nowrap'
                                 }}
                               >
-                                {template.name}
+                                {nodeLevel === 0 ? `【${template.name}】` : template.name}
                               </span>
                             ) : null
                           })()}
@@ -2684,10 +2684,7 @@ export default function QuickMemoApp() {
                                 fontWeight: 'normal'
                               }}
                             >
-                              {nodeLevel === 0
-                                ? `【${node.text || '空白'}】`
-                                : (node.text || '（空白）')
-                              }
+                              {node.text || '（空白）'}
                             </span>
                           )}
 
