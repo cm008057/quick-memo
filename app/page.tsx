@@ -151,6 +151,8 @@ export default function QuickMemoApp() {
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set()) // 折りたたまれたカテゴリー
   const [showTemplateModal, setShowTemplateModal] = useState<boolean>(false) // テンプレート設定モーダル
   const [currentTemplateIndex, setCurrentTemplateIndex] = useState<number>(0) // 現在選択中の大項目インデックス
+  const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null) // ドラッグ中のノードID
+  const [dragOverNodeId, setDragOverNodeId] = useState<string | null>(null) // ドラッグオーバー中のノードID
 
   // 認証関連のstate
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1309,15 +1311,83 @@ export default function QuickMemoApp() {
     setTreeNodes(prev => updateNode(prev))
   }
 
-  // ノードを削除
+  // ノードを削除（子要素は1つ上の階層に移動）
   const deleteTreeNode = (nodeId: string) => {
     const deleteNode = (nodes: TreeNode[]): TreeNode[] => {
-      return nodes.filter(node => node.id !== nodeId).map(node => ({
-        ...node,
-        children: deleteNode(node.children)
-      }))
+      const result: TreeNode[] = []
+      for (const node of nodes) {
+        if (node.id === nodeId) {
+          // 削除対象：子要素を1つ上の階層に移動
+          if (node.children && node.children.length > 0) {
+            const promotedChildren = node.children.map(child => ({
+              ...child,
+              level: Math.max(0, child.level - 1) // レベルを1つ上げる
+            }))
+            result.push(...promotedChildren)
+          }
+          // このノード自体は追加しない（削除）
+        } else {
+          // 削除対象でない：子要素も再帰的にチェック
+          result.push({
+            ...node,
+            children: deleteNode(node.children)
+          })
+        }
+      }
+      return result
     }
     setTreeNodes(prev => deleteNode(prev))
+  }
+
+  // ドラッグアンドドロップ：ノードを並び替え
+  const moveTreeNode = (draggedId: string, targetId: string, position: 'before' | 'after') => {
+    let draggedNode: TreeNode | null = null
+
+    // ドラッグされたノードを見つけて削除
+    const removeNode = (nodes: TreeNode[]): TreeNode[] => {
+      const result: TreeNode[] = []
+      for (const node of nodes) {
+        if (node.id === draggedId) {
+          draggedNode = node
+          // 削除せずスキップ
+        } else {
+          result.push({
+            ...node,
+            children: removeNode(node.children)
+          })
+        }
+      }
+      return result
+    }
+
+    // ターゲットノードの前後に挿入
+    const insertNode = (nodes: TreeNode[]): TreeNode[] => {
+      const result: TreeNode[] = []
+      for (const node of nodes) {
+        if (node.id === targetId) {
+          if (position === 'before' && draggedNode) {
+            result.push(draggedNode)
+            result.push(node)
+          } else if (position === 'after' && draggedNode) {
+            result.push(node)
+            result.push(draggedNode)
+          } else {
+            result.push(node)
+          }
+        } else {
+          result.push({
+            ...node,
+            children: insertNode(node.children)
+          })
+        }
+      }
+      return result
+    }
+
+    setTreeNodes(prev => {
+      const withoutDragged = removeNode(prev)
+      return insertNode(withoutDragged)
+    })
   }
 
   // ノードの親を見つける（親のIDとパスを返す）
@@ -2569,17 +2639,54 @@ export default function QuickMemoApp() {
                     return (
                       <div key={node.id} style={{ marginBottom: '2px' }}>
                         {/* Tree node with base indent */}
-                        <div style={{
+                        <div
+                          draggable={editingNodeId !== node.id}
+                          onDragStart={(e) => {
+                            if (editingNodeId === node.id) {
+                              e.preventDefault()
+                              return
+                            }
+                            setDraggedNodeId(node.id)
+                            e.dataTransfer.effectAllowed = 'move'
+                          }}
+                          onDragOver={(e) => {
+                            e.preventDefault()
+                            e.dataTransfer.dropEffect = 'move'
+                            setDragOverNodeId(node.id)
+                          }}
+                          onDragLeave={() => {
+                            setDragOverNodeId(null)
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            if (draggedNodeId && draggedNodeId !== node.id) {
+                              // ドロップ位置を判定（上半分なら before、下半分なら after）
+                              const rect = e.currentTarget.getBoundingClientRect()
+                              const midpoint = rect.top + rect.height / 2
+                              const position = e.clientY < midpoint ? 'before' : 'after'
+                              moveTreeNode(draggedNodeId, node.id, position)
+                            }
+                            setDraggedNodeId(null)
+                            setDragOverNodeId(null)
+                          }}
+                          onDragEnd={() => {
+                            setDraggedNodeId(null)
+                            setDragOverNodeId(null)
+                          }}
+                          style={{
                           display: 'flex',
                           flexWrap: 'wrap',
                           alignItems: 'center',
                           gap: '4px',
                           padding: '6px 8px 6px 4px',
                           paddingLeft: `${10 + nodeLevel * 20}px`,
-                          backgroundColor: editingNodeId === node.id ? '#f0f9ff' : 'transparent',
+                          backgroundColor: editingNodeId === node.id ? '#f0f9ff' : (dragOverNodeId === node.id ? '#fef3c7' : 'transparent'),
                           borderRadius: '4px',
                           borderLeft: nodeLevel > 0 ? '2px solid #e5e7eb' : 'none',
-                          marginLeft: nodeLevel > 0 ? '8px' : '10px'
+                          marginLeft: nodeLevel > 0 ? '8px' : '10px',
+                          cursor: editingNodeId === node.id ? 'text' : 'move',
+                          opacity: draggedNodeId === node.id ? 0.5 : 1
                         }}>
                           {/* テンプレート名 + テキスト部分 */}
                           <div style={{
