@@ -2481,48 +2481,50 @@ export default function QuickMemoApp() {
 
       {/* ツリー管理画面（新しいアウトライナー形式） */}
       {viewMode === 'tree' && (
-        <div style={{ padding: '15px 20px 20px 20px', backgroundColor: '#f9fafb', borderRadius: '8px', minHeight: '400px' }}>
-          <div style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingLeft: '8px' }}>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '20px', color: '#374151' }}>構造化ツリー</h2>
-              <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: '#666' }}>
-                Shift+Enter: 新規行追加 / Tab: 階層を下げる / Shift+Tab: 階層を上げる / 外クリック: 入力確定
+        <div style={{ padding: '10px 5px 15px 5px', backgroundColor: '#f9fafb', borderRadius: '8px', minHeight: '400px' }}>
+          <div style={{ marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingLeft: '5px', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ flex: '1 1 auto', minWidth: '200px' }}>
+              <h2 style={{ margin: 0, fontSize: '18px', color: '#374151' }}>構造化ツリー</h2>
+              <p style={{ margin: '3px 0 0 0', fontSize: '11px', color: '#666' }}>
+                Shift+Enter: 新規 / Tab: 下層 / Shift+Tab: 上層
               </p>
             </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
               <button
                 onClick={() => setShowTemplateModal(true)}
                 style={{
-                  padding: '10px 20px',
-                  fontSize: '14px',
+                  padding: '6px 10px',
+                  fontSize: '13px',
                   backgroundColor: '#6366f1',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer'
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
                 }}
               >
-                ⚙️ 大項目設定
+                ⚙️ 設定
               </button>
               <button
                 onClick={() => addTreeNode(null, undefined, 0)}
                 style={{
-                  padding: '10px 20px',
-                  fontSize: '14px',
+                  padding: '6px 10px',
+                  fontSize: '13px',
                   backgroundColor: '#10b981',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer'
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
                 }}
               >
-                ➕ 項目を追加
+                ➕ 追加
               </button>
             </div>
           </div>
 
           {/* ツリーノードの表示（再帰的） */}
-          <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '8px 15px 15px 15px', minHeight: '300px' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '6px 5px 10px 5px', minHeight: '300px' }}>
             {treeNodes.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px 20px', color: '#999' }}>
                 <div style={{ fontSize: '48px', marginBottom: '10px' }}>🌲</div>
@@ -2545,11 +2547,11 @@ export default function QuickMemoApp() {
                           display: 'flex',
                           alignItems: 'center',
                           padding: '6px 8px 6px 4px',
-                          paddingLeft: `${20 + nodeLevel * 24}px`,
+                          paddingLeft: `${10 + nodeLevel * 20}px`,
                           backgroundColor: editingNodeId === node.id ? '#f0f9ff' : 'transparent',
                           borderRadius: '4px',
                           borderLeft: nodeLevel > 0 ? '2px solid #e5e7eb' : 'none',
-                          marginLeft: nodeLevel > 0 ? '10px' : '20px'
+                          marginLeft: nodeLevel > 0 ? '8px' : '10px'
                         }}>
                           {/* 折りたたみボタン */}
                           <button
@@ -2559,15 +2561,16 @@ export default function QuickMemoApp() {
                               }
                             }}
                             style={{
-                              marginRight: '8px',
-                              padding: '2px 4px',
-                              fontSize: '11px',
+                              marginRight: '6px',
+                              padding: '1px 3px',
+                              fontSize: '10px',
                               backgroundColor: 'transparent',
                               border: 'none',
                               cursor: hasChildren ? 'pointer' : 'default',
-                              minWidth: '18px',
+                              minWidth: '16px',
                               color: hasChildren ? '#374151' : '#d1d5db',
-                              fontWeight: 'bold'
+                              fontWeight: 'bold',
+                              lineHeight: '1'
                             }}
                           >
                             {hasChildren ? (isCollapsed ? '+' : '-') : '-'}
@@ -2580,12 +2583,16 @@ export default function QuickMemoApp() {
                             return template ? (
                               <span
                                 style={{
-                                  marginRight: '8px',
+                                  marginRight: '6px',
                                   color: template.color || '#374151',
-                                  fontSize: '14px',
+                                  fontSize: '13px',
                                   fontWeight: 'bold',
-                                  minWidth: '100px',
-                                  flexShrink: 0
+                                  minWidth: '80px',
+                                  maxWidth: '120px',
+                                  flexShrink: 0,
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap'
                                 }}
                               >
                                 {template.name}
@@ -2632,12 +2639,12 @@ export default function QuickMemoApp() {
                               placeholder="入力してください"
                               style={{
                                 flex: 1,
-                                padding: '4px 8px',
-                                fontSize: '14px',
+                                padding: '3px 6px',
+                                fontSize: '13px',
                                 color: '#374151',
                                 fontWeight: 'normal',
                                 border: '1px solid #3b82f6',
-                                borderRadius: '4px'
+                                borderRadius: '3px'
                               }}
                             />
                           ) : (
@@ -2647,7 +2654,7 @@ export default function QuickMemoApp() {
                                 flex: 1,
                                 cursor: 'pointer',
                                 color: '#374151',
-                                fontSize: '14px',
+                                fontSize: '13px',
                                 fontWeight: 'normal'
                               }}
                             >
@@ -2660,15 +2667,16 @@ export default function QuickMemoApp() {
                             <button
                               onClick={() => unindentTreeNode(node.id)}
                               style={{
-                                marginLeft: '8px',
-                                padding: '4px 8px',
-                                fontSize: '12px',
+                                marginLeft: '6px',
+                                padding: '2px 6px',
+                                fontSize: '14px',
                                 backgroundColor: '#fef3c7',
                                 border: '1px solid #fcd34d',
-                                borderRadius: '4px',
-                                cursor: 'pointer'
+                                borderRadius: '3px',
+                                cursor: 'pointer',
+                                lineHeight: '1'
                               }}
-                              title="階層を上げる（前の大項目に変更）"
+                              title="階層を上げる"
                             >
                               ↖
                             </button>
@@ -2677,15 +2685,16 @@ export default function QuickMemoApp() {
                             <button
                               onClick={() => indentTreeNode(node.id)}
                               style={{
-                                marginLeft: nodeLevel > 0 ? '4px' : '8px',
-                                padding: '4px 8px',
-                                fontSize: '12px',
+                                marginLeft: nodeLevel > 0 ? '3px' : '6px',
+                                padding: '2px 6px',
+                                fontSize: '14px',
                                 backgroundColor: '#dbeafe',
                                 border: '1px solid #93c5fd',
-                                borderRadius: '4px',
-                                cursor: 'pointer'
+                                borderRadius: '3px',
+                                cursor: 'pointer',
+                                lineHeight: '1'
                               }}
-                              title="階層を下げる（次の大項目に変更）"
+                              title="階層を下げる"
                             >
                               ↘
                             </button>
@@ -2695,31 +2704,34 @@ export default function QuickMemoApp() {
                           <button
                             onClick={() => setShowMemoPickerFor(node.id)}
                             style={{
-                              marginLeft: '8px',
-                              padding: '4px 8px',
-                              fontSize: '12px',
+                              marginLeft: '6px',
+                              padding: '2px 6px',
+                              fontSize: '14px',
                               backgroundColor: '#eff6ff',
                               border: '1px solid #bfdbfe',
-                              borderRadius: '4px',
-                              cursor: 'pointer'
+                              borderRadius: '3px',
+                              cursor: 'pointer',
+                              lineHeight: '1'
                             }}
-                            title="クイックメモから挿入"
+                            title="メモ挿入"
                           >
-                            📝+
+                            📝
                           </button>
 
                           {/* 削除ボタン */}
                           <button
                             onClick={() => deleteTreeNode(node.id)}
                             style={{
-                              marginLeft: '8px',
-                              padding: '4px 8px',
-                              fontSize: '12px',
+                              marginLeft: '6px',
+                              padding: '2px 6px',
+                              fontSize: '14px',
                               backgroundColor: '#fee',
                               border: '1px solid #fcc',
-                              borderRadius: '4px',
-                              cursor: 'pointer'
+                              borderRadius: '3px',
+                              cursor: 'pointer',
+                              lineHeight: '1'
                             }}
+                            title="削除"
                           >
                             🗑️
                           </button>
