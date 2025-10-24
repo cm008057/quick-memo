@@ -1357,10 +1357,13 @@ export default function QuickMemoApp() {
       // nullチェック後の値を保存
       const nodeToMove: TreeNode = targetNode
 
-      // レベルを更新
+      // レベルを更新し、テンプレートも階層に応じて変更
+      const newLevel = nodeToMove.level - 1
+      const newTemplate = treeTemplates[newLevel] || treeTemplates[0]
       const updatedNode: TreeNode = {
         ...nodeToMove,
-        level: nodeToMove.level - 1
+        level: newLevel,
+        templateType: newTemplate.id
       }
 
       let result = removeFromParent(prev)
@@ -1400,6 +1403,96 @@ export default function QuickMemoApp() {
         result.splice(parentIndex + 1, 0, updatedNode)
       }
 
+      return result
+    })
+  }
+
+  // ノードを1階層下に移動（インデント）- 直前の兄弟の子にする
+  const indentTreeNode = (nodeId: string) => {
+    setTreeNodes(prev => {
+      // 現在のノードと親を見つける
+      const parentInfo = findParentNode(prev, nodeId)
+
+      // 現在のノードを取得
+      let targetNode: TreeNode | null = null
+      const findNode = (nodes: TreeNode[]): void => {
+        for (const node of nodes) {
+          if (node.id === nodeId) {
+            targetNode = node
+            return
+          }
+          findNode(node.children)
+        }
+      }
+      findNode(prev)
+
+      if (!targetNode) return prev
+
+      // 階層制限チェック
+      if (targetNode.level >= treeTemplates.length - 1) {
+        return prev
+      }
+
+      // 兄弟ノードを取得
+      const siblings = parentInfo?.parent ? parentInfo.parent.children : prev
+      const currentIndex = siblings.findIndex(s => s.id === nodeId)
+
+      if (currentIndex <= 0) {
+        // 直前の兄弟がいない場合はインデントできない
+        return prev
+      }
+
+      const previousSibling = siblings[currentIndex - 1]
+
+      // ノードを親から削除
+      const removeFromParent = (nodes: TreeNode[]): TreeNode[] => {
+        if (parentInfo?.parent) {
+          return nodes.map(node => {
+            if (node.id === parentInfo.parent!.id) {
+              return {
+                ...node,
+                children: node.children.filter(child => child.id !== nodeId)
+              }
+            }
+            return {
+              ...node,
+              children: removeFromParent(node.children)
+            }
+          })
+        } else {
+          // ルートレベルから削除
+          return nodes.filter(n => n.id !== nodeId)
+        }
+      }
+
+      // レベルを更新し、テンプレートも階層に応じて変更
+      const newLevel = targetNode.level + 1
+      const newTemplate = treeTemplates[newLevel] || treeTemplates[treeTemplates.length - 1]
+      const updatedNode: TreeNode = {
+        ...targetNode,
+        level: newLevel,
+        templateType: newTemplate.id
+      }
+
+      let result = removeFromParent(prev)
+
+      // 直前の兄弟の子として追加
+      const addToSibling = (nodes: TreeNode[]): TreeNode[] => {
+        return nodes.map(node => {
+          if (node.id === previousSibling.id) {
+            return {
+              ...node,
+              children: [...node.children, updatedNode]
+            }
+          }
+          return {
+            ...node,
+            children: addToSibling(node.children)
+          }
+        })
+      }
+
+      result = addToSibling(result)
       return result
     })
   }
@@ -2520,12 +2613,12 @@ export default function QuickMemoApp() {
 
       {/* ツリー管理画面（新しいアウトライナー形式） */}
       {viewMode === 'tree' && (
-        <div style={{ padding: '15px 20px 20px 0', backgroundColor: '#f9fafb', borderRadius: '8px', minHeight: '400px' }}>
+        <div style={{ padding: '15px 20px 20px 20px', backgroundColor: '#f9fafb', borderRadius: '8px', minHeight: '400px' }}>
           <div style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingLeft: '8px' }}>
             <div>
               <h2 style={{ margin: 0, fontSize: '20px', color: '#374151' }}>構造化ツリー</h2>
               <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: '#666' }}>
-                Enter: 同じ大項目で新規 / Tab: 次の大項目で新規 / Ctrl+Tab: 前の大項目で新規 / Shift+Tab: 階層戻す
+                Enter: 同じ大項目で新規行追加 / Tab: 階層を下げる / Shift+Tab: 階層を上げる
               </p>
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
@@ -2561,7 +2654,7 @@ export default function QuickMemoApp() {
           </div>
 
           {/* ツリーノードの表示（再帰的） */}
-          <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '8px 15px 15px 0', minHeight: '300px' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '8px 15px 15px 15px', minHeight: '300px' }}>
             {treeNodes.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px 20px', color: '#999' }}>
                 <div style={{ fontSize: '48px', marginBottom: '10px' }}>🌲</div>
@@ -2578,15 +2671,16 @@ export default function QuickMemoApp() {
 
                     return (
                       <div key={node.id} style={{ marginBottom: '2px' }}>
+                        {/* Tree node with base indent */}
                         <div style={{
                           display: 'flex',
                           alignItems: 'center',
                           padding: '6px 8px 6px 4px',
-                          paddingLeft: `${depth * 24}px`,
+                          paddingLeft: `${20 + depth * 24}px`,
                           backgroundColor: editingNodeId === node.id ? '#f0f9ff' : 'transparent',
                           borderRadius: '4px',
                           borderLeft: depth > 0 ? '2px solid #e5e7eb' : 'none',
-                          marginLeft: depth > 0 ? '10px' : '0'
+                          marginLeft: depth > 0 ? '10px' : '20px'
                         }}>
                           {/* 折りたたみボタン */}
                           <button
@@ -2637,26 +2731,24 @@ export default function QuickMemoApp() {
                                 if (e.key === 'Enter') {
                                   e.preventDefault()
                                   setEditingNodeId(null)
-                                  // Enterで同じ大項目テンプレートの新しい項目を現在のノードの後に追加
-                                  addSiblingAfterNode(node.id, currentTemplateIndex)
+                                  // Enterで同じ大項目テンプレートの新しい項目を同じレベルに追加
+                                  const currentNodeTemplateIndex = treeTemplates.findIndex(t => t.id === node.templateType)
+                                  const sameIndex = currentNodeTemplateIndex >= 0 ? currentNodeTemplateIndex : 0
+                                  addSiblingAfterNode(node.id, sameIndex)
                                 } else if (e.key === 'Tab') {
                                   e.preventDefault()
-                                  if (e.ctrlKey || e.metaKey) {
-                                    // Ctrl+Tab: 前の大項目テンプレートで新しい項目を現在のノードの後に追加
-                                    const prevIndex = (currentTemplateIndex - 1 + treeTemplates.length) % treeTemplates.length
-                                    setCurrentTemplateIndex(prevIndex)
-                                    setEditingNodeId(null)
-                                    addSiblingAfterNode(node.id, prevIndex)
-                                  } else if (e.shiftKey) {
-                                    // Shift+Tab: インデント解除（1階層上に移動）
-                                    setEditingNodeId(null)
-                                    unindentTreeNode(node.id)
+                                  e.stopPropagation()
+
+                                  if (e.shiftKey) {
+                                    // Shift+Tab: 現在の行の階層を上げる（アンインデント）
+                                    if (depth > 0) {
+                                      unindentTreeNode(node.id)
+                                    }
                                   } else {
-                                    // Tab: 次の大項目テンプレートで新しい項目を現在のノードの後に追加（段落を下げる）
-                                    const nextIndex = (currentTemplateIndex + 1) % treeTemplates.length
-                                    setCurrentTemplateIndex(nextIndex)
-                                    setEditingNodeId(null)
-                                    addSiblingAfterNode(node.id, nextIndex)
+                                    // Tab: 現在の行の階層を下げる（インデント）
+                                    if (depth < treeTemplates.length - 1) {
+                                      indentTreeNode(node.id)
+                                    }
                                   }
                                 }
                               }}
@@ -2685,6 +2777,42 @@ export default function QuickMemoApp() {
                             >
                               {node.text || '（空白）'}
                             </span>
+                          )}
+
+                          {/* 階層操作ボタン */}
+                          {depth > 0 && (
+                            <button
+                              onClick={() => unindentTreeNode(node.id)}
+                              style={{
+                                marginLeft: '8px',
+                                padding: '4px 8px',
+                                fontSize: '12px',
+                                backgroundColor: '#fef3c7',
+                                border: '1px solid #fcd34d',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                              }}
+                              title="階層を上げる（前の大項目に変更）"
+                            >
+                              ↖
+                            </button>
+                          )}
+                          {depth < treeTemplates.length - 1 && (
+                            <button
+                              onClick={() => indentTreeNode(node.id)}
+                              style={{
+                                marginLeft: depth > 0 ? '4px' : '8px',
+                                padding: '4px 8px',
+                                fontSize: '12px',
+                                backgroundColor: '#dbeafe',
+                                border: '1px solid #93c5fd',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                              }}
+                              title="階層を下げる（次の大項目に変更）"
+                            >
+                              ↘
+                            </button>
                           )}
 
                           {/* クイックメモ挿入ボタン */}
