@@ -134,6 +134,7 @@ export default function QuickMemoApp() {
   const [treeTemplates, setTreeTemplates] = useState<TreeTemplate[]>(defaultTreeTemplates) // テンプレート
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null) // 編集中のノードID
   const [showMemoPickerFor, setShowMemoPickerFor] = useState<string | null>(null) // メモピッカーを表示するノードID
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set()) // 折りたたまれたカテゴリー
 
   // 認証関連のstate
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -2495,11 +2496,11 @@ export default function QuickMemoApp() {
 
       {/* ツリー管理画面（新しいアウトライナー形式） */}
       {viewMode === 'tree' && (
-        <div style={{ padding: '20px 20px 20px 0', backgroundColor: '#f9fafb', borderRadius: '8px', minHeight: '400px' }}>
-          <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingLeft: '15px' }}>
+        <div style={{ padding: '15px 20px 20px 0', backgroundColor: '#f9fafb', borderRadius: '8px', minHeight: '400px' }}>
+          <div style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingLeft: '8px' }}>
             <div>
               <h2 style={{ margin: 0, fontSize: '20px', color: '#374151' }}>構造化ツリー</h2>
-              <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: '#666' }}>
+              <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: '#666' }}>
                 Enter: 新規項目 / Tab: 子項目作成 / Shift+Tab: 階層を戻す / +/-: 展開・折りたたみ
               </p>
             </div>
@@ -2520,7 +2521,7 @@ export default function QuickMemoApp() {
           </div>
 
           {/* ツリーノードの表示（再帰的） */}
-          <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '10px 15px 15px 5px', minHeight: '300px' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '8px 15px 15px 0', minHeight: '300px' }}>
             {treeNodes.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px 20px', color: '#999' }}>
                 <div style={{ fontSize: '48px', marginBottom: '10px' }}>🌲</div>
@@ -2536,44 +2537,38 @@ export default function QuickMemoApp() {
                     const isCollapsed = node.collapsed
 
                     return (
-                      <div key={node.id} style={{ marginBottom: '3px' }}>
+                      <div key={node.id} style={{ marginBottom: '2px' }}>
                         <div style={{
                           display: 'flex',
                           alignItems: 'center',
-                          padding: '8px 8px 8px 0',
-                          paddingLeft: `${depth * 28}px`,
+                          padding: '6px 8px 6px 4px',
+                          paddingLeft: `${depth * 24}px`,
                           backgroundColor: editingNodeId === node.id ? '#f0f9ff' : 'transparent',
                           borderRadius: '4px',
                           borderLeft: depth > 0 ? '2px solid #e5e7eb' : 'none',
-                          marginLeft: depth > 0 ? '14px' : '0'
+                          marginLeft: depth > 0 ? '10px' : '0'
                         }}>
                           {/* 折りたたみボタン */}
-                          {hasChildren && (
-                            <button
-                              onClick={() => updateTreeNode(node.id, { collapsed: !node.collapsed })}
-                              style={{
-                                marginRight: '6px',
-                                padding: '2px 6px',
-                                fontSize: '12px',
-                                backgroundColor: 'transparent',
-                                border: '1px solid #ddd',
-                                borderRadius: '3px',
-                                cursor: 'pointer',
-                                minWidth: '24px'
-                              }}
-                            >
-                              {isCollapsed ? '▶' : '▼'}
-                            </button>
-                          )}
-                          {!hasChildren && <span style={{ width: '30px', display: 'inline-block' }}></span>}
-
-                          {/* チェックボックス */}
-                          <input
-                            type="checkbox"
-                            checked={node.completed}
-                            onChange={() => updateTreeNode(node.id, { completed: !node.completed })}
-                            style={{ marginRight: '8px' }}
-                          />
+                          <button
+                            onClick={() => {
+                              if (hasChildren) {
+                                updateTreeNode(node.id, { collapsed: !node.collapsed })
+                              }
+                            }}
+                            style={{
+                              marginRight: '8px',
+                              padding: '2px 4px',
+                              fontSize: '11px',
+                              backgroundColor: 'transparent',
+                              border: 'none',
+                              cursor: hasChildren ? 'pointer' : 'default',
+                              minWidth: '18px',
+                              color: hasChildren ? '#374151' : 'transparent',
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            {hasChildren ? (isCollapsed ? '+' : '-') : '•'}
+                          </button>
 
                           {/* テキスト入力/表示 */}
                           {editingNodeId === node.id ? (
@@ -2616,8 +2611,7 @@ export default function QuickMemoApp() {
                               style={{
                                 flex: 1,
                                 cursor: 'pointer',
-                                textDecoration: node.completed ? 'line-through' : 'none',
-                                color: node.completed ? '#999' : '#374151',
+                                color: '#374151',
                                 fontSize: '14px'
                               }}
                             >
@@ -2707,41 +2701,69 @@ export default function QuickMemoApp() {
                 const categoryMemos = memos.filter(m => m.category === categoryKey && !m.deleted)
                 if (categoryMemos.length === 0) return null
 
+                const isCategoryCollapsed = collapsedCategories.has(categoryKey)
+
                 return (
-                  <div key={categoryKey} style={{ marginBottom: '20px' }}>
-                    <h4 style={{ fontSize: '14px', fontWeight: 'bold', color: '#374151', marginBottom: '8px' }}>
-                      {category.icon} {category.name}
-                    </h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {categoryMemos.map(memo => (
-                        <button
-                          key={memo.id}
-                          onClick={() => {
-                            // メモのテキストを現在のノードに挿入
-                            updateTreeNode(showMemoPickerFor, { text: memo.text })
-                            setShowMemoPickerFor(null)
-                          }}
-                          style={{
-                            textAlign: 'left',
-                            padding: '10px 12px',
-                            fontSize: '14px',
-                            backgroundColor: '#f9fafb',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            transition: 'background-color 0.2s'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = '#eff6ff'
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = '#f9fafb'
-                          }}
-                        >
-                          {memo.text}
-                        </button>
-                      ))}
+                  <div key={categoryKey} style={{ marginBottom: '15px', border: '1px solid #e5e7eb', borderRadius: '6px', overflow: 'hidden' }}>
+                    <div
+                      onClick={() => {
+                        const newCollapsed = new Set(collapsedCategories)
+                        if (isCategoryCollapsed) {
+                          newCollapsed.delete(categoryKey)
+                        } else {
+                          newCollapsed.add(categoryKey)
+                        }
+                        setCollapsedCategories(newCollapsed)
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '12px',
+                        fontSize: '14px',
+                        fontWeight: 'bold',
+                        color: '#374151',
+                        backgroundColor: '#f9fafb',
+                        cursor: 'pointer',
+                        userSelect: 'none'
+                      }}
+                    >
+                      <span style={{ marginRight: '8px', fontSize: '12px', fontWeight: 'bold' }}>
+                        {isCategoryCollapsed ? '+' : '-'}
+                      </span>
+                      {category.icon} {category.name} ({categoryMemos.length})
                     </div>
+                    {!isCategoryCollapsed && (
+                      <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {categoryMemos.map(memo => (
+                          <button
+                            key={memo.id}
+                            onClick={() => {
+                              // メモのテキストを現在のノードに挿入
+                              updateTreeNode(showMemoPickerFor, { text: memo.text })
+                              setShowMemoPickerFor(null)
+                            }}
+                            style={{
+                              textAlign: 'left',
+                              padding: '10px 12px',
+                              fontSize: '14px',
+                              backgroundColor: '#fff',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              transition: 'background-color 0.2s'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#eff6ff'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = '#fff'
+                            }}
+                          >
+                            {memo.text}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )
               })}
