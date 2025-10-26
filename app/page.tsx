@@ -2487,25 +2487,27 @@ export default function QuickMemoApp() {
                       const touchY = touch.clientY
                       const windowHeight = window.innerHeight
 
-                      // 自動スクロール: 上端100pxまたは下端100pxに近づいたら
-                      const scrollThreshold = 100
-                      const scrollSpeed = 10
+                      // 自動スクロール: 上端150pxまたは下端150pxに近づいたら
+                      const scrollThreshold = 150
+                      const scrollSpeed = 5
 
+                      // 以前のタイマーをクリア
                       if (autoScrollIntervalRef.current) {
                         clearInterval(autoScrollIntervalRef.current)
                         autoScrollIntervalRef.current = null
                       }
 
+                      // スクロールが必要な場合のみタイマーを設定
                       if (touchY < scrollThreshold) {
                         // 上端に近い: 上にスクロール
                         autoScrollIntervalRef.current = setInterval(() => {
                           window.scrollBy(0, -scrollSpeed)
-                        }, 16) // 60fps
+                        }, 30) // 約30fps
                       } else if (touchY > windowHeight - scrollThreshold) {
                         // 下端に近い: 下にスクロール
                         autoScrollIntervalRef.current = setInterval(() => {
                           window.scrollBy(0, scrollSpeed)
-                        }, 16)
+                        }, 30) // 約30fps
                       }
 
                       const element = document.elementFromPoint(touch.clientX, touch.clientY)

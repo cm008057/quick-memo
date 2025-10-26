@@ -333,7 +333,11 @@ input, textarea {
 
 .memo-item.dragging-touch {
     opacity: 0.5;
-    pointer-events: none;
+    pointer-events: none !important;
+}
+
+.memo-item.dragging-touch * {
+    pointer-events: none !important;
 }
 
 .drag-placeholder {
