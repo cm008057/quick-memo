@@ -146,6 +146,7 @@ export default function QuickMemoApp() {
   const [dragOverMemoId, setDragOverMemoId] = useState<number | null>(null) // ドラッグオーバー中のメモID
   const [touchStartY, setTouchStartY] = useState<number>(0) // タッチ開始Y座標
   const [isDraggingTouch, setIsDraggingTouch] = useState<boolean>(false) // タッチドラッグ中フラグ
+  const [isLongPressActive, setIsLongPressActive] = useState<boolean>(false) // 長押し検出フラグ
 
   // ツリー管理画面の状態
   const [viewMode, setViewMode] = useState<'quick' | 'tree'>('quick') // 画面切り替え
@@ -188,6 +189,7 @@ export default function QuickMemoApp() {
   const lastUserInteractionRef = useRef<number>(0) // 最後のユーザー操作時刻
   const userInteractionTimerRef = useRef<NodeJS.Timeout | null>(null) // ユーザー操作タイマー
   const pageLoadTimeRef = useRef<number>(Date.now()) // ページロード時刻
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null) // 長押しタイマー
 
   // カテゴリーの順序を取得
   const getOrderedCategories = (): [string, Category][] => {
