@@ -1946,10 +1946,14 @@ export default function QuickMemoApp() {
       categories: categories,
       categoryOrder: categoryOrder,
       memoOrder: memoOrder,
+      treeNodes: treeNodes,
+      treeTemplates: treeTemplates,
       stats: {
         totalMemos: memos.length,
         completedMemos: memos.filter(m => m.completed).length,
-        totalCategories: Object.keys(categories).length
+        totalCategories: Object.keys(categories).length,
+        totalTreeNodes: treeNodes.length,
+        totalTreeTemplates: treeTemplates.length
       }
     }
 
@@ -1963,7 +1967,7 @@ export default function QuickMemoApp() {
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
 
-    alert(`データをエクスポートしました！\n\nメモ数: ${exportData.stats.totalMemos}\n完了済み: ${exportData.stats.completedMemos}\nカテゴリー数: ${exportData.stats.totalCategories}`)
+    alert(`データをエクスポートしました！\n\nメモ数: ${exportData.stats.totalMemos}\n完了済み: ${exportData.stats.completedMemos}\nカテゴリー数: ${exportData.stats.totalCategories}\nツリーノード: ${exportData.stats.totalTreeNodes}\nツリーテンプレート: ${exportData.stats.totalTreeTemplates}`)
   }
 
   // データをインポート
@@ -1984,6 +1988,8 @@ export default function QuickMemoApp() {
         categories: Record<string, Category>
         categoryOrder?: string[]
         memoOrder?: number[]
+        treeNodes?: TreeNode[]
+        treeTemplates?: TreeTemplate[]
       } | null = null
 
       try {
@@ -1997,10 +2003,14 @@ export default function QuickMemoApp() {
         const confirmMessage = `インポートしますか？\n\n` +
           `インポートするデータ:\n` +
           `- メモ数: ${importData.memos.length}\n` +
-          `- カテゴリー数: ${Object.keys(importData.categories).length}\n\n` +
+          `- カテゴリー数: ${Object.keys(importData.categories).length}\n` +
+          `- ツリーノード: ${importData.treeNodes?.length || 0}\n` +
+          `- ツリーテンプレート: ${importData.treeTemplates?.length || 0}\n\n` +
           `現在のデータ:\n` +
           `- メモ数: ${memos.length}\n` +
-          `- カテゴリー数: ${Object.keys(categories).length}\n\n` +
+          `- カテゴリー数: ${Object.keys(categories).length}\n` +
+          `- ツリーノード: ${treeNodes.length}\n` +
+          `- ツリーテンプレート: ${treeTemplates.length}\n\n` +
           `※現在のデータは上書きされます`
 
         if (confirm(confirmMessage)) {
@@ -2054,6 +2064,16 @@ export default function QuickMemoApp() {
           setCategoryOrder(importData.categoryOrder || Object.keys(importData.categories))
           setMemoOrder(importData.memoOrder || processedMemos.map((m: Memo) => m.id))
 
+          // ツリーデータを復元
+          if (importData.treeNodes) {
+            setTreeNodes(importData.treeNodes)
+            console.log(`📥 ツリーノードを復元: ${importData.treeNodes.length}個`)
+          }
+          if (importData.treeTemplates) {
+            setTreeTemplates(importData.treeTemplates)
+            console.log(`📥 ツリーテンプレートを復元: ${importData.treeTemplates.length}個`)
+          }
+
           if (!importData.categories[selectedCategory]) {
             setSelectedCategory(Object.keys(importData.categories)[0])
           }
@@ -2066,6 +2086,14 @@ export default function QuickMemoApp() {
           console.log('💾 LocalStorageに保存中...')
           await saveMemos(processedMemos, importData.memoOrder || processedMemos.map((m: Memo) => m.id))
           await saveCategories(importData.categories, importData.categoryOrder || Object.keys(importData.categories))
+
+          // ツリーデータをLocalStorageに保存
+          if (importData.treeNodes) {
+            localStorage.setItem('treeNodes', JSON.stringify(importData.treeNodes))
+          }
+          if (importData.treeTemplates) {
+            localStorage.setItem('treeTemplates', JSON.stringify(importData.treeTemplates))
+          }
 
           console.log('✅ LocalStorage保存完了')
 
@@ -2087,8 +2115,14 @@ export default function QuickMemoApp() {
             // カテゴリーも保存
             await dataService.saveCategories(importData.categories, importData.categoryOrder || Object.keys(importData.categories))
 
+            // ツリーデータも保存
+            if (importData.treeNodes || importData.treeTemplates) {
+              console.log('🌳 ツリーデータをSupabaseに保存中...')
+              await saveTreeData(importData.treeNodes || [], importData.treeTemplates || [])
+            }
+
             console.log('Supabaseへの緊急保存完了')
-            alert(`✅ データをインポートしました！\n${importData.memos.length}件のデータをクラウドに緊急保存完了\n\n※これでクラウドが最新状態になりました`)
+            alert(`✅ データをインポートしました！\n${importData.memos.length}件のメモ\n${importData.treeNodes?.length || 0}個のツリーノード\n${importData.treeTemplates?.length || 0}個のツリーテンプレート\nをクラウドに緊急保存完了\n\n※これでクラウドが最新状態になりました`)
           } catch (error) {
             console.error('Supabase緊急保存エラー:', error)
             alert(`⚠️ データをインポートしました！\nローカルに保存済み\n\nクラウド保存エラー: ${(error as Error).message}\n\n手動で同期ボタンを押してください`)
