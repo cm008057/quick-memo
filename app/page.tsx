@@ -2944,23 +2944,33 @@ export default function QuickMemoApp() {
 
                         {/* 説明の表示（閉じている時） */}
                         {!node.showDescription && node.description && (
-                          <div
-                            onClick={() => updateTreeNode(node.id, { showDescription: true })}
-                            style={{
-                              fontSize: '12px',
-                              color: '#6b7280',
-                              whiteSpace: 'pre-wrap',
-                              wordBreak: 'break-word',
-                              cursor: 'pointer',
-                              backgroundColor: '#f9fafb',
-                              padding: '6px 8px',
-                              paddingLeft: `${30 + nodeLevel * 20 + 8}px`,
-                              borderLeft: '3px solid #d1d5db',
-                              marginTop: '2px'
-                            }}
-                            title="クリックして編集"
-                          >
-                            {node.description}
+                          <div style={{
+                            paddingLeft: `${30 + nodeLevel * 20}px`,
+                            paddingTop: '4px',
+                            paddingBottom: '4px'
+                          }}>
+                            <div
+                              onClick={() => updateTreeNode(node.id, { showDescription: true })}
+                              style={{
+                                width: '100%',
+                                minHeight: '32px',
+                                padding: '6px 8px',
+                                fontSize: '12px',
+                                color: '#6b7280',
+                                backgroundColor: '#f9fafb',
+                                border: '1px solid #e5e7eb',
+                                borderRadius: '4px',
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-word',
+                                cursor: 'pointer',
+                                lineHeight: '1.5',
+                                fontFamily: 'inherit',
+                                boxSizing: 'border-box'
+                              }}
+                              title="クリックして編集"
+                            >
+                              {node.description}
+                            </div>
                           </div>
                         )}
                       </div>
