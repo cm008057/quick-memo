@@ -1563,6 +1563,8 @@ export default function QuickMemoApp() {
       return
     }
 
+    console.log(`📦 移動処理開始: ${draggedId} → ${targetId} (${position})`)
+
     // 履歴に追加（操作前の状態を保存）
     saveToHistory(memos, memoOrder)
 
@@ -1570,7 +1572,12 @@ export default function QuickMemoApp() {
     const draggedIndex = newMemoOrder.indexOf(draggedId)
     const targetIndex = newMemoOrder.indexOf(targetId)
 
-    if (draggedIndex === -1 || targetIndex === -1) return
+    if (draggedIndex === -1 || targetIndex === -1) {
+      console.log(`❌ インデックスが見つかりません: draggedIndex=${draggedIndex}, targetIndex=${targetIndex}`)
+      return
+    }
+
+    console.log(`📍 元の位置: draggedIndex=${draggedIndex}, targetIndex=${targetIndex}`)
 
     // draggedを削除
     newMemoOrder.splice(draggedIndex, 1)
@@ -1579,10 +1586,13 @@ export default function QuickMemoApp() {
     const newTargetIndex = newMemoOrder.indexOf(targetId)
     const insertIndex = position === 'before' ? newTargetIndex : newTargetIndex + 1
 
+    console.log(`📍 挿入位置: insertIndex=${insertIndex}`)
+
     // draggedを挿入
     newMemoOrder.splice(insertIndex, 0, draggedId)
 
     setMemoOrder(newMemoOrder)
+    console.log(`✅ 並び順更新完了`)
     await saveMemos(memos, newMemoOrder)
   }
 
@@ -2409,6 +2419,7 @@ export default function QuickMemoApp() {
                   const mouseY = e.clientY
                   const position = mouseY < rect.top + rect.height / 2 ? 'before' : 'after'
 
+                  console.log(`🖱️ ドロップ: ${draggedMemoId} → ${memo.id} (${position})`)
                   moveMemo(draggedMemoId, memo.id, position)
                   setDraggedMemoId(null)
                   setDragOverMemoId(null)
@@ -2417,57 +2428,64 @@ export default function QuickMemoApp() {
                   setDraggedMemoId(null)
                   setDragOverMemoId(null)
                 }}
-                onTouchStart={(e) => {
-                  if (!isManualSort || editingMemo === memo.id) return
-                  setDraggedMemoId(memo.id)
-                  setTouchStartY(e.touches[0].clientY)
-                  setIsDraggingTouch(true)
-                }}
-                onTouchMove={(e) => {
-                  if (!isManualSort || draggedMemoId === null || !isDraggingTouch) return
-
-                  const touch = e.touches[0]
-                  const element = document.elementFromPoint(touch.clientX, touch.clientY)
-                  const memoItem = element?.closest('.memo-item') as HTMLElement
-
-                  if (memoItem) {
-                    const targetMemoId = parseInt(memoItem.getAttribute('data-memo-id') || '0')
-                    if (targetMemoId && targetMemoId !== draggedMemoId) {
-                      setDragOverMemoId(targetMemoId)
-                    }
-                  }
-                }}
-                onTouchEnd={(e) => {
-                  if (!isManualSort || draggedMemoId === null || !isDraggingTouch) return
-
-                  const touch = e.changedTouches[0]
-                  const element = document.elementFromPoint(touch.clientX, touch.clientY)
-                  const memoItem = element?.closest('.memo-item') as HTMLElement
-
-                  if (memoItem) {
-                    const targetMemoId = parseInt(memoItem.getAttribute('data-memo-id') || '0')
-                    if (targetMemoId && targetMemoId !== draggedMemoId) {
-                      // ドロップ位置を判定（上半分か下半分か）
-                      const rect = memoItem.getBoundingClientRect()
-                      const touchY = touch.clientY
-                      const position = touchY < rect.top + rect.height / 2 ? 'before' : 'after'
-
-                      moveMemo(draggedMemoId, targetMemoId, position)
-                    }
-                  }
-
-                  setDraggedMemoId(null)
-                  setDragOverMemoId(null)
-                  setIsDraggingTouch(false)
-                }}
-                onTouchCancel={() => {
-                  setDraggedMemoId(null)
-                  setDragOverMemoId(null)
-                  setIsDraggingTouch(false)
-                }}
               >
                 {isManualSort && (
-                  <div className="drag-handle-area">
+                  <div
+                    className="drag-handle-area"
+                    onTouchStart={(e) => {
+                      if (editingMemo === memo.id) return
+                      e.stopPropagation()
+                      setDraggedMemoId(memo.id)
+                      setTouchStartY(e.touches[0].clientY)
+                      setIsDraggingTouch(true)
+                    }}
+                    onTouchMove={(e) => {
+                      if (draggedMemoId === null || !isDraggingTouch) return
+                      e.preventDefault() // スクロール防止
+                      e.stopPropagation()
+
+                      const touch = e.touches[0]
+                      const element = document.elementFromPoint(touch.clientX, touch.clientY)
+                      const memoItem = element?.closest('.memo-item') as HTMLElement
+
+                      if (memoItem) {
+                        const targetMemoId = parseInt(memoItem.getAttribute('data-memo-id') || '0')
+                        if (targetMemoId && targetMemoId !== draggedMemoId) {
+                          setDragOverMemoId(targetMemoId)
+                        }
+                      }
+                    }}
+                    onTouchEnd={(e) => {
+                      if (draggedMemoId === null || !isDraggingTouch) return
+                      e.stopPropagation()
+
+                      const touch = e.changedTouches[0]
+                      const element = document.elementFromPoint(touch.clientX, touch.clientY)
+                      const memoItem = element?.closest('.memo-item') as HTMLElement
+
+                      if (memoItem) {
+                        const targetMemoId = parseInt(memoItem.getAttribute('data-memo-id') || '0')
+                        if (targetMemoId && targetMemoId !== draggedMemoId) {
+                          // ドロップ位置を判定（上半分か下半分か）
+                          const rect = memoItem.getBoundingClientRect()
+                          const touchY = touch.clientY
+                          const position = touchY < rect.top + rect.height / 2 ? 'before' : 'after'
+
+                          console.log(`📱 タッチドロップ: ${draggedMemoId} → ${targetMemoId} (${position})`)
+                          moveMemo(draggedMemoId, targetMemoId, position)
+                        }
+                      }
+
+                      setDraggedMemoId(null)
+                      setDragOverMemoId(null)
+                      setIsDraggingTouch(false)
+                    }}
+                    onTouchCancel={() => {
+                      setDraggedMemoId(null)
+                      setDragOverMemoId(null)
+                      setIsDraggingTouch(false)
+                    }}
+                  >
                     ≡
                   </div>
                 )}
