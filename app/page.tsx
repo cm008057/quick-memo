@@ -142,6 +142,8 @@ export default function QuickMemoApp() {
   const [editText, setEditText] = useState<string>('')
   const [showCategoryMenu, setShowCategoryMenu] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState<string>('')
+  const [draggedMemoId, setDraggedMemoId] = useState<number | null>(null) // ドラッグ中のメモID
+  const [dragOverMemoId, setDragOverMemoId] = useState<number | null>(null) // ドラッグオーバー中のメモID
 
   // ツリー管理画面の状態
   const [viewMode, setViewMode] = useState<'quick' | 'tree'>('quick') // 画面切り替え
@@ -1542,6 +1544,36 @@ export default function QuickMemoApp() {
     alert(message)
   }
 
+  // ドラッグアンドドロップでメモを並び替え
+  const moveMemo = async (draggedId: number, targetId: number, position: 'before' | 'after') => {
+    if (isImporting || isDeleting || isSaving) {
+      console.log('🚫 処理中のため移動をスキップ')
+      return
+    }
+
+    // 履歴に追加（操作前の状態を保存）
+    saveToHistory(memos, memoOrder)
+
+    const newMemoOrder = [...memoOrder]
+    const draggedIndex = newMemoOrder.indexOf(draggedId)
+    const targetIndex = newMemoOrder.indexOf(targetId)
+
+    if (draggedIndex === -1 || targetIndex === -1) return
+
+    // draggedを削除
+    newMemoOrder.splice(draggedIndex, 1)
+
+    // targetIndexを再計算（draggedを削除したので変わる可能性がある）
+    const newTargetIndex = newMemoOrder.indexOf(targetId)
+    const insertIndex = position === 'before' ? newTargetIndex : newTargetIndex + 1
+
+    // draggedを挿入
+    newMemoOrder.splice(insertIndex, 0, draggedId)
+
+    setMemoOrder(newMemoOrder)
+    await saveMemos(memos, newMemoOrder)
+  }
+
   // メモを1つ上に移動
   const moveUp = async (id: number) => {
     // 🔧 重要: インポート中・削除中・保存中は操作を禁止
@@ -2339,8 +2371,40 @@ export default function QuickMemoApp() {
             return (
               <div
                 key={memo.id}
-                className={`memo-item ${memo.completed ? 'completed' : ''} ${isManualSort ? 'manual-sort' : ''}`}
+                className={`memo-item ${memo.completed ? 'completed' : ''} ${isManualSort ? 'manual-sort' : ''} ${dragOverMemoId === memo.id ? 'drag-over' : ''}`}
                 data-memo-id={memo.id}
+                draggable={isManualSort && editingMemo !== memo.id}
+                onDragStart={(e) => {
+                  if (!isManualSort) return
+                  e.dataTransfer.effectAllowed = 'move'
+                  setDraggedMemoId(memo.id)
+                }}
+                onDragOver={(e) => {
+                  if (!isManualSort || draggedMemoId === null || draggedMemoId === memo.id) return
+                  e.preventDefault()
+                  e.dataTransfer.dropEffect = 'move'
+                  setDragOverMemoId(memo.id)
+                }}
+                onDragLeave={() => {
+                  setDragOverMemoId(null)
+                }}
+                onDrop={(e) => {
+                  if (!isManualSort || draggedMemoId === null || draggedMemoId === memo.id) return
+                  e.preventDefault()
+
+                  // ドロップ位置を判定（上半分か下半分か）
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  const mouseY = e.clientY
+                  const position = mouseY < rect.top + rect.height / 2 ? 'before' : 'after'
+
+                  moveMemo(draggedMemoId, memo.id, position)
+                  setDraggedMemoId(null)
+                  setDragOverMemoId(null)
+                }}
+                onDragEnd={() => {
+                  setDraggedMemoId(null)
+                  setDragOverMemoId(null)
+                }}
               >
                 {isManualSort && (
                   <div className="drag-handle-area">
