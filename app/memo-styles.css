@@ -332,12 +332,21 @@ input, textarea {
 }
 
 .memo-item.dragging-touch {
-    opacity: 0.5;
+    opacity: 0.3;
+    z-index: -1 !important;
+    position: relative;
+}
+
+.memo-item.dragging-touch,
+.memo-item.dragging-touch * {
     pointer-events: none !important;
 }
 
-.memo-item.dragging-touch * {
-    pointer-events: none !important;
+/* ドラッグ中ではない他のメモは通常通りタッチ可能 */
+.memo-item:not(.dragging-touch) {
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 1;
 }
 
 .drag-placeholder {
