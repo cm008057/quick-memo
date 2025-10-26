@@ -1683,18 +1683,25 @@ export default function QuickMemoApp() {
 
   // メモを5つ上に移動
   const moveUp5 = (id: number) => {
-    console.log(`⬆️⬆️⬆️ moveUp5 called: id=${id}`)
+    console.log(`⬆️⬆️⬆️ moveUp5 called: id=${id}, selectedCategory=${selectedCategory}`)
     if (isImporting || isDeleting) {
       console.log('🚫 処理中のため移動をスキップ')
       return
     }
 
+    // 対象メモを探す
+    const targetMemo = memos.find(m => m.id === id)
+    console.log(`⬆️ targetMemo found:`, targetMemo ? `id=${targetMemo.id}, category=${targetMemo.category}` : 'NOT FOUND')
+    console.log(`⬆️ filteredMemos.length=${filteredMemos.length}`)
+    console.log(`⬆️ filteredMemos includes target:`, filteredMemos.some(m => m.id === id))
+
     saveToHistory(memos, memoOrder)
 
     const newMemoOrder = [...memoOrder]
 
+    // 5回ループで順番を入れ替え
     for (let i = 0; i < 5; i++) {
-      // 現在のフィルター済みリストを再計算
+      // 最新のnewMemoOrderでフィルター済みリストを再計算
       const currentFilteredMemos = newMemoOrder
         .map(memoId => memos.find(m => m.id === memoId))
         .filter((m): m is Memo => m !== undefined && (
@@ -1704,12 +1711,14 @@ export default function QuickMemoApp() {
         ))
 
       const currentIndex = currentFilteredMemos.findIndex(m => m.id === id)
-      console.log(`⬆️ ループ${i+1}/5: currentIndex=${currentIndex}`)
+      console.log(`⬆️ ループ${i+1}/5: currentIndex=${currentIndex}, filteredLength=${currentFilteredMemos.length}`)
+
       if (currentIndex <= 0) {
         console.log(`⬆️ ループ終了: currentIndex=${currentIndex}`)
         break
       }
 
+      // moveUpのロジックを直接実行
       const currentMemo = currentFilteredMemos[currentIndex]
       const prevMemo = currentFilteredMemos[currentIndex - 1]
 
@@ -1729,18 +1738,25 @@ export default function QuickMemoApp() {
 
   // メモを5つ下に移動
   const moveDown5 = (id: number) => {
-    console.log(`⬇️⬇️⬇️ moveDown5 called: id=${id}`)
+    console.log(`⬇️⬇️⬇️ moveDown5 called: id=${id}, selectedCategory=${selectedCategory}`)
     if (isImporting || isDeleting) {
       console.log('🚫 処理中のため移動をスキップ')
       return
     }
 
+    // 対象メモを探す
+    const targetMemo = memos.find(m => m.id === id)
+    console.log(`⬇️ targetMemo found:`, targetMemo ? `id=${targetMemo.id}, category=${targetMemo.category}` : 'NOT FOUND')
+    console.log(`⬇️ filteredMemos.length=${filteredMemos.length}`)
+    console.log(`⬇️ filteredMemos includes target:`, filteredMemos.some(m => m.id === id))
+
     saveToHistory(memos, memoOrder)
 
     const newMemoOrder = [...memoOrder]
 
+    // 5回ループで順番を入れ替え
     for (let i = 0; i < 5; i++) {
-      // 現在のフィルター済みリストを再計算
+      // 最新のnewMemoOrderでフィルター済みリストを再計算
       const currentFilteredMemos = newMemoOrder
         .map(memoId => memos.find(m => m.id === memoId))
         .filter((m): m is Memo => m !== undefined && (
@@ -1750,12 +1766,14 @@ export default function QuickMemoApp() {
         ))
 
       const currentIndex = currentFilteredMemos.findIndex(m => m.id === id)
-      console.log(`⬇️ ループ${i+1}/5: currentIndex=${currentIndex}, length=${currentFilteredMemos.length}`)
+      console.log(`⬇️ ループ${i+1}/5: currentIndex=${currentIndex}, filteredLength=${currentFilteredMemos.length}`)
+
       if (currentIndex < 0 || currentIndex >= currentFilteredMemos.length - 1) {
         console.log(`⬇️ ループ終了: currentIndex=${currentIndex}`)
         break
       }
 
+      // moveDownのロジックを直接実行
       const currentMemo = currentFilteredMemos[currentIndex]
       const nextMemo = currentFilteredMemos[currentIndex + 1]
 
