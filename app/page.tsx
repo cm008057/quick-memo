@@ -2438,21 +2438,24 @@ export default function QuickMemoApp() {
                       if (editingMemo === memo.id) return
                       e.stopPropagation()
 
-                      setTouchStartY(e.touches[0].clientY)
+                      const startY = e.touches[0].clientY
+                      setTouchStartY(startY)
                       setIsLongPressActive(false)
+                      console.log(`📱 タッチ開始: Y=${startY}, memo=${memo.id}`)
 
                       // 長押し検出（300ms）
                       longPressTimerRef.current = setTimeout(() => {
                         setIsLongPressActive(true)
                         setDraggedMemoId(memo.id)
                         setIsDraggingTouch(true)
-                        console.log(`📱 長押し検出: ドラッグ開始 (${memo.id})`)
+                        console.log(`📱 ✅ 長押し検出成功: ドラッグ開始 (${memo.id})`)
 
                         // 振動フィードバック（対応ブラウザのみ）
                         if (navigator.vibrate) {
                           navigator.vibrate(50)
                         }
                       }, 300)
+                      console.log(`📱 タイマー開始: 300ms`)
                     }}
                     onTouchMove={(e) => {
                       // 長押しが確定していない場合
@@ -2460,8 +2463,10 @@ export default function QuickMemoApp() {
                         // 少し動いたら長押しキャンセル（スクロールを許可）
                         const touch = e.touches[0]
                         const moveDistance = Math.abs(touch.clientY - touchStartY)
+                        console.log(`📱 タッチ移動: 移動距離=${moveDistance.toFixed(1)}px, 長押し=${isLongPressActive ? '有効' : '無効'}`)
                         if (moveDistance > 10) {
                           if (longPressTimerRef.current) {
+                            console.log(`📱 ❌ 長押しキャンセル: 移動距離=${moveDistance.toFixed(1)}px > 10px`)
                             clearTimeout(longPressTimerRef.current)
                             longPressTimerRef.current = null
                           }
@@ -2486,14 +2491,18 @@ export default function QuickMemoApp() {
                       }
                     }}
                     onTouchEnd={(e) => {
+                      console.log(`📱 タッチ終了: 長押し=${isLongPressActive ? '有効' : '無効'}`)
+
                       // 長押しタイマーをクリア
                       if (longPressTimerRef.current) {
+                        console.log(`📱 タイマークリア（タッチ終了）`)
                         clearTimeout(longPressTimerRef.current)
                         longPressTimerRef.current = null
                       }
 
                       // 長押しが確定していない場合は何もしない（通常のタップ）
                       if (!isLongPressActive) {
+                        console.log(`📱 長押し未確定のため処理スキップ`)
                         setIsLongPressActive(false)
                         return
                       }
@@ -2524,8 +2533,10 @@ export default function QuickMemoApp() {
                       setIsLongPressActive(false)
                     }}
                     onTouchCancel={() => {
+                      console.log(`📱 タッチキャンセル`)
                       // 長押しタイマーをクリア
                       if (longPressTimerRef.current) {
+                        console.log(`📱 タイマークリア（タッチキャンセル）`)
                         clearTimeout(longPressTimerRef.current)
                         longPressTimerRef.current = null
                       }
