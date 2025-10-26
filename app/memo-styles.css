@@ -331,6 +331,11 @@ input, textarea {
     border-top: 3px solid #3b82f6;
 }
 
+.memo-item.dragging-touch {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
 .drag-placeholder {
     height: 4px;
     background: #3b82f6;

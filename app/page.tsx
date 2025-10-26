@@ -191,6 +191,7 @@ export default function QuickMemoApp() {
   const pageLoadTimeRef = useRef<number>(Date.now()) // ページロード時刻
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null) // 長押しタイマー
   const draggedMemoIdRef = useRef<number | null>(null) // ドラッグ中のメモID（即座に参照できるように）
+  const autoScrollIntervalRef = useRef<NodeJS.Timeout | null>(null) // 自動スクロール用タイマー
 
   // カテゴリーの順序を取得
   const getOrderedCategories = (): [string, Category][] => {
@@ -2396,7 +2397,7 @@ export default function QuickMemoApp() {
             return (
               <div
                 key={memo.id}
-                className={`memo-item ${memo.completed ? 'completed' : ''} ${isManualSort ? 'manual-sort' : ''} ${dragOverMemoId === memo.id ? 'drag-over' : ''}`}
+                className={`memo-item ${memo.completed ? 'completed' : ''} ${isManualSort ? 'manual-sort' : ''} ${dragOverMemoId === memo.id ? 'drag-over' : ''} ${draggedMemoId === memo.id && isDraggingTouch ? 'dragging-touch' : ''}`}
                 data-memo-id={memo.id}
                 draggable={isManualSort && editingMemo !== memo.id}
                 onDragStart={(e) => {
@@ -2483,6 +2484,30 @@ export default function QuickMemoApp() {
                       e.stopPropagation()
 
                       const touch = e.touches[0]
+                      const touchY = touch.clientY
+                      const windowHeight = window.innerHeight
+
+                      // 自動スクロール: 上端100pxまたは下端100pxに近づいたら
+                      const scrollThreshold = 100
+                      const scrollSpeed = 10
+
+                      if (autoScrollIntervalRef.current) {
+                        clearInterval(autoScrollIntervalRef.current)
+                        autoScrollIntervalRef.current = null
+                      }
+
+                      if (touchY < scrollThreshold) {
+                        // 上端に近い: 上にスクロール
+                        autoScrollIntervalRef.current = setInterval(() => {
+                          window.scrollBy(0, -scrollSpeed)
+                        }, 16) // 60fps
+                      } else if (touchY > windowHeight - scrollThreshold) {
+                        // 下端に近い: 下にスクロール
+                        autoScrollIntervalRef.current = setInterval(() => {
+                          window.scrollBy(0, scrollSpeed)
+                        }, 16)
+                      }
+
                       const element = document.elementFromPoint(touch.clientX, touch.clientY)
                       const memoItem = element?.closest('.memo-item') as HTMLElement
 
@@ -2499,6 +2524,12 @@ export default function QuickMemoApp() {
                     }}
                     onTouchEnd={(e) => {
                       console.log(`📱 タッチ終了: 長押し=${isLongPressActive ? '有効' : '無効'}`)
+
+                      // 自動スクロールタイマーをクリア
+                      if (autoScrollIntervalRef.current) {
+                        clearInterval(autoScrollIntervalRef.current)
+                        autoScrollIntervalRef.current = null
+                      }
 
                       // 長押しタイマーをクリア
                       if (longPressTimerRef.current) {
@@ -2563,6 +2594,13 @@ export default function QuickMemoApp() {
                     }}
                     onTouchCancel={() => {
                       console.log(`📱 タッチキャンセル`)
+
+                      // 自動スクロールタイマーをクリア
+                      if (autoScrollIntervalRef.current) {
+                        clearInterval(autoScrollIntervalRef.current)
+                        autoScrollIntervalRef.current = null
+                      }
+
                       // 長押しタイマーをクリア
                       if (longPressTimerRef.current) {
                         console.log(`📱 タイマークリア（タッチキャンセル）`)
