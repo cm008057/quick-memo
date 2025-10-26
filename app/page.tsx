@@ -2947,9 +2947,6 @@ export default function QuickMemoApp() {
                           <div
                             onClick={() => updateTreeNode(node.id, { showDescription: true })}
                             style={{
-                              paddingLeft: `${30 + nodeLevel * 20}px`,
-                              paddingTop: '4px',
-                              paddingBottom: '4px',
                               fontSize: '12px',
                               color: '#6b7280',
                               whiteSpace: 'pre-wrap',
