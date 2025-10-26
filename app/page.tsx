@@ -1597,7 +1597,12 @@ export default function QuickMemoApp() {
 
     setMemoOrder(newMemoOrder)
     console.log(`✅ 並び順更新完了`)
-    await saveMemos(memos, newMemoOrder)
+
+    // UIのブロックを防ぐため、保存を遅延
+    setTimeout(() => {
+      console.log(`💾 保存処理開始（遅延実行）`)
+      saveMemos(memos, newMemoOrder)
+    }, 100)
   }
 
   // メモを1つ上に移動
