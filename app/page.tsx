@@ -144,6 +144,8 @@ export default function QuickMemoApp() {
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [draggedMemoId, setDraggedMemoId] = useState<number | null>(null) // ドラッグ中のメモID
   const [dragOverMemoId, setDragOverMemoId] = useState<number | null>(null) // ドラッグオーバー中のメモID
+  const [touchStartY, setTouchStartY] = useState<number>(0) // タッチ開始Y座標
+  const [isDraggingTouch, setIsDraggingTouch] = useState<boolean>(false) // タッチドラッグ中フラグ
 
   // ツリー管理画面の状態
   const [viewMode, setViewMode] = useState<'quick' | 'tree'>('quick') // 画面切り替え
@@ -2404,6 +2406,54 @@ export default function QuickMemoApp() {
                 onDragEnd={() => {
                   setDraggedMemoId(null)
                   setDragOverMemoId(null)
+                }}
+                onTouchStart={(e) => {
+                  if (!isManualSort || editingMemo === memo.id) return
+                  setDraggedMemoId(memo.id)
+                  setTouchStartY(e.touches[0].clientY)
+                  setIsDraggingTouch(true)
+                }}
+                onTouchMove={(e) => {
+                  if (!isManualSort || draggedMemoId === null || !isDraggingTouch) return
+
+                  const touch = e.touches[0]
+                  const element = document.elementFromPoint(touch.clientX, touch.clientY)
+                  const memoItem = element?.closest('.memo-item') as HTMLElement
+
+                  if (memoItem) {
+                    const targetMemoId = parseInt(memoItem.getAttribute('data-memo-id') || '0')
+                    if (targetMemoId && targetMemoId !== draggedMemoId) {
+                      setDragOverMemoId(targetMemoId)
+                    }
+                  }
+                }}
+                onTouchEnd={(e) => {
+                  if (!isManualSort || draggedMemoId === null || !isDraggingTouch) return
+
+                  const touch = e.changedTouches[0]
+                  const element = document.elementFromPoint(touch.clientX, touch.clientY)
+                  const memoItem = element?.closest('.memo-item') as HTMLElement
+
+                  if (memoItem) {
+                    const targetMemoId = parseInt(memoItem.getAttribute('data-memo-id') || '0')
+                    if (targetMemoId && targetMemoId !== draggedMemoId) {
+                      // ドロップ位置を判定（上半分か下半分か）
+                      const rect = memoItem.getBoundingClientRect()
+                      const touchY = touch.clientY
+                      const position = touchY < rect.top + rect.height / 2 ? 'before' : 'after'
+
+                      moveMemo(draggedMemoId, targetMemoId, position)
+                    }
+                  }
+
+                  setDraggedMemoId(null)
+                  setDragOverMemoId(null)
+                  setIsDraggingTouch(false)
+                }}
+                onTouchCancel={() => {
+                  setDraggedMemoId(null)
+                  setDragOverMemoId(null)
+                  setIsDraggingTouch(false)
                 }}
               >
                 {isManualSort && (
