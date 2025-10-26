@@ -2704,7 +2704,7 @@ export default function QuickMemoApp() {
                               onBlur={() => setEditingNodeId(null)}
                               onKeyDown={(e) => {
                                 // IME変換中のEnterは無視
-                                if (e.isComposing) return
+                                if (e.nativeEvent.isComposing) return
 
                                 if (e.key === 'Enter') {
                                   if (e.shiftKey) {
@@ -2898,7 +2898,7 @@ export default function QuickMemoApp() {
                               }}
                               onKeyDown={(e) => {
                                 // IME変換中のEnterは無視
-                                if (e.isComposing) return
+                                if (e.nativeEvent.isComposing) return
 
                                 if (e.key === 'Enter') {
                                   if (e.altKey) {
