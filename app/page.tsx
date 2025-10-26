@@ -2881,7 +2881,7 @@ export default function QuickMemoApp() {
                           </div>
                         </div>
 
-                        {/* 説明欄 */}
+                        {/* 説明欄（編集中） */}
                         {node.showDescription && (
                           <div style={{
                             paddingLeft: `${30 + nodeLevel * 20}px`,
@@ -2939,6 +2939,31 @@ export default function QuickMemoApp() {
                               }}
                               autoFocus
                             />
+                          </div>
+                        )}
+
+                        {/* 説明の表示（閉じている時） */}
+                        {!node.showDescription && node.description && (
+                          <div
+                            onClick={() => updateTreeNode(node.id, { showDescription: true })}
+                            style={{
+                              paddingLeft: `${30 + nodeLevel * 20}px`,
+                              paddingTop: '4px',
+                              paddingBottom: '4px',
+                              fontSize: '12px',
+                              color: '#6b7280',
+                              whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-word',
+                              cursor: 'pointer',
+                              backgroundColor: '#f9fafb',
+                              padding: '6px 8px',
+                              paddingLeft: `${30 + nodeLevel * 20 + 8}px`,
+                              borderLeft: '3px solid #d1d5db',
+                              marginTop: '2px'
+                            }}
+                            title="クリックして編集"
+                          >
+                            {node.description}
                           </div>
                         )}
                       </div>
