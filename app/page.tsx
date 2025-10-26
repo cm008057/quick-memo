@@ -1683,29 +1683,10 @@ export default function QuickMemoApp() {
 
   // メモを5つ上に移動
   const moveUp5 = (id: number) => {
-    console.log(`⬆️⬆️⬆️ moveUp5 called: id=${id}, selectedCategory=${selectedCategory}`)
+    console.log(`⬆️⬆️⬆️ 🆕新コード🆕 moveUp5 called: id=${id}, selectedCategory=${selectedCategory}`)
     if (isImporting || isDeleting) {
       console.log('🚫 処理中のため移動をスキップ')
       return
-    }
-
-    // 対象メモを探す
-    const targetMemo = memos.find(m => m.id === id)
-    console.log(`⬆️ targetMemo found:`, targetMemo ? `id=${targetMemo.id}, category=${targetMemo.category}` : 'NOT FOUND')
-    console.log(`⬆️ filteredMemos.length=${filteredMemos.length}`)
-    console.log(`⬆️ filteredMemos includes target:`, filteredMemos.some(m => m.id === id))
-
-    // カテゴリーの一致をチェック
-    if (targetMemo) {
-      const isInCategory =
-        selectedCategory === 'all' ||
-        (selectedCategory === 'uncategorized' && !targetMemo.category) ||
-        targetMemo.category === selectedCategory
-
-      if (!isInCategory) {
-        console.log(`⬆️ ❌ メモのカテゴリー (${targetMemo.category}) が選択中のカテゴリー (${selectedCategory}) と一致しません`)
-        return
-      }
     }
 
     saveToHistory(memos, memoOrder)
@@ -1751,29 +1732,10 @@ export default function QuickMemoApp() {
 
   // メモを5つ下に移動
   const moveDown5 = (id: number) => {
-    console.log(`⬇️⬇️⬇️ moveDown5 called: id=${id}, selectedCategory=${selectedCategory}`)
+    console.log(`⬇️⬇️⬇️ 🆕新コード🆕 moveDown5 called: id=${id}, selectedCategory=${selectedCategory}`)
     if (isImporting || isDeleting) {
       console.log('🚫 処理中のため移動をスキップ')
       return
-    }
-
-    // 対象メモを探す
-    const targetMemo = memos.find(m => m.id === id)
-    console.log(`⬇️ targetMemo found:`, targetMemo ? `id=${targetMemo.id}, category=${targetMemo.category}` : 'NOT FOUND')
-    console.log(`⬇️ filteredMemos.length=${filteredMemos.length}`)
-    console.log(`⬇️ filteredMemos includes target:`, filteredMemos.some(m => m.id === id))
-
-    // カテゴリーの一致をチェック
-    if (targetMemo) {
-      const isInCategory =
-        selectedCategory === 'all' ||
-        (selectedCategory === 'uncategorized' && !targetMemo.category) ||
-        targetMemo.category === selectedCategory
-
-      if (!isInCategory) {
-        console.log(`⬇️ ❌ メモのカテゴリー (${targetMemo.category}) が選択中のカテゴリー (${selectedCategory}) と一致しません`)
-        return
-      }
     }
 
     saveToHistory(memos, memoOrder)
@@ -2396,7 +2358,10 @@ export default function QuickMemoApp() {
         <div className="filter-tabs">
           <button
             className={`filter-tab ${currentFilter === 'all' ? 'active' : ''}`}
-            onClick={() => setCurrentFilter('all')}
+            onClick={() => {
+              setCurrentFilter('all')
+              setSelectedCategory('all')
+            }}
           >
             すべて <span>{counts.all}</span>
           </button>
@@ -2404,7 +2369,10 @@ export default function QuickMemoApp() {
             <button
               key={key}
               className={`filter-tab ${currentFilter === key ? 'active' : ''}`}
-              onClick={() => setCurrentFilter(key)}
+              onClick={() => {
+                setCurrentFilter(key)
+                setSelectedCategory(key)
+              }}
             >
               {cat.name} <span>{counts[key] || 0}</span>
             </button>
