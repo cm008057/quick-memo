@@ -2507,24 +2507,42 @@ export default function QuickMemoApp() {
                         return
                       }
 
-                      if (draggedMemoId === null || !isDraggingTouch) return
+                      console.log(`📱 ドロップ処理開始: draggedMemoId=${draggedMemoId}, isDraggingTouch=${isDraggingTouch}`)
+
+                      if (draggedMemoId === null || !isDraggingTouch) {
+                        console.log(`📱 ❌ ドロップ条件不足: draggedMemoId=${draggedMemoId}, isDraggingTouch=${isDraggingTouch}`)
+                        setDraggedMemoId(null)
+                        setDragOverMemoId(null)
+                        setIsDraggingTouch(false)
+                        setIsLongPressActive(false)
+                        return
+                      }
+
                       e.stopPropagation()
 
                       const touch = e.changedTouches[0]
                       const element = document.elementFromPoint(touch.clientX, touch.clientY)
                       const memoItem = element?.closest('.memo-item') as HTMLElement
 
+                      console.log(`📱 ドロップ位置検出: element=${!!element}, memoItem=${!!memoItem}`)
+
                       if (memoItem) {
                         const targetMemoId = parseInt(memoItem.getAttribute('data-memo-id') || '0')
+                        console.log(`📱 ターゲット検出: targetMemoId=${targetMemoId}, draggedMemoId=${draggedMemoId}`)
+
                         if (targetMemoId && targetMemoId !== draggedMemoId) {
                           // ドロップ位置を判定（上半分か下半分か）
                           const rect = memoItem.getBoundingClientRect()
                           const touchY = touch.clientY
                           const position = touchY < rect.top + rect.height / 2 ? 'before' : 'after'
 
-                          console.log(`📱 タッチドロップ: ${draggedMemoId} → ${targetMemoId} (${position})`)
+                          console.log(`📱 ✅ タッチドロップ実行: ${draggedMemoId} → ${targetMemoId} (${position})`)
                           moveMemo(draggedMemoId, targetMemoId, position)
+                        } else {
+                          console.log(`📱 ❌ 同じメモまたは無効なターゲット`)
                         }
+                      } else {
+                        console.log(`📱 ❌ メモアイテムが見つかりません`)
                       }
 
                       setDraggedMemoId(null)
