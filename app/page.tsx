@@ -575,8 +575,11 @@ export default function QuickMemoApp() {
       console.log('Auth state changed:', user ? 'ログイン中' : '未ログイン')
       setUser(user)
 
-      // ローディングフラグを強制リセットしてからデータ読み込み
+      // ローディング・同期フラグを強制リセットしてからデータ読み込み
       setIsLoading(false)
+      setIsSyncing(false)
+      setIsSaving(false)
+      setIsDeleting(false)
 
       // 100ms待ってからデータ読み込み
       setTimeout(async () => {
