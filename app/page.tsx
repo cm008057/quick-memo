@@ -187,6 +187,7 @@ export default function QuickMemoApp() {
   const memoInputFocusedRef = useRef<boolean>(false) // メモ入力欄フォーカス中フラグ
   const lastUserInteractionRef = useRef<number>(0) // 最後のユーザー操作時刻
   const userInteractionTimerRef = useRef<NodeJS.Timeout | null>(null) // ユーザー操作タイマー
+  const pageLoadTimeRef = useRef<number>(Date.now()) // ページロード時刻
 
   // カテゴリーの順序を取得
   const getOrderedCategories = (): [string, Category][] => {
@@ -310,8 +311,12 @@ export default function QuickMemoApp() {
       return
     }
 
+    // ページロード後5秒以内は、ユーザー操作チェックをスキップ（スマホでの初回読み込み問題対策）
+    const timeSincePageLoad = Date.now() - pageLoadTimeRef.current
+    const skipUserInteractionCheck = isInitialLoad || timeSincePageLoad < 5000
+
     // 🔧 重要: 入力中・編集中・検索中は読み込みをスキップ（初回読み込み時は除く）
-    if (!isInitialLoad) {
+    if (!skipUserInteractionCheck) {
       if (memoInputFocusedRef.current) {
         console.log('🚫 メモ入力中のためデータ読み込みをスキップ')
         return
