@@ -192,6 +192,7 @@ export default function QuickMemoApp() {
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null) // 長押しタイマー
   const draggedMemoIdRef = useRef<number | null>(null) // ドラッグ中のメモID（即座に参照できるように）
   const autoScrollIntervalRef = useRef<NodeJS.Timeout | null>(null) // 自動スクロール用タイマー
+  const saveDebounceTimerRef = useRef<NodeJS.Timeout | null>(null) // 保存デバウンス用タイマー
 
   // カテゴリーの順序を取得
   const getOrderedCategories = (): [string, Category][] => {
@@ -1048,6 +1049,16 @@ export default function QuickMemoApp() {
     }
   }, [treeNodes])
 
+  // デバウンス付き保存（連打対応）
+  const debouncedSaveMemos = (memosToSave: Memo[], memoOrderToSave: number[]) => {
+    if (saveDebounceTimerRef.current) {
+      clearTimeout(saveDebounceTimerRef.current)
+    }
+    saveDebounceTimerRef.current = setTimeout(() => {
+      saveMemos(memosToSave, memoOrderToSave)
+    }, 500)
+  }
+
   // データ保存（認証状態に応じて自動選択）
   // 🔧 修正: 引数で保存するデータを受け取るように変更（Race Condition防止）
   const saveMemos = async (memosToSave?: Memo[], memoOrderToSave?: number[]) => {
@@ -1606,9 +1617,9 @@ export default function QuickMemoApp() {
   }
 
   // メモを1つ上に移動
-  const moveUp = async (id: number) => {
-    // 🔧 重要: インポート中・削除中・保存中は操作を禁止
-    if (isImporting || isDeleting || isSaving) {
+  const moveUp = (id: number) => {
+    // 🔧 重要: インポート中・削除中は操作を禁止
+    if (isImporting || isDeleting) {
       console.log('🚫 処理中のため移動をスキップ')
       return
     }
@@ -1633,13 +1644,13 @@ export default function QuickMemoApp() {
     newMemoOrder[prevOrderIndex] = currentMemo.id
 
     setMemoOrder(newMemoOrder)
-    await saveMemos(memos, newMemoOrder)
+    debouncedSaveMemos(memos, newMemoOrder)
   }
 
   // メモを1つ下に移動
-  const moveDown = async (id: number) => {
-    // 🔧 重要: インポート中・削除中・保存中は操作を禁止
-    if (isImporting || isDeleting || isSaving) {
+  const moveDown = (id: number) => {
+    // 🔧 重要: インポート中・削除中は操作を禁止
+    if (isImporting || isDeleting) {
       console.log('🚫 処理中のため移動をスキップ')
       return
     }
@@ -1664,7 +1675,83 @@ export default function QuickMemoApp() {
     newMemoOrder[nextOrderIndex] = currentMemo.id
 
     setMemoOrder(newMemoOrder)
-    await saveMemos(memos, newMemoOrder)
+    debouncedSaveMemos(memos, newMemoOrder)
+  }
+
+  // メモを5つ上に移動
+  const moveUp5 = (id: number) => {
+    if (isImporting || isDeleting) {
+      console.log('🚫 処理中のため移動をスキップ')
+      return
+    }
+
+    saveToHistory(memos, memoOrder)
+
+    const newMemoOrder = [...memoOrder]
+
+    for (let i = 0; i < 5; i++) {
+      // 現在のフィルター済みリストを再計算
+      const currentFilteredMemos = newMemoOrder
+        .map(memoId => memos.find(m => m.id === memoId))
+        .filter((m): m is Memo => m !== undefined && (
+          selectedCategory === 'all' ||
+          (selectedCategory === 'uncategorized' && !m.category) ||
+          m.category === selectedCategory
+        ))
+
+      const currentIndex = currentFilteredMemos.findIndex(m => m.id === id)
+      if (currentIndex <= 0) break
+
+      const currentMemo = currentFilteredMemos[currentIndex]
+      const prevMemo = currentFilteredMemos[currentIndex - 1]
+
+      const currentOrderIndex = newMemoOrder.indexOf(currentMemo.id)
+      const prevOrderIndex = newMemoOrder.indexOf(prevMemo.id)
+
+      newMemoOrder[currentOrderIndex] = prevMemo.id
+      newMemoOrder[prevOrderIndex] = currentMemo.id
+    }
+
+    setMemoOrder(newMemoOrder)
+    debouncedSaveMemos(memos, newMemoOrder)
+  }
+
+  // メモを5つ下に移動
+  const moveDown5 = (id: number) => {
+    if (isImporting || isDeleting) {
+      console.log('🚫 処理中のため移動をスキップ')
+      return
+    }
+
+    saveToHistory(memos, memoOrder)
+
+    const newMemoOrder = [...memoOrder]
+
+    for (let i = 0; i < 5; i++) {
+      // 現在のフィルター済みリストを再計算
+      const currentFilteredMemos = newMemoOrder
+        .map(memoId => memos.find(m => m.id === memoId))
+        .filter((m): m is Memo => m !== undefined && (
+          selectedCategory === 'all' ||
+          (selectedCategory === 'uncategorized' && !m.category) ||
+          m.category === selectedCategory
+        ))
+
+      const currentIndex = currentFilteredMemos.findIndex(m => m.id === id)
+      if (currentIndex < 0 || currentIndex >= currentFilteredMemos.length - 1) break
+
+      const currentMemo = currentFilteredMemos[currentIndex]
+      const nextMemo = currentFilteredMemos[currentIndex + 1]
+
+      const currentOrderIndex = newMemoOrder.indexOf(currentMemo.id)
+      const nextOrderIndex = newMemoOrder.indexOf(nextMemo.id)
+
+      newMemoOrder[currentOrderIndex] = nextMemo.id
+      newMemoOrder[nextOrderIndex] = currentMemo.id
+    }
+
+    setMemoOrder(newMemoOrder)
+    debouncedSaveMemos(memos, newMemoOrder)
   }
 
   // カテゴリを追加
@@ -2724,6 +2811,14 @@ export default function QuickMemoApp() {
                         <>
                           <button
                             className="action-btn move-up-btn"
+                            onClick={() => moveUp5(memo.id)}
+                            title="5つ上に移動"
+                            disabled={filteredMemos.findIndex(m => m.id === memo.id) === 0}
+                          >
+                            ⬆️
+                          </button>
+                          <button
+                            className="action-btn move-up-btn"
                             onClick={() => moveUp(memo.id)}
                             title="1つ上に移動"
                             disabled={filteredMemos.findIndex(m => m.id === memo.id) === 0}
@@ -2737,6 +2832,14 @@ export default function QuickMemoApp() {
                             disabled={filteredMemos.findIndex(m => m.id === memo.id) === filteredMemos.length - 1}
                           >
                             ↓
+                          </button>
+                          <button
+                            className="action-btn move-down-btn"
+                            onClick={() => moveDown5(memo.id)}
+                            title="5つ下に移動"
+                            disabled={filteredMemos.findIndex(m => m.id === memo.id) === filteredMemos.length - 1}
+                          >
+                            ⬇️
                           </button>
                         </>
                       )}
