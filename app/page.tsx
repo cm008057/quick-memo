@@ -296,7 +296,7 @@ export default function QuickMemoApp() {
   const loadDataTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Supabaseからデータを読み込み（デバウンス付き）
-  const loadDataFromSupabase = useCallback(async (debounceMs: number = 0, preserveScroll: boolean = false) => {
+  const loadDataFromSupabase = useCallback(async (debounceMs: number = 0, preserveScroll: boolean = false, isInitialLoad: boolean = false) => {
     // 削除処理中は読み込みをスキップ（重要：削除の妨害を防ぐ）
     // ただしインポート中は読み込みを許可
     if (isDeleting && !isImporting) {
@@ -310,25 +310,27 @@ export default function QuickMemoApp() {
       return
     }
 
-    // 🔧 重要: 入力中・編集中・検索中は読み込みをスキップ
-    if (memoInputFocusedRef.current) {
-      console.log('🚫 メモ入力中のためデータ読み込みをスキップ')
-      return
-    }
-    if (editingMemo !== null) {
-      console.log('🚫 メモ編集中のためデータ読み込みをスキップ')
-      return
-    }
-    if (isSearchFocusedRef.current) {
-      console.log('🚫 検索中のためデータ読み込みをスキップ')
-      return
-    }
+    // 🔧 重要: 入力中・編集中・検索中は読み込みをスキップ（初回読み込み時は除く）
+    if (!isInitialLoad) {
+      if (memoInputFocusedRef.current) {
+        console.log('🚫 メモ入力中のためデータ読み込みをスキップ')
+        return
+      }
+      if (editingMemo !== null) {
+        console.log('🚫 メモ編集中のためデータ読み込みをスキップ')
+        return
+      }
+      if (isSearchFocusedRef.current) {
+        console.log('🚫 検索中のためデータ読み込みをスキップ')
+        return
+      }
 
-    // 🔧 重要: ユーザー操作後3秒以内は読み込みをスキップ
-    const timeSinceLastInteraction = Date.now() - lastUserInteractionRef.current
-    if (timeSinceLastInteraction < 3000) {
-      console.log(`🚫 ユーザー操作中のためデータ読み込みをスキップ（${Math.floor(timeSinceLastInteraction / 1000)}秒前）`)
-      return
+      // 🔧 重要: ユーザー操作後3秒以内は読み込みをスキップ
+      const timeSinceLastInteraction = Date.now() - lastUserInteractionRef.current
+      if (timeSinceLastInteraction < 3000) {
+        console.log(`🚫 ユーザー操作中のためデータ読み込みをスキップ（${Math.floor(timeSinceLastInteraction / 1000)}秒前）`)
+        return
+      }
     }
 
     // 既存のタイマーをクリア
@@ -341,7 +343,7 @@ export default function QuickMemoApp() {
     if (debounceMs > 0) {
       return new Promise<void>((resolve) => {
         loadDataTimerRef.current = setTimeout(async () => {
-          await loadDataFromSupabase(0, preserveScroll) // デバウンスなしで実際の処理を実行
+          await loadDataFromSupabase(0, preserveScroll, isInitialLoad) // デバウンスなしで実際の処理を実行
           resolve()
         }, debounceMs)
       })
@@ -573,9 +575,9 @@ export default function QuickMemoApp() {
 
       // 100ms待ってからデータ読み込み
       setTimeout(async () => {
-        console.log('🔄 データ読み込み開始')
+        console.log('🔄 データ読み込み開始（初回）')
         try {
-          await loadDataFromSupabase(0)
+          await loadDataFromSupabase(0, false, true) // isInitialLoad = true
         } catch (error) {
           console.error('Supabaseデータの読み込みに失敗:', error)
           loadDataFromLocalStorage()
