@@ -2488,9 +2488,13 @@ export default function QuickMemoApp() {
 
                       if (memoItem) {
                         const targetMemoId = parseInt(memoItem.getAttribute('data-memo-id') || '0')
+                        console.log(`📱 タッチ移動中: draggedMemoId=${currentDraggedMemoId}, targetMemoId=${targetMemoId}, Y=${touch.clientY.toFixed(0)}`)
                         if (targetMemoId && targetMemoId !== currentDraggedMemoId) {
                           setDragOverMemoId(targetMemoId)
+                          console.log(`📱 ドラッグオーバー: ${targetMemoId}`)
                         }
+                      } else {
+                        console.log(`📱 タッチ移動中: メモアイテム外, Y=${touch.clientY.toFixed(0)}`)
                       }
                     }}
                     onTouchEnd={(e) => {
