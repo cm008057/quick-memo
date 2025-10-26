@@ -190,6 +190,7 @@ export default function QuickMemoApp() {
   const userInteractionTimerRef = useRef<NodeJS.Timeout | null>(null) // ユーザー操作タイマー
   const pageLoadTimeRef = useRef<number>(Date.now()) // ページロード時刻
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null) // 長押しタイマー
+  const draggedMemoIdRef = useRef<number | null>(null) // ドラッグ中のメモID（即座に参照できるように）
 
   // カテゴリーの順序を取得
   const getOrderedCategories = (): [string, Category][] => {
@@ -2447,6 +2448,7 @@ export default function QuickMemoApp() {
                       longPressTimerRef.current = setTimeout(() => {
                         setIsLongPressActive(true)
                         setDraggedMemoId(memo.id)
+                        draggedMemoIdRef.current = memo.id // refにも即座に保存
                         setIsDraggingTouch(true)
                         console.log(`📱 ✅ 長押し検出成功: ドラッグ開始 (${memo.id})`)
 
@@ -2475,7 +2477,8 @@ export default function QuickMemoApp() {
                       }
 
                       // ドラッグ中のみスクロール防止
-                      if (draggedMemoId === null || !isDraggingTouch) return
+                      const currentDraggedMemoId = draggedMemoIdRef.current
+                      if (currentDraggedMemoId === null || !isDraggingTouch) return
                       e.preventDefault()
                       e.stopPropagation()
 
@@ -2485,7 +2488,7 @@ export default function QuickMemoApp() {
 
                       if (memoItem) {
                         const targetMemoId = parseInt(memoItem.getAttribute('data-memo-id') || '0')
-                        if (targetMemoId && targetMemoId !== draggedMemoId) {
+                        if (targetMemoId && targetMemoId !== currentDraggedMemoId) {
                           setDragOverMemoId(targetMemoId)
                         }
                       }
@@ -2507,11 +2510,14 @@ export default function QuickMemoApp() {
                         return
                       }
 
-                      console.log(`📱 ドロップ処理開始: draggedMemoId=${draggedMemoId}, isDraggingTouch=${isDraggingTouch}`)
+                      // refから最新の値を取得
+                      const currentDraggedMemoId = draggedMemoIdRef.current
+                      console.log(`📱 ドロップ処理開始: draggedMemoId=${currentDraggedMemoId}, isDraggingTouch=${isDraggingTouch}`)
 
-                      if (draggedMemoId === null || !isDraggingTouch) {
-                        console.log(`📱 ❌ ドロップ条件不足: draggedMemoId=${draggedMemoId}, isDraggingTouch=${isDraggingTouch}`)
+                      if (currentDraggedMemoId === null || !isDraggingTouch) {
+                        console.log(`📱 ❌ ドロップ条件不足: draggedMemoId=${currentDraggedMemoId}, isDraggingTouch=${isDraggingTouch}`)
                         setDraggedMemoId(null)
+                        draggedMemoIdRef.current = null
                         setDragOverMemoId(null)
                         setIsDraggingTouch(false)
                         setIsLongPressActive(false)
@@ -2528,16 +2534,16 @@ export default function QuickMemoApp() {
 
                       if (memoItem) {
                         const targetMemoId = parseInt(memoItem.getAttribute('data-memo-id') || '0')
-                        console.log(`📱 ターゲット検出: targetMemoId=${targetMemoId}, draggedMemoId=${draggedMemoId}`)
+                        console.log(`📱 ターゲット検出: targetMemoId=${targetMemoId}, draggedMemoId=${currentDraggedMemoId}`)
 
-                        if (targetMemoId && targetMemoId !== draggedMemoId) {
+                        if (targetMemoId && targetMemoId !== currentDraggedMemoId) {
                           // ドロップ位置を判定（上半分か下半分か）
                           const rect = memoItem.getBoundingClientRect()
                           const touchY = touch.clientY
                           const position = touchY < rect.top + rect.height / 2 ? 'before' : 'after'
 
-                          console.log(`📱 ✅ タッチドロップ実行: ${draggedMemoId} → ${targetMemoId} (${position})`)
-                          moveMemo(draggedMemoId, targetMemoId, position)
+                          console.log(`📱 ✅ タッチドロップ実行: ${currentDraggedMemoId} → ${targetMemoId} (${position})`)
+                          moveMemo(currentDraggedMemoId, targetMemoId, position)
                         } else {
                           console.log(`📱 ❌ 同じメモまたは無効なターゲット`)
                         }
@@ -2546,6 +2552,7 @@ export default function QuickMemoApp() {
                       }
 
                       setDraggedMemoId(null)
+                      draggedMemoIdRef.current = null
                       setDragOverMemoId(null)
                       setIsDraggingTouch(false)
                       setIsLongPressActive(false)
@@ -2559,6 +2566,7 @@ export default function QuickMemoApp() {
                         longPressTimerRef.current = null
                       }
                       setDraggedMemoId(null)
+                      draggedMemoIdRef.current = null
                       setDragOverMemoId(null)
                       setIsDraggingTouch(false)
                       setIsLongPressActive(false)
