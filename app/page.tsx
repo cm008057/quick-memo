@@ -973,6 +973,24 @@ export default function QuickMemoApp() {
     }
   }, [treeNodes, treeTemplates])
 
+  // ツリーの履歴管理（Undo/Redo用）
+  useEffect(() => {
+    // Undo/Redo操作中は履歴に追加しない
+    if (isUndoRedoRef.current) {
+      return
+    }
+
+    // 初回ロード時や、履歴が空の場合は追加
+    if (treeNodes.length > 0 || treeHistory.length === 0) {
+      setTreeHistory(prev => {
+        const newHistory = prev.slice(0, treeHistoryIndex + 1)
+        newHistory.push([...treeNodes])
+        return newHistory.slice(-50) // 最大50件まで保持
+      })
+      setTreeHistoryIndex(prev => Math.min(prev + 1, 49))
+    }
+  }, [treeNodes])
+
   // データ保存（認証状態に応じて自動選択）
   // 🔧 修正: 引数で保存するデータを受け取るように変更（Race Condition防止）
   const saveMemos = async (memosToSave?: Memo[], memoOrderToSave?: number[]) => {
@@ -1292,7 +1310,11 @@ export default function QuickMemoApp() {
     if (treeHistoryIndex > 0) {
       const newIndex = treeHistoryIndex - 1
       setTreeHistoryIndex(newIndex)
+      isUndoRedoRef.current = true
       setTreeNodes(treeHistory[newIndex])
+      setTimeout(() => {
+        isUndoRedoRef.current = false
+      }, 0)
     }
   }
 
@@ -1301,7 +1323,11 @@ export default function QuickMemoApp() {
     if (treeHistoryIndex < treeHistory.length - 1) {
       const newIndex = treeHistoryIndex + 1
       setTreeHistoryIndex(newIndex)
+      isUndoRedoRef.current = true
       setTreeNodes(treeHistory[newIndex])
+      setTimeout(() => {
+        isUndoRedoRef.current = false
+      }, 0)
     }
   }
 
