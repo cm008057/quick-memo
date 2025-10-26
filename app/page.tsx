@@ -2693,22 +2693,35 @@ export default function QuickMemoApp() {
 
                           {/* テキスト入力/表示 */}
                           {editingNodeId === node.id ? (
-                            <input
-                              type="text"
+                            <textarea
                               value={node.text}
-                              onChange={(e) => updateTreeNode(node.id, { text: e.target.value })}
+                              onChange={(e) => {
+                                updateTreeNode(node.id, { text: e.target.value })
+                                // 高さを自動調整
+                                e.target.style.height = 'auto'
+                                e.target.style.height = e.target.scrollHeight + 'px'
+                              }}
                               onBlur={() => setEditingNodeId(null)}
                               onKeyDown={(e) => {
+                                // IME変換中のEnterは無視
+                                if (e.isComposing) return
+
                                 if (e.key === 'Enter') {
-                                  e.preventDefault()
                                   if (e.shiftKey) {
                                     // Shift+Enter: 同じ大項目テンプレートの新しい項目を同じレベルに追加
+                                    e.preventDefault()
                                     setEditingNodeId(null)
                                     const currentNodeTemplateIndex = treeTemplates.findIndex(t => t.id === node.templateType)
                                     const sameIndex = currentNodeTemplateIndex >= 0 ? currentNodeTemplateIndex : 0
                                     addSiblingAfterNode(node.id, sameIndex)
+                                  } else if (e.altKey) {
+                                    // Option+Enter: 改行を許可（デフォルト動作）
+                                    return
+                                  } else {
+                                    // 通常のEnter: 編集完了
+                                    e.preventDefault()
+                                    setEditingNodeId(null)
                                   }
-                                  // 通常のEnter: 何もしない（入力を続けられる）
                                 } else if (e.key === 'Tab') {
                                   e.preventDefault()
                                   e.stopPropagation()
@@ -2726,8 +2739,14 @@ export default function QuickMemoApp() {
                                   }
                                 }
                               }}
+                              onInput={(e) => {
+                                // 高さを自動調整
+                                const target = e.target as HTMLTextAreaElement
+                                target.style.height = 'auto'
+                                target.style.height = target.scrollHeight + 'px'
+                              }}
                               autoFocus
-                              placeholder="入力してください"
+                              placeholder="入力してください (Enter: 完了, Option+Enter: 改行, Shift+Enter: 次の項目)"
                               style={{
                                 flex: 1,
                                 padding: '3px 6px',
@@ -2735,22 +2754,29 @@ export default function QuickMemoApp() {
                                 color: '#374151',
                                 fontWeight: 'normal',
                                 border: '1px solid #3b82f6',
-                                borderRadius: '3px'
+                                borderRadius: '3px',
+                                resize: 'none',
+                                overflow: 'hidden',
+                                minHeight: '26px',
+                                lineHeight: '1.5',
+                                fontFamily: 'inherit'
                               }}
                             />
                           ) : (
-                            <span
+                            <div
                               onClick={() => setEditingNodeId(node.id)}
                               style={{
                                 flex: 1,
                                 cursor: 'pointer',
                                 color: '#374151',
                                 fontSize: '13px',
-                                fontWeight: 'normal'
+                                fontWeight: 'normal',
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-word'
                               }}
                             >
                               {node.text || '（空白）'}
-                            </span>
+                            </div>
                           )}
                           </div>
 
@@ -2871,16 +2897,23 @@ export default function QuickMemoApp() {
                                 e.target.style.height = e.target.scrollHeight + 'px'
                               }}
                               onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey && (node.description || '').trim() === '') {
-                                  // 空欄でEnter → 説明欄を閉じる
-                                  e.preventDefault()
-                                  updateTreeNode(node.id, { showDescription: false })
+                                // IME変換中のEnterは無視
+                                if (e.isComposing) return
+
+                                if (e.key === 'Enter') {
+                                  if (e.altKey) {
+                                    // Option+Enter: 改行を許可（デフォルト動作）
+                                    return
+                                  } else {
+                                    // 通常のEnter: 説明欄を閉じる
+                                    e.preventDefault()
+                                    updateTreeNode(node.id, { showDescription: false })
+                                  }
                                 } else if (e.key === 'Escape') {
                                   // Escキー → 説明欄を閉じる
                                   e.preventDefault()
                                   updateTreeNode(node.id, { showDescription: false })
                                 }
-                                // 通常のEnterは改行として機能（デフォルト動作）
                               }}
                               onInput={(e) => {
                                 // 高さを自動調整
@@ -2888,7 +2921,7 @@ export default function QuickMemoApp() {
                                 target.style.height = 'auto'
                                 target.style.height = target.scrollHeight + 'px'
                               }}
-                              placeholder="この項目の説明を入力... (Esc: 閉じる)"
+                              placeholder="この項目の説明を入力... (Enter: 閉じる, Option+Enter: 改行, Esc: 閉じる)"
                               style={{
                                 width: '100%',
                                 minHeight: '32px',
@@ -2899,9 +2932,10 @@ export default function QuickMemoApp() {
                                 backgroundColor: '#f9fafb',
                                 border: '1px solid #e5e7eb',
                                 borderRadius: '4px',
-                                resize: 'vertical',
+                                resize: 'none',
                                 fontFamily: 'inherit',
-                                overflow: 'auto'
+                                overflow: 'hidden',
+                                lineHeight: '1.5'
                               }}
                               autoFocus
                             />
