@@ -589,6 +589,45 @@ export default function QuickMemoApp() {
     }
   }, []) // 依存関係を空配列にして初回のみ実行
 
+  // グローバルキーボードショートカット（Undo/Redo）
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 入力欄にフォーカスがある場合はショートカットを無効化
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return
+      }
+
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+      const isCtrlOrCmd = isMac ? e.metaKey : e.ctrlKey
+
+      // Undo: Cmd+Z / Ctrl+Z
+      if (isCtrlOrCmd && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        if (viewMode === 'quick') {
+          undo()
+        } else {
+          undoTree()
+        }
+      }
+      // Redo: Cmd+Y / Ctrl+Y
+      else if (isCtrlOrCmd && e.key === 'y') {
+        e.preventDefault()
+        if (viewMode === 'quick') {
+          redo()
+        } else {
+          redoTree()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode])
+
   // メモ削除イベントリスナーと定期同期
   useEffect(() => {
     const handleMemoDeleted = (event: CustomEvent) => {
