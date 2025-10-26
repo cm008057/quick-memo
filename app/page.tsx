@@ -2437,13 +2437,41 @@ export default function QuickMemoApp() {
                     onTouchStart={(e) => {
                       if (editingMemo === memo.id) return
                       e.stopPropagation()
-                      setDraggedMemoId(memo.id)
+
                       setTouchStartY(e.touches[0].clientY)
-                      setIsDraggingTouch(true)
+                      setIsLongPressActive(false)
+
+                      // 長押し検出（300ms）
+                      longPressTimerRef.current = setTimeout(() => {
+                        setIsLongPressActive(true)
+                        setDraggedMemoId(memo.id)
+                        setIsDraggingTouch(true)
+                        console.log(`📱 長押し検出: ドラッグ開始 (${memo.id})`)
+
+                        // 振動フィードバック（対応ブラウザのみ）
+                        if (navigator.vibrate) {
+                          navigator.vibrate(50)
+                        }
+                      }, 300)
                     }}
                     onTouchMove={(e) => {
+                      // 長押しが確定していない場合
+                      if (!isLongPressActive) {
+                        // 少し動いたら長押しキャンセル（スクロールを許可）
+                        const touch = e.touches[0]
+                        const moveDistance = Math.abs(touch.clientY - touchStartY)
+                        if (moveDistance > 10) {
+                          if (longPressTimerRef.current) {
+                            clearTimeout(longPressTimerRef.current)
+                            longPressTimerRef.current = null
+                          }
+                        }
+                        return
+                      }
+
+                      // ドラッグ中のみスクロール防止
                       if (draggedMemoId === null || !isDraggingTouch) return
-                      e.preventDefault() // スクロール防止
+                      e.preventDefault()
                       e.stopPropagation()
 
                       const touch = e.touches[0]
@@ -2458,6 +2486,18 @@ export default function QuickMemoApp() {
                       }
                     }}
                     onTouchEnd={(e) => {
+                      // 長押しタイマーをクリア
+                      if (longPressTimerRef.current) {
+                        clearTimeout(longPressTimerRef.current)
+                        longPressTimerRef.current = null
+                      }
+
+                      // 長押しが確定していない場合は何もしない（通常のタップ）
+                      if (!isLongPressActive) {
+                        setIsLongPressActive(false)
+                        return
+                      }
+
                       if (draggedMemoId === null || !isDraggingTouch) return
                       e.stopPropagation()
 
@@ -2481,11 +2521,18 @@ export default function QuickMemoApp() {
                       setDraggedMemoId(null)
                       setDragOverMemoId(null)
                       setIsDraggingTouch(false)
+                      setIsLongPressActive(false)
                     }}
                     onTouchCancel={() => {
+                      // 長押しタイマーをクリア
+                      if (longPressTimerRef.current) {
+                        clearTimeout(longPressTimerRef.current)
+                        longPressTimerRef.current = null
+                      }
                       setDraggedMemoId(null)
                       setDragOverMemoId(null)
                       setIsDraggingTouch(false)
+                      setIsLongPressActive(false)
                     }}
                   >
                     ≡
