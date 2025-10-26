@@ -1695,6 +1695,19 @@ export default function QuickMemoApp() {
     console.log(`⬆️ filteredMemos.length=${filteredMemos.length}`)
     console.log(`⬆️ filteredMemos includes target:`, filteredMemos.some(m => m.id === id))
 
+    // カテゴリーの一致をチェック
+    if (targetMemo) {
+      const isInCategory =
+        selectedCategory === 'all' ||
+        (selectedCategory === 'uncategorized' && !targetMemo.category) ||
+        targetMemo.category === selectedCategory
+
+      if (!isInCategory) {
+        console.log(`⬆️ ❌ メモのカテゴリー (${targetMemo.category}) が選択中のカテゴリー (${selectedCategory}) と一致しません`)
+        return
+      }
+    }
+
     saveToHistory(memos, memoOrder)
 
     const newMemoOrder = [...memoOrder]
@@ -1749,6 +1762,19 @@ export default function QuickMemoApp() {
     console.log(`⬇️ targetMemo found:`, targetMemo ? `id=${targetMemo.id}, category=${targetMemo.category}` : 'NOT FOUND')
     console.log(`⬇️ filteredMemos.length=${filteredMemos.length}`)
     console.log(`⬇️ filteredMemos includes target:`, filteredMemos.some(m => m.id === id))
+
+    // カテゴリーの一致をチェック
+    if (targetMemo) {
+      const isInCategory =
+        selectedCategory === 'all' ||
+        (selectedCategory === 'uncategorized' && !targetMemo.category) ||
+        targetMemo.category === selectedCategory
+
+      if (!isInCategory) {
+        console.log(`⬇️ ❌ メモのカテゴリー (${targetMemo.category}) が選択中のカテゴリー (${selectedCategory}) と一致しません`)
+        return
+      }
+    }
 
     saveToHistory(memos, memoOrder)
 
