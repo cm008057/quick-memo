@@ -155,7 +155,7 @@ export default function QuickMemoApp() {
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null) // ドラッグ中のノードID
   const [dragOverNodeId, setDragOverNodeId] = useState<string | null>(null) // ドラッグオーバー中のノードID
   const [treeHistory, setTreeHistory] = useState<TreeNode[][]>([]) // ツリーの履歴
-  const [historyIndex, setHistoryIndex] = useState<number>(-1) // 現在の履歴位置
+  const [treeHistoryIndex, setTreeHistoryIndex] = useState<number>(-1) // 現在のツリー履歴位置
 
   // 認証関連のstate
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1280,27 +1280,27 @@ export default function QuickMemoApp() {
   const updateTreeNodesWithHistory = (newNodes: TreeNode[]) => {
     setTreeNodes(newNodes)
     setTreeHistory(prev => {
-      const newHistory = prev.slice(0, historyIndex + 1)
+      const newHistory = prev.slice(0, treeHistoryIndex + 1)
       newHistory.push(newNodes)
       return newHistory.slice(-50) // 最大50件まで保持
     })
-    setHistoryIndex(prev => Math.min(prev + 1, 49))
+    setTreeHistoryIndex(prev => Math.min(prev + 1, 49))
   }
 
   // 戻る
   const undoTree = () => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1
-      setHistoryIndex(newIndex)
+    if (treeHistoryIndex > 0) {
+      const newIndex = treeHistoryIndex - 1
+      setTreeHistoryIndex(newIndex)
       setTreeNodes(treeHistory[newIndex])
     }
   }
 
   // 進む
   const redoTree = () => {
-    if (historyIndex < treeHistory.length - 1) {
-      const newIndex = historyIndex + 1
-      setHistoryIndex(newIndex)
+    if (treeHistoryIndex < treeHistory.length - 1) {
+      const newIndex = treeHistoryIndex + 1
+      setTreeHistoryIndex(newIndex)
       setTreeNodes(treeHistory[newIndex])
     }
   }
@@ -2497,15 +2497,15 @@ export default function QuickMemoApp() {
             <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
               <button
                 onClick={undoTree}
-                disabled={historyIndex <= 0}
+                disabled={treeHistoryIndex <= 0}
                 style={{
                   padding: '5px 8px',
                   fontSize: '12px',
-                  backgroundColor: historyIndex <= 0 ? '#d1d5db' : '#8b5cf6',
+                  backgroundColor: treeHistoryIndex <= 0 ? '#d1d5db' : '#8b5cf6',
                   color: 'white',
                   border: 'none',
                   borderRadius: '4px',
-                  cursor: historyIndex <= 0 ? 'not-allowed' : 'pointer',
+                  cursor: treeHistoryIndex <= 0 ? 'not-allowed' : 'pointer',
                   whiteSpace: 'nowrap',
                   lineHeight: '1.2'
                 }}
@@ -2515,15 +2515,15 @@ export default function QuickMemoApp() {
               </button>
               <button
                 onClick={redoTree}
-                disabled={historyIndex >= treeHistory.length - 1}
+                disabled={treeHistoryIndex >= treeHistory.length - 1}
                 style={{
                   padding: '5px 8px',
                   fontSize: '12px',
-                  backgroundColor: historyIndex >= treeHistory.length - 1 ? '#d1d5db' : '#8b5cf6',
+                  backgroundColor: treeHistoryIndex >= treeHistory.length - 1 ? '#d1d5db' : '#8b5cf6',
                   color: 'white',
                   border: 'none',
                   borderRadius: '4px',
-                  cursor: historyIndex >= treeHistory.length - 1 ? 'not-allowed' : 'pointer',
+                  cursor: treeHistoryIndex >= treeHistory.length - 1 ? 'not-allowed' : 'pointer',
                   whiteSpace: 'nowrap',
                   lineHeight: '1.2'
                 }}
