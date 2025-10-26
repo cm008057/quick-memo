@@ -74,6 +74,8 @@ interface TreeNode {
   collapsed: boolean
   level: number
   templateType?: string  // 大項目タイプ（オプション）
+  description?: string  // 説明文
+  showDescription?: boolean  // 説明欄を表示するか
 }
 
 interface TreeTemplate {
@@ -152,6 +154,8 @@ export default function QuickMemoApp() {
   const [currentTemplateIndex, setCurrentTemplateIndex] = useState<number>(0) // 現在選択中の大項目インデックス
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null) // ドラッグ中のノードID
   const [dragOverNodeId, setDragOverNodeId] = useState<string | null>(null) // ドラッグオーバー中のノードID
+  const [treeHistory, setTreeHistory] = useState<TreeNode[][]>([]) // ツリーの履歴
+  const [historyIndex, setHistoryIndex] = useState<number>(-1) // 現在の履歴位置
 
   // 認証関連のstate
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1270,6 +1274,35 @@ export default function QuickMemoApp() {
     setTreeNodes(prev => [...prev, newNode])
 
     setEditingNodeId(newNode.id)
+  }
+
+  // 履歴管理：ツリーを更新して履歴に追加
+  const updateTreeNodesWithHistory = (newNodes: TreeNode[]) => {
+    setTreeNodes(newNodes)
+    setTreeHistory(prev => {
+      const newHistory = prev.slice(0, historyIndex + 1)
+      newHistory.push(newNodes)
+      return newHistory.slice(-50) // 最大50件まで保持
+    })
+    setHistoryIndex(prev => Math.min(prev + 1, 49))
+  }
+
+  // 戻る
+  const undoTree = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1
+      setHistoryIndex(newIndex)
+      setTreeNodes(treeHistory[newIndex])
+    }
+  }
+
+  // 進む
+  const redoTree = () => {
+    if (historyIndex < treeHistory.length - 1) {
+      const newIndex = historyIndex + 1
+      setHistoryIndex(newIndex)
+      setTreeNodes(treeHistory[newIndex])
+    }
   }
 
   // ノードを更新
@@ -2463,6 +2496,42 @@ export default function QuickMemoApp() {
             </div>
             <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
               <button
+                onClick={undoTree}
+                disabled={historyIndex <= 0}
+                style={{
+                  padding: '5px 8px',
+                  fontSize: '12px',
+                  backgroundColor: historyIndex <= 0 ? '#d1d5db' : '#8b5cf6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: historyIndex <= 0 ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap',
+                  lineHeight: '1.2'
+                }}
+                title="戻る"
+              >
+                ↶
+              </button>
+              <button
+                onClick={redoTree}
+                disabled={historyIndex >= treeHistory.length - 1}
+                style={{
+                  padding: '5px 8px',
+                  fontSize: '12px',
+                  backgroundColor: historyIndex >= treeHistory.length - 1 ? '#d1d5db' : '#8b5cf6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: historyIndex >= treeHistory.length - 1 ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap',
+                  lineHeight: '1.2'
+                }}
+                title="進む"
+              >
+                ↷
+              </button>
+              <button
                 onClick={() => setShowTemplateModal(true)}
                 style={{
                   padding: '5px 8px',
@@ -2748,6 +2817,24 @@ export default function QuickMemoApp() {
                             📝
                           </button>
 
+                          {/* 説明ボタン */}
+                          <button
+                            onClick={() => updateTreeNode(node.id, { showDescription: !node.showDescription })}
+                            style={{
+                              padding: '1px 4px',
+                              fontSize: '12px',
+                              backgroundColor: node.showDescription ? '#dcfce7' : '#f3f4f6',
+                              border: `1px solid ${node.showDescription ? '#86efac' : '#d1d5db'}`,
+                              borderRadius: '3px',
+                              cursor: 'pointer',
+                              lineHeight: '1',
+                              flexShrink: 0
+                            }}
+                            title="説明"
+                          >
+                            💬
+                          </button>
+
                           {/* 削除ボタン */}
                           <button
                             onClick={() => deleteTreeNode(node.id)}
@@ -2767,6 +2854,33 @@ export default function QuickMemoApp() {
                           </button>
                           </div>
                         </div>
+
+                        {/* 説明欄 */}
+                        {node.showDescription && (
+                          <div style={{
+                            paddingLeft: `${30 + nodeLevel * 20}px`,
+                            paddingTop: '4px',
+                            paddingBottom: '4px'
+                          }}>
+                            <textarea
+                              value={node.description || ''}
+                              onChange={(e) => updateTreeNode(node.id, { description: e.target.value })}
+                              placeholder="この項目の説明を入力..."
+                              style={{
+                                width: '100%',
+                                minHeight: '60px',
+                                padding: '6px 8px',
+                                fontSize: '12px',
+                                color: '#6b7280',
+                                backgroundColor: '#f9fafb',
+                                border: '1px solid #e5e7eb',
+                                borderRadius: '4px',
+                                resize: 'vertical',
+                                fontFamily: 'inherit'
+                              }}
+                            />
+                          </div>
+                        )}
                       </div>
                     )
                   }

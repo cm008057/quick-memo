@@ -26,6 +26,8 @@ export interface TreeNode {
   collapsed: boolean
   level: number
   templateType?: string
+  description?: string
+  showDescription?: boolean
 }
 
 export interface TreeTemplate {
