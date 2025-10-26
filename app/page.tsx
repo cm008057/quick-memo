@@ -2864,11 +2864,35 @@ export default function QuickMemoApp() {
                           }}>
                             <textarea
                               value={node.description || ''}
-                              onChange={(e) => updateTreeNode(node.id, { description: e.target.value })}
-                              placeholder="この項目の説明を入力..."
+                              onChange={(e) => {
+                                updateTreeNode(node.id, { description: e.target.value })
+                                // 高さを自動調整
+                                e.target.style.height = 'auto'
+                                e.target.style.height = e.target.scrollHeight + 'px'
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey && (node.description || '').trim() === '') {
+                                  // 空欄でEnter → 説明欄を閉じる
+                                  e.preventDefault()
+                                  updateTreeNode(node.id, { showDescription: false })
+                                } else if (e.key === 'Escape') {
+                                  // Escキー → 説明欄を閉じる
+                                  e.preventDefault()
+                                  updateTreeNode(node.id, { showDescription: false })
+                                }
+                                // 通常のEnterは改行として機能（デフォルト動作）
+                              }}
+                              onInput={(e) => {
+                                // 高さを自動調整
+                                const target = e.target as HTMLTextAreaElement
+                                target.style.height = 'auto'
+                                target.style.height = target.scrollHeight + 'px'
+                              }}
+                              placeholder="この項目の説明を入力... (Esc: 閉じる)"
                               style={{
                                 width: '100%',
-                                minHeight: '60px',
+                                minHeight: '32px',
+                                maxHeight: '200px',
                                 padding: '6px 8px',
                                 fontSize: '12px',
                                 color: '#6b7280',
@@ -2876,8 +2900,10 @@ export default function QuickMemoApp() {
                                 border: '1px solid #e5e7eb',
                                 borderRadius: '4px',
                                 resize: 'vertical',
-                                fontFamily: 'inherit'
+                                fontFamily: 'inherit',
+                                overflow: 'auto'
                               }}
+                              autoFocus
                             />
                           </div>
                         )}
