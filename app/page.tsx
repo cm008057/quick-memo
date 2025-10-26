@@ -2447,16 +2447,32 @@ export default function QuickMemoApp() {
 
                       // 長押し検出（300ms）
                       longPressTimerRef.current = setTimeout(() => {
+                        console.log(`📱 ✅ 長押し検出成功: ドラッグ開始 (${memo.id})`)
                         setIsLongPressActive(true)
                         setDraggedMemoId(memo.id)
                         draggedMemoIdRef.current = memo.id // refにも即座に保存
                         setIsDraggingTouch(true)
-                        console.log(`📱 ✅ 長押し検出成功: ドラッグ開始 (${memo.id})`)
 
                         // 振動フィードバック（対応ブラウザのみ）
                         if (navigator.vibrate) {
                           navigator.vibrate(50)
                         }
+
+                        // 5秒後に強制リセット（フリーズ防止）
+                        setTimeout(() => {
+                          if (draggedMemoIdRef.current === memo.id) {
+                            console.log(`📱 ⚠️ 5秒経過により強制リセット`)
+                            setDraggedMemoId(null)
+                            draggedMemoIdRef.current = null
+                            setDragOverMemoId(null)
+                            setIsDraggingTouch(false)
+                            setIsLongPressActive(false)
+                            if (autoScrollIntervalRef.current) {
+                              clearInterval(autoScrollIntervalRef.current)
+                              autoScrollIntervalRef.current = null
+                            }
+                          }
+                        }, 5000)
                       }, 300)
                       console.log(`📱 タイマー開始: 300ms`)
                     }}
@@ -2525,17 +2541,18 @@ export default function QuickMemoApp() {
                       }
                     }}
                     onTouchEnd={(e) => {
-                      console.log(`📱 タッチ終了: 長押し=${isLongPressActive ? '有効' : '無効'}`)
+                      console.log(`📱 タッチ終了開始: 長押し=${isLongPressActive ? '有効' : '無効'}, draggedMemoId=${draggedMemoIdRef.current}`)
 
                       // 自動スクロールタイマーをクリア
                       if (autoScrollIntervalRef.current) {
+                        console.log(`📱 自動スクロールタイマークリア`)
                         clearInterval(autoScrollIntervalRef.current)
                         autoScrollIntervalRef.current = null
                       }
 
                       // 長押しタイマーをクリア
                       if (longPressTimerRef.current) {
-                        console.log(`📱 タイマークリア（タッチ終了）`)
+                        console.log(`📱 長押しタイマークリア`)
                         clearTimeout(longPressTimerRef.current)
                         longPressTimerRef.current = null
                       }
@@ -2588,11 +2605,13 @@ export default function QuickMemoApp() {
                         console.log(`📱 ❌ メモアイテムが見つかりません`)
                       }
 
+                      console.log(`📱 🔄 状態リセット開始`)
                       setDraggedMemoId(null)
                       draggedMemoIdRef.current = null
                       setDragOverMemoId(null)
                       setIsDraggingTouch(false)
                       setIsLongPressActive(false)
+                      console.log(`📱 ✅ 状態リセット完了`)
                     }}
                     onTouchCancel={() => {
                       console.log(`📱 タッチキャンセル`)
@@ -2609,11 +2628,13 @@ export default function QuickMemoApp() {
                         clearTimeout(longPressTimerRef.current)
                         longPressTimerRef.current = null
                       }
+                      console.log(`📱 🔄 状態リセット開始`)
                       setDraggedMemoId(null)
                       draggedMemoIdRef.current = null
                       setDragOverMemoId(null)
                       setIsDraggingTouch(false)
                       setIsLongPressActive(false)
+                      console.log(`📱 ✅ 状態リセット完了`)
                     }}
                   >
                     ≡
