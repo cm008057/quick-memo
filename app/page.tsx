@@ -1052,9 +1052,12 @@ export default function QuickMemoApp() {
   // デバウンス付き保存（連打対応）
   const debouncedSaveMemos = (memosToSave: Memo[], memoOrderToSave: number[]) => {
     if (saveDebounceTimerRef.current) {
+      console.log('⏱️ デバウンスタイマーをリセット')
       clearTimeout(saveDebounceTimerRef.current)
     }
+    console.log('⏱️ デバウンス保存スケジュール: 500ms後に実行')
     saveDebounceTimerRef.current = setTimeout(() => {
+      console.log('💾 デバウンス保存実行開始')
       saveMemos(memosToSave, memoOrderToSave)
     }, 500)
   }
@@ -1680,6 +1683,7 @@ export default function QuickMemoApp() {
 
   // メモを5つ上に移動
   const moveUp5 = (id: number) => {
+    console.log(`⬆️⬆️⬆️ moveUp5 called: id=${id}`)
     if (isImporting || isDeleting) {
       console.log('🚫 処理中のため移動をスキップ')
       return
@@ -1700,7 +1704,11 @@ export default function QuickMemoApp() {
         ))
 
       const currentIndex = currentFilteredMemos.findIndex(m => m.id === id)
-      if (currentIndex <= 0) break
+      console.log(`⬆️ ループ${i+1}/5: currentIndex=${currentIndex}`)
+      if (currentIndex <= 0) {
+        console.log(`⬆️ ループ終了: currentIndex=${currentIndex}`)
+        break
+      }
 
       const currentMemo = currentFilteredMemos[currentIndex]
       const prevMemo = currentFilteredMemos[currentIndex - 1]
@@ -1708,16 +1716,20 @@ export default function QuickMemoApp() {
       const currentOrderIndex = newMemoOrder.indexOf(currentMemo.id)
       const prevOrderIndex = newMemoOrder.indexOf(prevMemo.id)
 
+      console.log(`⬆️ 入れ替え: ${currentMemo.id} (index=${currentOrderIndex}) ⇔ ${prevMemo.id} (index=${prevOrderIndex})`)
+
       newMemoOrder[currentOrderIndex] = prevMemo.id
       newMemoOrder[prevOrderIndex] = currentMemo.id
     }
 
+    console.log(`⬆️ setMemoOrder実行`)
     setMemoOrder(newMemoOrder)
     debouncedSaveMemos(memos, newMemoOrder)
   }
 
   // メモを5つ下に移動
   const moveDown5 = (id: number) => {
+    console.log(`⬇️⬇️⬇️ moveDown5 called: id=${id}`)
     if (isImporting || isDeleting) {
       console.log('🚫 処理中のため移動をスキップ')
       return
@@ -1738,7 +1750,11 @@ export default function QuickMemoApp() {
         ))
 
       const currentIndex = currentFilteredMemos.findIndex(m => m.id === id)
-      if (currentIndex < 0 || currentIndex >= currentFilteredMemos.length - 1) break
+      console.log(`⬇️ ループ${i+1}/5: currentIndex=${currentIndex}, length=${currentFilteredMemos.length}`)
+      if (currentIndex < 0 || currentIndex >= currentFilteredMemos.length - 1) {
+        console.log(`⬇️ ループ終了: currentIndex=${currentIndex}`)
+        break
+      }
 
       const currentMemo = currentFilteredMemos[currentIndex]
       const nextMemo = currentFilteredMemos[currentIndex + 1]
@@ -1746,10 +1762,13 @@ export default function QuickMemoApp() {
       const currentOrderIndex = newMemoOrder.indexOf(currentMemo.id)
       const nextOrderIndex = newMemoOrder.indexOf(nextMemo.id)
 
+      console.log(`⬇️ 入れ替え: ${currentMemo.id} (index=${currentOrderIndex}) ⇔ ${nextMemo.id} (index=${nextOrderIndex})`)
+
       newMemoOrder[currentOrderIndex] = nextMemo.id
       newMemoOrder[nextOrderIndex] = currentMemo.id
     }
 
+    console.log(`⬇️ setMemoOrder実行`)
     setMemoOrder(newMemoOrder)
     debouncedSaveMemos(memos, newMemoOrder)
   }
@@ -2526,209 +2545,7 @@ export default function QuickMemoApp() {
                 }}
               >
                 {isManualSort && (
-                  <div
-                    className="drag-handle-area"
-                    onTouchStart={(e) => {
-                      if (editingMemo === memo.id) return
-                      e.stopPropagation()
-
-                      const startY = e.touches[0].clientY
-                      setTouchStartY(startY)
-                      setIsLongPressActive(false)
-                      console.log(`📱 タッチ開始: Y=${startY}, memo=${memo.id}`)
-
-                      // 長押し検出（300ms）
-                      longPressTimerRef.current = setTimeout(() => {
-                        console.log(`📱 ✅ 長押し検出成功: ドラッグ開始 (${memo.id})`)
-                        setIsLongPressActive(true)
-                        setDraggedMemoId(memo.id)
-                        draggedMemoIdRef.current = memo.id // refにも即座に保存
-                        setIsDraggingTouch(true)
-
-                        // 振動フィードバック（対応ブラウザのみ）
-                        if (navigator.vibrate) {
-                          navigator.vibrate(50)
-                        }
-
-                        // 5秒後に強制リセット（フリーズ防止）
-                        setTimeout(() => {
-                          if (draggedMemoIdRef.current === memo.id) {
-                            console.log(`📱 ⚠️ 5秒経過により強制リセット`)
-                            setDraggedMemoId(null)
-                            draggedMemoIdRef.current = null
-                            setDragOverMemoId(null)
-                            setIsDraggingTouch(false)
-                            setIsLongPressActive(false)
-                            if (autoScrollIntervalRef.current) {
-                              clearInterval(autoScrollIntervalRef.current)
-                              autoScrollIntervalRef.current = null
-                            }
-                          }
-                        }, 5000)
-                      }, 300)
-                      console.log(`📱 タイマー開始: 300ms`)
-                    }}
-                    onTouchMove={(e) => {
-                      // 長押しが確定していない場合
-                      if (!isLongPressActive) {
-                        // 少し動いたら長押しキャンセル（スクロールを許可）
-                        const touch = e.touches[0]
-                        const moveDistance = Math.abs(touch.clientY - touchStartY)
-                        console.log(`📱 タッチ移動: 移動距離=${moveDistance.toFixed(1)}px, 長押し=${isLongPressActive ? '有効' : '無効'}`)
-                        if (moveDistance > 10) {
-                          if (longPressTimerRef.current) {
-                            console.log(`📱 ❌ 長押しキャンセル: 移動距離=${moveDistance.toFixed(1)}px > 10px`)
-                            clearTimeout(longPressTimerRef.current)
-                            longPressTimerRef.current = null
-                          }
-                        }
-                        return
-                      }
-
-                      // ドラッグ中のみスクロール防止
-                      const currentDraggedMemoId = draggedMemoIdRef.current
-                      if (currentDraggedMemoId === null || !isDraggingTouch) return
-                      e.preventDefault()
-                      e.stopPropagation()
-
-                      const touch = e.touches[0]
-                      const touchY = touch.clientY
-                      const windowHeight = window.innerHeight
-
-                      // 自動スクロール: 上端150pxまたは下端150pxに近づいたら
-                      const scrollThreshold = 150
-                      const scrollSpeed = 5
-
-                      // 以前のタイマーをクリア
-                      if (autoScrollIntervalRef.current) {
-                        clearInterval(autoScrollIntervalRef.current)
-                        autoScrollIntervalRef.current = null
-                      }
-
-                      // スクロールが必要な場合のみタイマーを設定
-                      if (touchY < scrollThreshold) {
-                        // 上端に近い: 上にスクロール
-                        autoScrollIntervalRef.current = setInterval(() => {
-                          window.scrollBy(0, -scrollSpeed)
-                        }, 30) // 約30fps
-                      } else if (touchY > windowHeight - scrollThreshold) {
-                        // 下端に近い: 下にスクロール
-                        autoScrollIntervalRef.current = setInterval(() => {
-                          window.scrollBy(0, scrollSpeed)
-                        }, 30) // 約30fps
-                      }
-
-                      const element = document.elementFromPoint(touch.clientX, touch.clientY)
-                      const memoItem = element?.closest('.memo-item') as HTMLElement
-
-                      if (memoItem) {
-                        const targetMemoId = parseInt(memoItem.getAttribute('data-memo-id') || '0')
-                        console.log(`📱 タッチ移動中: draggedMemoId=${currentDraggedMemoId}, targetMemoId=${targetMemoId}, Y=${touch.clientY.toFixed(0)}`)
-                        if (targetMemoId && targetMemoId !== currentDraggedMemoId) {
-                          setDragOverMemoId(targetMemoId)
-                          console.log(`📱 ドラッグオーバー: ${targetMemoId}`)
-                        }
-                      } else {
-                        console.log(`📱 タッチ移動中: メモアイテム外, Y=${touch.clientY.toFixed(0)}`)
-                      }
-                    }}
-                    onTouchEnd={(e) => {
-                      console.log(`📱 タッチ終了開始: 長押し=${isLongPressActive ? '有効' : '無効'}, draggedMemoId=${draggedMemoIdRef.current}`)
-
-                      // 自動スクロールタイマーをクリア
-                      if (autoScrollIntervalRef.current) {
-                        console.log(`📱 自動スクロールタイマークリア`)
-                        clearInterval(autoScrollIntervalRef.current)
-                        autoScrollIntervalRef.current = null
-                      }
-
-                      // 長押しタイマーをクリア
-                      if (longPressTimerRef.current) {
-                        console.log(`📱 長押しタイマークリア`)
-                        clearTimeout(longPressTimerRef.current)
-                        longPressTimerRef.current = null
-                      }
-
-                      // 長押しが確定していない場合は何もしない（通常のタップ）
-                      if (!isLongPressActive) {
-                        console.log(`📱 長押し未確定のため処理スキップ`)
-                        setIsLongPressActive(false)
-                        return
-                      }
-
-                      // refから最新の値を取得
-                      const currentDraggedMemoId = draggedMemoIdRef.current
-                      console.log(`📱 ドロップ処理開始: draggedMemoId=${currentDraggedMemoId}, isDraggingTouch=${isDraggingTouch}`)
-
-                      if (currentDraggedMemoId === null || !isDraggingTouch) {
-                        console.log(`📱 ❌ ドロップ条件不足: draggedMemoId=${currentDraggedMemoId}, isDraggingTouch=${isDraggingTouch}`)
-                        setDraggedMemoId(null)
-                        draggedMemoIdRef.current = null
-                        setDragOverMemoId(null)
-                        setIsDraggingTouch(false)
-                        setIsLongPressActive(false)
-                        return
-                      }
-
-                      e.stopPropagation()
-
-                      const touch = e.changedTouches[0]
-                      const element = document.elementFromPoint(touch.clientX, touch.clientY)
-                      const memoItem = element?.closest('.memo-item') as HTMLElement
-
-                      console.log(`📱 ドロップ位置検出: element=${!!element}, memoItem=${!!memoItem}`)
-
-                      if (memoItem) {
-                        const targetMemoId = parseInt(memoItem.getAttribute('data-memo-id') || '0')
-                        console.log(`📱 ターゲット検出: targetMemoId=${targetMemoId}, draggedMemoId=${currentDraggedMemoId}`)
-
-                        if (targetMemoId && targetMemoId !== currentDraggedMemoId) {
-                          // ドロップ位置を判定（上半分か下半分か）
-                          const rect = memoItem.getBoundingClientRect()
-                          const touchY = touch.clientY
-                          const position = touchY < rect.top + rect.height / 2 ? 'before' : 'after'
-
-                          console.log(`📱 ✅ タッチドロップ実行: ${currentDraggedMemoId} → ${targetMemoId} (${position})`)
-                          moveMemo(currentDraggedMemoId, targetMemoId, position)
-                        } else {
-                          console.log(`📱 ❌ 同じメモまたは無効なターゲット`)
-                        }
-                      } else {
-                        console.log(`📱 ❌ メモアイテムが見つかりません`)
-                      }
-
-                      console.log(`📱 🔄 状態リセット開始`)
-                      setDraggedMemoId(null)
-                      draggedMemoIdRef.current = null
-                      setDragOverMemoId(null)
-                      setIsDraggingTouch(false)
-                      setIsLongPressActive(false)
-                      console.log(`📱 ✅ 状態リセット完了`)
-                    }}
-                    onTouchCancel={() => {
-                      console.log(`📱 タッチキャンセル`)
-
-                      // 自動スクロールタイマーをクリア
-                      if (autoScrollIntervalRef.current) {
-                        clearInterval(autoScrollIntervalRef.current)
-                        autoScrollIntervalRef.current = null
-                      }
-
-                      // 長押しタイマーをクリア
-                      if (longPressTimerRef.current) {
-                        console.log(`📱 タイマークリア（タッチキャンセル）`)
-                        clearTimeout(longPressTimerRef.current)
-                        longPressTimerRef.current = null
-                      }
-                      console.log(`📱 🔄 状態リセット開始`)
-                      setDraggedMemoId(null)
-                      draggedMemoIdRef.current = null
-                      setDragOverMemoId(null)
-                      setIsDraggingTouch(false)
-                      setIsLongPressActive(false)
-                      console.log(`📱 ✅ 状態リセット完了`)
-                    }}
-                  >
+                  <div className="drag-handle-area">
                     ≡
                   </div>
                 )}
