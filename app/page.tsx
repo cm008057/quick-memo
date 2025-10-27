@@ -2607,11 +2607,29 @@ export default function QuickMemoApp() {
                       className="memo-edit-input"
                       value={editText}
                       onChange={(e) => setEditText(e.target.value)}
-                      rows={2}
+                      rows={Math.max(2, Math.ceil(editText.length / 50))}
+                      autoFocus
+                      onFocus={(e) => {
+                        // カーソルを最後に移動
+                        e.target.selectionStart = e.target.value.length
+                        e.target.selectionEnd = e.target.value.length
+                      }}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault()
-                          saveMemoEdit(memo.id)
+                        // IME変換中のEnterは無視
+                        if (e.nativeEvent.isComposing) return
+
+                        if (e.key === 'Enter') {
+                          if (e.shiftKey) {
+                            // Shift+Enter: 改行を許可（デフォルト動作）
+                            return
+                          } else if (e.altKey) {
+                            // Alt+Enter: 改行を許可（デフォルト動作）
+                            return
+                          } else {
+                            // 通常のEnter: 編集完了
+                            e.preventDefault()
+                            saveMemoEdit(memo.id)
+                          }
                         } else if (e.key === 'Escape') {
                           cancelMemoEdit()
                         }
