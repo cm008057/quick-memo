@@ -1970,6 +1970,58 @@ export default function QuickMemoApp() {
     alert(`データをエクスポートしました！\n\nメモ数: ${exportData.stats.totalMemos}\n完了済み: ${exportData.stats.completedMemos}\nカテゴリー数: ${exportData.stats.totalCategories}\nツリーノード: ${exportData.stats.totalTreeNodes}\nツリーテンプレート: ${exportData.stats.totalTreeTemplates}`)
   }
 
+  // シンプルなテキスト形式でメモを出力
+  const exportAsText = () => {
+    let output = ''
+    let totalExported = 0
+
+    // カテゴリ順に処理
+    orderedCategories.forEach(([key, cat]) => {
+      // このカテゴリのメモを取得（削除済み・完了済みを除外）
+      const categoryMemos = memos.filter(m =>
+        m.category === key && !m.deleted && !m.completed
+      )
+
+      // memoOrderに従って並び替え
+      const sortedMemos = [...categoryMemos].sort((a, b) => {
+        const indexA = memoOrder.indexOf(a.id)
+        const indexB = memoOrder.indexOf(b.id)
+        if (indexA === -1 && indexB === -1) return 0
+        if (indexA === -1) return 1
+        if (indexB === -1) return -1
+        return indexA - indexB
+      })
+
+      // メモがある場合のみ出力
+      if (sortedMemos.length > 0) {
+        output += `【${cat.name}】\n`
+        sortedMemos.forEach(memo => {
+          output += `・${memo.text}\n`
+          totalExported++
+        })
+        output += '\n'
+      }
+    })
+
+    if (totalExported === 0) {
+      alert('出力するメモがありません')
+      return
+    }
+
+    // テキストファイルとしてダウンロード
+    const blob = new Blob([output], {type: 'text/plain;charset=utf-8'})
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `quick-memo-${new Date().toLocaleDateString('ja-JP').replace(/\//g, '-')}.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    alert(`メモを出力しました！\n\n出力件数: ${totalExported}件`)
+  }
+
   // データをインポート
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     console.log('🚀 handleImport関数が呼び出されました')
@@ -2295,6 +2347,10 @@ export default function QuickMemoApp() {
                 <button className="export-btn" onClick={exportData} title="データをエクスポート">
                   <span className="btn-icon">💾</span>
                   <span className="btn-label">保存</span>
+                </button>
+                <button className="export-btn" onClick={exportAsText} title="シンプルなテキスト形式で出力">
+                  <span className="btn-icon">📄</span>
+                  <span className="btn-label">メモ出力</span>
                 </button>
                 <button className="import-btn" onClick={() => {
                 console.log('📂 インポートボタンがクリックされました')
