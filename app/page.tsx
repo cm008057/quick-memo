@@ -144,6 +144,8 @@ export default function QuickMemoApp() {
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [draggedMemoId, setDraggedMemoId] = useState<number | null>(null) // ドラッグ中のメモID
   const [dragOverMemoId, setDragOverMemoId] = useState<number | null>(null) // ドラッグオーバー中のメモID
+  const [draggedCategoryKey, setDraggedCategoryKey] = useState<string | null>(null) // ドラッグ中のカテゴリーキー
+  const [dragOverCategoryKey, setDragOverCategoryKey] = useState<string | null>(null) // ドラッグオーバー中のカテゴリーキー
   const [touchStartY, setTouchStartY] = useState<number>(0) // タッチ開始Y座標
   const [isDraggingTouch, setIsDraggingTouch] = useState<boolean>(false) // タッチドラッグ中フラグ
   const [isLongPressActive, setIsLongPressActive] = useState<boolean>(false) // 長押し検出フラグ
@@ -1616,6 +1618,48 @@ export default function QuickMemoApp() {
     setTimeout(() => {
       console.log(`💾 保存処理開始（遅延実行）`)
       saveMemos(memos, newMemoOrder)
+    }, 100)
+  }
+
+  // カテゴリーを移動
+  const moveCategory = async (draggedKey: string, targetKey: string, position: 'before' | 'after') => {
+    if (isImporting || isDeleting || isSaving) {
+      console.log('🚫 処理中のため移動をスキップ')
+      return
+    }
+
+    console.log(`📦 カテゴリー移動処理開始: ${draggedKey} → ${targetKey} (${position})`)
+
+    const newCategoryOrder = [...categoryOrder]
+    const draggedIndex = newCategoryOrder.indexOf(draggedKey)
+    const targetIndex = newCategoryOrder.indexOf(targetKey)
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      console.log(`❌ インデックスが見つかりません: draggedIndex=${draggedIndex}, targetIndex=${targetIndex}`)
+      return
+    }
+
+    console.log(`📍 元の位置: draggedIndex=${draggedIndex}, targetIndex=${targetIndex}`)
+
+    // draggedを削除
+    newCategoryOrder.splice(draggedIndex, 1)
+
+    // targetIndexを再計算（draggedを削除したので変わる可能性がある）
+    const newTargetIndex = newCategoryOrder.indexOf(targetKey)
+    const insertIndex = position === 'before' ? newTargetIndex : newTargetIndex + 1
+
+    console.log(`📍 挿入位置: insertIndex=${insertIndex}`)
+
+    // draggedを挿入
+    newCategoryOrder.splice(insertIndex, 0, draggedKey)
+
+    setCategoryOrder(newCategoryOrder)
+    console.log(`✅ カテゴリー並び順更新完了`)
+
+    // UIのブロックを防ぐため、保存を遅延
+    setTimeout(() => {
+      console.log(`💾 カテゴリー保存処理開始（遅延実行）`)
+      saveCategories(categories, newCategoryOrder)
     }, 100)
   }
 
@@ -3677,7 +3721,43 @@ export default function QuickMemoApp() {
               const memosInCategory = memos.filter(m => m.category === key).length
 
               return (
-                <div key={key} className="category-item" data-category-key={key}>
+                <div
+                  key={key}
+                  className={`category-item ${dragOverCategoryKey === key ? 'drag-over' : ''}`}
+                  data-category-key={key}
+                  draggable={true}
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = 'move'
+                    setDraggedCategoryKey(key)
+                  }}
+                  onDragOver={(e) => {
+                    if (draggedCategoryKey === null || draggedCategoryKey === key) return
+                    e.preventDefault()
+                    e.dataTransfer.dropEffect = 'move'
+                    setDragOverCategoryKey(key)
+                  }}
+                  onDragLeave={() => {
+                    setDragOverCategoryKey(null)
+                  }}
+                  onDrop={(e) => {
+                    if (draggedCategoryKey === null || draggedCategoryKey === key) return
+                    e.preventDefault()
+
+                    // ドロップ位置を判定（上半分か下半分か）
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    const mouseY = e.clientY
+                    const position = mouseY < rect.top + rect.height / 2 ? 'before' : 'after'
+
+                    console.log(`🖱️ カテゴリードロップ: ${draggedCategoryKey} → ${key} (${position})`)
+                    moveCategory(draggedCategoryKey, key, position)
+                    setDraggedCategoryKey(null)
+                    setDragOverCategoryKey(null)
+                  }}
+                  onDragEnd={() => {
+                    setDraggedCategoryKey(null)
+                    setDragOverCategoryKey(null)
+                  }}
+                >
                   <span className="drag-handle">≡</span>
                   <div
                     className="category-icon"
