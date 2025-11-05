@@ -1994,7 +1994,7 @@ export default function QuickMemoApp() {
 
       // メモがある場合のみ出力
       if (sortedMemos.length > 0) {
-        output += `【${cat.name}】\n`
+        output += `${cat.icon} ${cat.name}\n`
         sortedMemos.forEach(memo => {
           output += `・${memo.text}\n`
           totalExported++
