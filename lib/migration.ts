@@ -132,21 +132,41 @@ export const loadFromSupabase = async (): Promise<{
     const supabase = createClient()
     const userId = 'demo-user' // デモ用のユーザーID
 
-    // Supabaseからデータを取得
+    // メモをページネーションで全件取得（Supabaseのデフォルト制限は1000件）
+    const PAGE_SIZE = 1000
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let allMemos: any[] = []
+    let offset = 0
+    let hasMore = true
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('memos')
+        .select('*')
+        .eq('user_id', userId)
+        .range(offset, offset + PAGE_SIZE - 1)
+
+      if (error) {
+        return { success: false, message: `メモの取得に失敗しました: ${error.message}` }
+      }
+
+      if (data && data.length > 0) {
+        allMemos = [...allMemos, ...data]
+        offset += PAGE_SIZE
+        hasMore = data.length === PAGE_SIZE
+      } else {
+        hasMore = false
+      }
+    }
+
+    // Supabaseからカテゴリとメモ順序を取得
     const [
-      { data: memos, error: memosError },
       { data: categories, error: categoriesError },
       { data: memoOrders }
     ] = await Promise.all([
-      supabase.from('memos').select('*').eq('user_id', userId),
       supabase.from('categories').select('*').eq('user_id', userId).order('order_index'),
       supabase.from('memo_orders').select('*').eq('user_id', userId).single()
     ])
-
-    if (memosError) {
-      console.error('Memos fetch error:', memosError)
-      return { success: false, message: `メモの取得に失敗しました: ${memosError.message}` }
-    }
 
     if (categoriesError) {
       console.error('Categories fetch error:', categoriesError)
@@ -168,19 +188,19 @@ export const loadFromSupabase = async (): Promise<{
     })
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const formattedMemos = memos?.map((memo: any) => ({
+    const formattedMemos = allMemos.map((memo: any) => ({
       id: memo.id,
       text: memo.text,
       category: memo.category,
       timestamp: memo.timestamp,
       completed: memo.completed
-    })) || []
+    }))
 
     const memoOrder = memoOrders?.memo_order || []
 
     return {
       success: true,
-      message: `データ読み込み完了: カテゴリー${categories?.length || 0}個、メモ${memos?.length || 0}個`,
+      message: `データ読み込み完了: カテゴリー${categories?.length || 0}個、メモ${allMemos.length}個`,
       data: {
         memos: formattedMemos,
         categories: formattedCategories,

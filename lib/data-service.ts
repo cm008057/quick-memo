@@ -325,24 +325,42 @@ export const dataService = {
     if (!supabase) return []
 
     console.log('Supabaseからメモを読み込み中...')
-    const { data, error } = await supabase
-      .from('memos')
-      .select('*')
-      .eq('user_id', user.id)
-      // deletedフィルタを削除（物理削除に変更のため）
-      .order('updated_at', { ascending: false })  // 最新の更新順
-      .limit(2000)  // 最大2000件まで読み込み
 
-    if (error) {
-      console.error('メモの読み込みエラー:', error)
-      throw error
+    // ページネーションで全件取得（Supabaseのデフォルト制限は1000件）
+    const PAGE_SIZE = 1000
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let allData: any[] = []
+    let offset = 0
+    let hasMore = true
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('memos')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false })
+        .range(offset, offset + PAGE_SIZE - 1)
+
+      if (error) {
+        console.error('メモの読み込みエラー:', error)
+        throw error
+      }
+
+      if (data && data.length > 0) {
+        allData = [...allData, ...data]
+        offset += PAGE_SIZE
+        hasMore = data.length === PAGE_SIZE  // 取得件数がPAGE_SIZE未満なら終了
+        console.log(`📥 ページ${Math.ceil(offset / PAGE_SIZE)}: ${data.length}件取得 (累計: ${allData.length}件)`)
+      } else {
+        hasMore = false
+      }
     }
 
-    console.log(`📥 Supabaseから${data?.length || 0}件の有効メモを取得`)
+    console.log(`📥 Supabaseから${allData.length}件の有効メモを取得（全ページ完了）`)
 
     // メモを復号化して返す
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const memos = await Promise.all((data || []).map(async (item: any) => {
+    const memos = await Promise.all((allData).map(async (item: any) => {
       const memo: Memo = {
         id: item.id,
         text: item.text,
@@ -375,23 +393,41 @@ export const dataService = {
     if (!supabase) return []
 
     console.log('Supabaseからメモを読み込み中...')
-    const { data, error } = await supabase
-      .from('memos')
-      .select('*')
-      .eq('user_id', userId)
-      // deletedフィルタを削除（物理削除に変更のため）
-      .order('updated_at', { ascending: false })  // 最新の更新順
-      .limit(2000)
 
-    if (error) {
-      console.error('メモの読み込みエラー:', error)
-      throw error
+    // ページネーションで全件取得（Supabaseのデフォルト制限は1000件）
+    const PAGE_SIZE = 1000
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let allData: any[] = []
+    let offset = 0
+    let hasMore = true
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('memos')
+        .select('*')
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false })
+        .range(offset, offset + PAGE_SIZE - 1)
+
+      if (error) {
+        console.error('メモの読み込みエラー:', error)
+        throw error
+      }
+
+      if (data && data.length > 0) {
+        allData = [...allData, ...data]
+        offset += PAGE_SIZE
+        hasMore = data.length === PAGE_SIZE
+        console.log(`📥 ページ${Math.ceil(offset / PAGE_SIZE)}: ${data.length}件取得 (累計: ${allData.length}件)`)
+      } else {
+        hasMore = false
+      }
     }
 
-    console.log(`📥 Supabaseから${data?.length || 0}件の有効メモを取得`)
+    console.log(`📥 Supabaseから${allData.length}件の有効メモを取得（全ページ完了）`)
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const memos = (data || []).map((item: any) => ({
+    const memos = allData.map((item: any) => ({
       id: item.id,
       text: item.text,
       category: item.category,
