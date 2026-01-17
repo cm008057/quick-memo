@@ -66,26 +66,6 @@ interface Memo {
   deleted?: boolean
 }
 
-// 新しいツリー管理用のデータ構造
-interface TreeNode {
-  id: string
-  text: string
-  completed: boolean
-  collapsed: boolean
-  level: number
-  templateType?: string  // 大項目タイプ（オプション）
-  description?: string  // 説明文
-  showDescription?: boolean  // 説明欄を表示するか
-}
-
-interface TreeTemplate {
-  id: string
-  name: string  // 「目指す姿」など
-  order: number
-  prefix: string  // 「【目指す姿】」などのプレフィックス
-  color: string  // 色コード
-}
-
 // デフォルトカテゴリー
 const defaultCategories: { [key: string]: Category } = {
   goal: { name: '目指す姿', icon: '🎯', color: '#f43f5e' },
@@ -101,27 +81,6 @@ const defaultCategories: { [key: string]: Category } = {
 const availableIcons = ['💡', '💬', '📄', '📅', '📚', '🙏', '⭐', '❗', '✅', '🎯', '🔔', '📌', '🏷️', '💰', '🏠', '🚗', '✈️', '🍴', '💊', '🎉', '✨', '📝', '🎮', '🎵', '🎨', '💻', '📱', '⚡', '🔥', '🌟']
 const availableColors = ['#fbbf24', '#3b82f6', '#10b981', '#f43f5e', '#8b5cf6', '#fb923c', '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#6366f1', '#14b8a6', '#ef4444', '#a855f7', '#22c55e', '#0ea5e9', '#f59e0b', '#10b981', '#64748b', '#71717a']
 
-// 10段階の色グラデーション（赤→オレンジ→黄色→緑→青）
-const templateColors = [
-  '#ef4444', // 1. 赤
-  '#f97316', // 2. 赤オレンジ
-  '#fb923c', // 3. オレンジ
-  '#fbbf24', // 4. 黄色オレンジ
-  '#eab308', // 5. 黄色
-  '#84cc16', // 6. 黄緑
-  '#22c55e', // 7. 緑
-  '#14b8a6', // 8. 青緑
-  '#3b82f6', // 9. 青
-  '#6366f1'  // 10. 濃い青
-]
-
-// デフォルトのツリーテンプレート
-const defaultTreeTemplates: TreeTemplate[] = [
-  { id: 'template-1', name: '人生の目的', order: 1, prefix: '', color: templateColors[0] },
-  { id: 'template-2', name: '理想の姿', order: 2, prefix: '', color: templateColors[1] },
-  { id: 'template-3', name: '課題', order: 3, prefix: '', color: templateColors[2] },
-  { id: 'template-4', name: 'アイデア', order: 4, prefix: '', color: templateColors[3] }
-]
 
 export default function QuickMemoApp() {
   const [categories, setCategories] = useState<{ [key: string]: Category }>(defaultCategories)
@@ -150,19 +109,8 @@ export default function QuickMemoApp() {
   const [isDraggingTouch, setIsDraggingTouch] = useState<boolean>(false) // タッチドラッグ中フラグ
   const [isLongPressActive, setIsLongPressActive] = useState<boolean>(false) // 長押し検出フラグ
 
-  // ツリー管理画面の状態
-  const [viewMode, setViewMode] = useState<'quick' | 'tree'>('quick') // 画面切り替え
-  const [treeNodes, setTreeNodes] = useState<TreeNode[]>([]) // ツリーのノード
-  const [treeTemplates, setTreeTemplates] = useState<TreeTemplate[]>(defaultTreeTemplates) // テンプレート
-  const [editingNodeId, setEditingNodeId] = useState<string | null>(null) // 編集中のノードID
-  const [showMemoPickerFor, setShowMemoPickerFor] = useState<string | null>(null) // メモピッカーを表示するノードID
-  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set()) // 折りたたまれたカテゴリー
-  const [showTemplateModal, setShowTemplateModal] = useState<boolean>(false) // テンプレート設定モーダル
-  const [currentTemplateIndex, setCurrentTemplateIndex] = useState<number>(0) // 現在選択中の大項目インデックス
-  const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null) // ドラッグ中のノードID
-  const [dragOverNodeId, setDragOverNodeId] = useState<string | null>(null) // ドラッグオーバー中のノードID
-  const [treeHistory, setTreeHistory] = useState<TreeNode[][]>([]) // ツリーの履歴
-  const [treeHistoryIndex, setTreeHistoryIndex] = useState<number>(-1) // 現在のツリー履歴位置
+  // 表示モードの状態
+  const [viewMode, setViewMode] = useState<'quick' | 'kanban'>('quick') // 画面切り替え（リスト or カンバン）
 
   // 認証関連のstate
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -977,80 +925,6 @@ export default function QuickMemoApp() {
     }
   }, [])
 
-  // ツリーデータの初期化（Supabase or LocalStorageから読み込み）
-  useEffect(() => {
-    const loadTreeData = async () => {
-      try {
-        if (user) {
-          // ログイン中：Supabaseから読み込み
-          try {
-            const { nodes, templates } = await dataService.loadTreeData()
-            if (nodes.length > 0 || templates.length > 0) {
-              setTreeNodes(nodes)
-              setTreeTemplates(templates)
-              console.log(`✅ Supabaseからツリーデータを復元: ${nodes.length}ノード, ${templates.length}テンプレート`)
-              // LocalStorageにもバックアップとして保存
-              localStorage.setItem('treeNodes', JSON.stringify(nodes))
-              localStorage.setItem('treeTemplates', JSON.stringify(templates))
-              return
-            }
-          } catch (error) {
-            console.error('Supabaseからの読み込みエラー、LocalStorageから読み込みます:', error)
-          }
-        }
-
-        // 未ログインまたはSupabase読み込み失敗時：LocalStorageから読み込み
-        const savedNodes = localStorage.getItem('treeNodes')
-        const savedTemplates = localStorage.getItem('treeTemplates')
-
-        if (savedNodes) {
-          const parsedNodes = JSON.parse(savedNodes)
-          setTreeNodes(parsedNodes)
-          console.log(`✅ LocalStorageからツリーノードを復元: ${parsedNodes.length}ノード`)
-        }
-
-        if (savedTemplates) {
-          const parsedTemplates = JSON.parse(savedTemplates)
-          setTreeTemplates(parsedTemplates)
-          console.log(`✅ LocalStorageからツリーテンプレートを復元: ${parsedTemplates.length}個`)
-        }
-      } catch (error) {
-        console.error('ツリーデータの読み込みエラー:', error)
-      }
-    }
-
-    loadTreeData()
-  }, [user])
-
-  // ツリーデータの自動保存（変更時）
-  useEffect(() => {
-    if (treeNodes.length > 0 || treeTemplates.length > 0) {
-      const timer = setTimeout(() => {
-        saveTreeData()
-      }, 500) // 500ms後に保存
-
-      return () => clearTimeout(timer)
-    }
-  }, [treeNodes, treeTemplates])
-
-  // ツリーの履歴管理（Undo/Redo用）
-  useEffect(() => {
-    // Undo/Redo操作中は履歴に追加しない
-    if (isUndoRedoRef.current) {
-      return
-    }
-
-    // 初回ロード時や、履歴が空の場合は追加
-    if (treeNodes.length > 0 || treeHistory.length === 0) {
-      setTreeHistory(prev => {
-        const newHistory = prev.slice(0, treeHistoryIndex + 1)
-        newHistory.push([...treeNodes])
-        return newHistory.slice(-50) // 最大50件まで保持
-      })
-      setTreeHistoryIndex(prev => Math.min(prev + 1, 49))
-    }
-  }, [treeNodes])
-
   // デバウンス付き保存（連打対応）
   const debouncedSaveMemos = (memosToSave: Memo[], memoOrderToSave: number[]) => {
     if (saveDebounceTimerRef.current) {
@@ -1104,37 +978,6 @@ export default function QuickMemoApp() {
       }
     } finally {
       setIsSaving(false)
-    }
-  }
-
-  // ツリーデータを保存
-  const saveTreeData = async (nodesToSave?: TreeNode[], templatesToSave?: TreeTemplate[]) => {
-    const finalNodes = nodesToSave ?? treeNodes
-    const finalTemplates = templatesToSave ?? treeTemplates
-
-    try {
-      if (user) {
-        try {
-          // Supabaseに保存
-          await dataService.saveTreeData(finalNodes, finalTemplates)
-
-          // LocalStorageにもバックアップとして保存
-          localStorage.setItem('treeNodes', JSON.stringify(finalNodes))
-          localStorage.setItem('treeTemplates', JSON.stringify(finalTemplates))
-          console.log(`✅ ツリーデータ保存完了: ${finalNodes.length}ノード`)
-        } catch (error) {
-          console.error('ツリーデータの保存に失敗:', error)
-          // フォールバック：LocalStorageに保存
-          localStorage.setItem('treeNodes', JSON.stringify(finalNodes))
-          localStorage.setItem('treeTemplates', JSON.stringify(finalTemplates))
-        }
-      } else {
-        // 未ログイン：LocalStorageに保存
-        localStorage.setItem('treeNodes', JSON.stringify(finalNodes))
-        localStorage.setItem('treeTemplates', JSON.stringify(finalTemplates))
-      }
-    } catch (error) {
-      console.error('ツリーデータの保存エラー:', error)
     }
   }
 
@@ -1345,178 +1188,6 @@ export default function QuickMemoApp() {
         }, 3000)
       }
     }
-  }
-
-  // ツリー管理：新しいノードを追加
-  const addTreeNode = (parentId: string | null = null, templateType?: string, templateIndex?: number) => {
-    // テンプレートインデックスが指定されていない場合は現在のインデックスを使用
-    const useTemplateIndex = templateIndex !== undefined ? templateIndex : currentTemplateIndex
-    const template = treeTemplates[useTemplateIndex]
-
-    const newNode: TreeNode = {
-      id: Date.now().toString(),
-      text: '', // 入力欄は空白から開始
-      completed: false,
-      collapsed: false,
-      level: 0, // デフォルトはレベル0
-      templateType: template?.id
-    }
-
-    setTreeNodes(prev => [...prev, newNode])
-
-    setEditingNodeId(newNode.id)
-  }
-
-  // 履歴管理：ツリーを更新して履歴に追加
-  const updateTreeNodesWithHistory = (newNodes: TreeNode[]) => {
-    setTreeNodes(newNodes)
-    setTreeHistory(prev => {
-      const newHistory = prev.slice(0, treeHistoryIndex + 1)
-      newHistory.push(newNodes)
-      return newHistory.slice(-50) // 最大50件まで保持
-    })
-    setTreeHistoryIndex(prev => Math.min(prev + 1, 49))
-  }
-
-  // 戻る
-  const undoTree = () => {
-    if (treeHistoryIndex > 0) {
-      const newIndex = treeHistoryIndex - 1
-      setTreeHistoryIndex(newIndex)
-      isUndoRedoRef.current = true
-      setTreeNodes(treeHistory[newIndex])
-      setTimeout(() => {
-        isUndoRedoRef.current = false
-      }, 0)
-    }
-  }
-
-  // 進む
-  const redoTree = () => {
-    if (treeHistoryIndex < treeHistory.length - 1) {
-      const newIndex = treeHistoryIndex + 1
-      setTreeHistoryIndex(newIndex)
-      isUndoRedoRef.current = true
-      setTreeNodes(treeHistory[newIndex])
-      setTimeout(() => {
-        isUndoRedoRef.current = false
-      }, 0)
-    }
-  }
-
-  // ノードを更新
-  const updateTreeNode = (nodeId: string, updates: Partial<TreeNode>) => {
-    setTreeNodes(prev => prev.map(node =>
-      node.id === nodeId ? { ...node, ...updates } : node
-    ))
-  }
-
-  // ノードを削除（子要素は1つ上の階層に移動）
-  const deleteTreeNode = (nodeId: string) => {
-    setTreeNodes(prev => {
-      const index = prev.findIndex(n => n.id === nodeId)
-      if (index === -1) return prev
-
-      const deletedNode = prev[index]
-      const result = [...prev]
-
-      // 削除対象を除去
-      result.splice(index, 1)
-
-      // 直後の子要素（levelが1つ大きい連続したノード）のlevelを1つ下げる
-      let i = index
-      while (i < result.length && result[i].level > deletedNode.level) {
-        if (result[i].level === deletedNode.level + 1) {
-          result[i] = { ...result[i], level: result[i].level - 1 }
-        }
-        i++
-      }
-
-      return result
-    })
-  }
-
-  // ドラッグアンドドロップ：ノードを並び替え
-  const moveTreeNode = (draggedId: string, targetId: string, position: 'before' | 'after') => {
-    setTreeNodes(prev => {
-      const draggedIndex = prev.findIndex(n => n.id === draggedId)
-      const targetIndex = prev.findIndex(n => n.id === targetId)
-
-      if (draggedIndex === -1 || targetIndex === -1) return prev
-
-      const result = [...prev]
-      const [draggedNode] = result.splice(draggedIndex, 1)
-
-      // targetIndexを再計算（draggedを削除したので変わる可能性がある）
-      const newTargetIndex = result.findIndex(n => n.id === targetId)
-      const insertIndex = position === 'before' ? newTargetIndex : newTargetIndex + 1
-
-      result.splice(insertIndex, 0, draggedNode)
-
-      return result
-    })
-  }
-
-  // ノードを1階層上に移動（アンインデント）- levelプロパティを変更
-  const unindentTreeNode = (nodeId: string) => {
-    setTreeNodes(prev => prev.map(node => {
-      if (node.id === nodeId) {
-        const newLevel = Math.max(0, (node.level || 0) - 1)
-        const newTemplate = treeTemplates[newLevel]
-        return {
-          ...node,
-          level: newLevel,
-          templateType: newTemplate?.id || node.templateType
-        }
-      }
-      return node
-    }))
-  }
-
-  // ノードを1階層下に移動（インデント）- levelプロパティを変更
-  const indentTreeNode = (nodeId: string) => {
-    setTreeNodes(prev => prev.map(node => {
-      if (node.id === nodeId) {
-        const newLevel = (node.level || 0) + 1
-        if (newLevel >= treeTemplates.length) {
-          return node // 最大階層に達している場合は変更しない
-        }
-        const newTemplate = treeTemplates[newLevel]
-        return {
-          ...node,
-          level: newLevel,
-          templateType: newTemplate?.id || node.templateType
-        }
-      }
-      return node
-    }))
-  }
-
-  // ノードの後に兄弟ノードを追加（Shift+Enter用）
-  const addSiblingAfterNode = (nodeId: string, templateIndex?: number) => {
-    setTreeNodes(prev => {
-      const nodeIndex = prev.findIndex(n => n.id === nodeId)
-      if (nodeIndex === -1) return prev
-
-      const currentNode = prev[nodeIndex]
-      const useTemplateIndex = templateIndex !== undefined ? templateIndex : currentTemplateIndex
-      const template = treeTemplates[useTemplateIndex]
-
-      const newNode: TreeNode = {
-        id: Date.now().toString(),
-        text: '',
-        completed: false,
-        collapsed: false,
-        level: currentNode.level, // 同じレベル
-        templateType: template?.id
-      }
-
-      const result = [...prev]
-      result.splice(nodeIndex + 1, 0, newNode)
-      return result
-    })
-
-    setEditingNodeId((Date.now()).toString())
   }
 
   // カテゴリを移動
@@ -1983,25 +1654,21 @@ export default function QuickMemoApp() {
 
   // データをエクスポート
   const exportData = () => {
-    const exportData = {
+    const data = {
       version: '1.0',
       exportDate: new Date().toISOString(),
       memos: memos,
       categories: categories,
       categoryOrder: categoryOrder,
       memoOrder: memoOrder,
-      treeNodes: treeNodes,
-      treeTemplates: treeTemplates,
       stats: {
         totalMemos: memos.length,
         completedMemos: memos.filter(m => m.completed).length,
-        totalCategories: Object.keys(categories).length,
-        totalTreeNodes: treeNodes.length,
-        totalTreeTemplates: treeTemplates.length
+        totalCategories: Object.keys(categories).length
       }
     }
 
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'})
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'})
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -2011,7 +1678,7 @@ export default function QuickMemoApp() {
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
 
-    alert(`データをエクスポートしました！\n\nメモ数: ${exportData.stats.totalMemos}\n完了済み: ${exportData.stats.completedMemos}\nカテゴリー数: ${exportData.stats.totalCategories}\nツリーノード: ${exportData.stats.totalTreeNodes}\nツリーテンプレート: ${exportData.stats.totalTreeTemplates}`)
+    alert(`データをエクスポートしました！\n\nメモ数: ${data.stats.totalMemos}\n完了済み: ${data.stats.completedMemos}\nカテゴリー数: ${data.stats.totalCategories}`)
   }
 
   // シンプルなテキスト形式でメモを出力
@@ -2084,8 +1751,6 @@ export default function QuickMemoApp() {
         categories: Record<string, Category>
         categoryOrder?: string[]
         memoOrder?: number[]
-        treeNodes?: TreeNode[]
-        treeTemplates?: TreeTemplate[]
       } | null = null
 
       try {
@@ -2099,14 +1764,10 @@ export default function QuickMemoApp() {
         const confirmMessage = `インポートしますか？\n\n` +
           `インポートするデータ:\n` +
           `- メモ数: ${importData.memos.length}\n` +
-          `- カテゴリー数: ${Object.keys(importData.categories).length}\n` +
-          `- ツリーノード: ${importData.treeNodes?.length || 0}\n` +
-          `- ツリーテンプレート: ${importData.treeTemplates?.length || 0}\n\n` +
+          `- カテゴリー数: ${Object.keys(importData.categories).length}\n\n` +
           `現在のデータ:\n` +
           `- メモ数: ${memos.length}\n` +
-          `- カテゴリー数: ${Object.keys(categories).length}\n` +
-          `- ツリーノード: ${treeNodes.length}\n` +
-          `- ツリーテンプレート: ${treeTemplates.length}\n\n` +
+          `- カテゴリー数: ${Object.keys(categories).length}\n\n` +
           `※現在のデータは上書きされます`
 
         if (confirm(confirmMessage)) {
@@ -2160,16 +1821,6 @@ export default function QuickMemoApp() {
           setCategoryOrder(importData.categoryOrder || Object.keys(importData.categories))
           setMemoOrder(importData.memoOrder || processedMemos.map((m: Memo) => m.id))
 
-          // ツリーデータを復元
-          if (importData.treeNodes) {
-            setTreeNodes(importData.treeNodes)
-            console.log(`📥 ツリーノードを復元: ${importData.treeNodes.length}個`)
-          }
-          if (importData.treeTemplates) {
-            setTreeTemplates(importData.treeTemplates)
-            console.log(`📥 ツリーテンプレートを復元: ${importData.treeTemplates.length}個`)
-          }
-
           if (!importData.categories[selectedCategory]) {
             setSelectedCategory(Object.keys(importData.categories)[0])
           }
@@ -2182,14 +1833,6 @@ export default function QuickMemoApp() {
           console.log('💾 LocalStorageに保存中...')
           await saveMemos(processedMemos, importData.memoOrder || processedMemos.map((m: Memo) => m.id))
           await saveCategories(importData.categories, importData.categoryOrder || Object.keys(importData.categories))
-
-          // ツリーデータをLocalStorageに保存
-          if (importData.treeNodes) {
-            localStorage.setItem('treeNodes', JSON.stringify(importData.treeNodes))
-          }
-          if (importData.treeTemplates) {
-            localStorage.setItem('treeTemplates', JSON.stringify(importData.treeTemplates))
-          }
 
           console.log('✅ LocalStorage保存完了')
 
@@ -2211,14 +1854,8 @@ export default function QuickMemoApp() {
             // カテゴリーも保存
             await dataService.saveCategories(importData.categories, importData.categoryOrder || Object.keys(importData.categories))
 
-            // ツリーデータも保存
-            if (importData.treeNodes || importData.treeTemplates) {
-              console.log('🌳 ツリーデータをSupabaseに保存中...')
-              await saveTreeData(importData.treeNodes || [], importData.treeTemplates || [])
-            }
-
             console.log('Supabaseへの緊急保存完了')
-            alert(`✅ データをインポートしました！\n${importData.memos.length}件のメモ\n${importData.treeNodes?.length || 0}個のツリーノード\n${importData.treeTemplates?.length || 0}個のツリーテンプレート\nをクラウドに緊急保存完了\n\n※これでクラウドが最新状態になりました`)
+            alert(`✅ データをインポートしました！\n${importData.memos.length}件のメモをクラウドに緊急保存完了\n\n※これでクラウドが最新状態になりました`)
           } catch (error) {
             console.error('Supabase緊急保存エラー:', error)
             alert(`⚠️ データをインポートしました！\nローカルに保存済み\n\nクラウド保存エラー: ${(error as Error).message}\n\n手動で同期ボタンを押してください`)
@@ -2291,7 +1928,7 @@ export default function QuickMemoApp() {
         gap: '10px'
       }}>
         <h1 style={{ margin: 0 }}>
-          {viewMode === 'quick' ? 'クイックメモ 📝' : 'ツリー管理 🌲'}
+          {viewMode === 'quick' ? 'クイックメモ 📝' : 'カンバン 📋'}
         </h1>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
@@ -2307,22 +1944,22 @@ export default function QuickMemoApp() {
               fontWeight: viewMode === 'quick' ? 'bold' : 'normal'
             }}
           >
-            📝 クイックメモ
+            📝 リスト
           </button>
           <button
-            onClick={() => setViewMode('tree')}
+            onClick={() => setViewMode('kanban')}
             style={{
               padding: '8px 16px',
               fontSize: '14px',
               borderRadius: '6px',
-              border: viewMode === 'tree' ? '2px solid #10b981' : '1px solid #ddd',
-              backgroundColor: viewMode === 'tree' ? '#f0fdf4' : 'white',
-              color: viewMode === 'tree' ? '#10b981' : '#666',
+              border: viewMode === 'kanban' ? '2px solid #10b981' : '1px solid #ddd',
+              backgroundColor: viewMode === 'kanban' ? '#f0fdf4' : 'white',
+              color: viewMode === 'kanban' ? '#10b981' : '#666',
               cursor: 'pointer',
-              fontWeight: viewMode === 'tree' ? 'bold' : 'normal'
+              fontWeight: viewMode === 'kanban' ? 'bold' : 'normal'
             }}
           >
-            🌲 ツリー管理
+            📋 カンバン
           </button>
         </div>
       </div>
@@ -2368,54 +2005,49 @@ export default function QuickMemoApp() {
           </button>
         </div>
 
-        {/* 入力タグ選択セクション */}
+        {/* 入力タグ選択セクション（コンパクト版） */}
         <div className="input-tag-section" style={{
-          borderTop: '1px solid #e5e7eb',
-          paddingTop: '12px',
-          marginBottom: '12px'
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          marginBottom: '8px',
+          flexWrap: 'wrap'
         }}>
-          <div style={{
-            fontSize: '12px',
-            color: '#6b7280',
-            marginBottom: '8px',
-            fontWeight: '500'
+          <span style={{
+            fontSize: '11px',
+            color: '#9ca3af',
+            whiteSpace: 'nowrap'
           }}>
-            📌 入力タグを選択
-          </div>
-          <div className="input-category-buttons" style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '8px'
-          }}>
-            {orderedCategories.map(([key, cat]) => (
-              <button
-                key={key}
-                className={`input-category-btn ${key === selectedCategory ? 'active' : ''}`}
-                data-category={key}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '20px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  fontWeight: '500',
-                  transition: 'all 0.2s ease',
-                  backgroundColor: key === selectedCategory 
-                    ? cat.color 
-                    : `${cat.color}25`,
-                  color: key === selectedCategory 
-                    ? 'white' 
-                    : cat.color,
-                  boxShadow: key === selectedCategory 
-                    ? `0 2px 8px ${cat.color}40` 
-                    : 'none'
-                }}
-                onClick={() => setSelectedCategory(key)}
-              >
-                {cat.icon} {cat.name}
-              </button>
-            ))}
-          </div>
+            📌
+          </span>
+          {orderedCategories.map(([key, cat]) => (
+            <button
+              key={key}
+              className={`input-category-btn ${key === selectedCategory ? 'active' : ''}`}
+              data-category={key}
+              style={{
+                padding: '3px 10px',
+                borderRadius: '12px',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: '500',
+                transition: 'all 0.15s ease',
+                backgroundColor: key === selectedCategory 
+                  ? cat.color 
+                  : `${cat.color}20`,
+                color: key === selectedCategory 
+                  ? 'white' 
+                  : cat.color,
+                boxShadow: key === selectedCategory 
+                  ? `0 1px 4px ${cat.color}40` 
+                  : 'none'
+              }}
+              onClick={() => setSelectedCategory(key)}
+            >
+              {cat.icon} {cat.name}
+            </button>
+          ))}
         </div>
 
         <div className="category-section">
@@ -2967,776 +2599,116 @@ export default function QuickMemoApp() {
         </div>
       )}
 
-      {/* ツリー管理画面（新しいアウトライナー形式） */}
-      {viewMode === 'tree' && (
-        <div style={{ padding: '10px 5px 15px 5px', backgroundColor: '#f9fafb', borderRadius: '8px', minHeight: '400px' }}>
-          <div style={{ marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingLeft: '5px', gap: '8px' }}>
-            <div style={{ flex: 1 }}>
-              <h2 style={{ margin: 0, fontSize: '18px', color: '#374151', lineHeight: '1.3' }}>構造化ツリー</h2>
-              <p style={{ margin: '3px 0 0 0', fontSize: '10px', color: '#666', lineHeight: '1.3' }}>
-                <span style={{ display: 'inline-block' }}>Shift+Enter: 新規</span>
-                <span style={{ display: 'inline-block', margin: '0 2px' }}> / </span>
-                <span style={{ display: 'inline-block' }}>Tab: 下層</span>
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-              <button
-                onClick={undoTree}
-                disabled={treeHistoryIndex <= 0}
+      {/* カンバンビュー */}
+      {viewMode === 'kanban' && (
+        <div style={{ 
+          display: 'flex', 
+          gap: '12px', 
+          overflowX: 'auto', 
+          padding: '8px 0',
+          minHeight: '400px'
+        }}>
+          {orderedCategories.map(([categoryKey, category]) => {
+            const categoryMemos = memos.filter(m => m.category === categoryKey && !m.deleted)
+            return (
+              <div
+                key={categoryKey}
                 style={{
-                  padding: '5px 8px',
-                  fontSize: '12px',
-                  backgroundColor: treeHistoryIndex <= 0 ? '#d1d5db' : '#8b5cf6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: treeHistoryIndex <= 0 ? 'not-allowed' : 'pointer',
-                  whiteSpace: 'nowrap',
-                  lineHeight: '1.2'
-                }}
-                title="戻る"
-              >
-                ↶
-              </button>
-              <button
-                onClick={redoTree}
-                disabled={treeHistoryIndex >= treeHistory.length - 1}
-                style={{
-                  padding: '5px 8px',
-                  fontSize: '12px',
-                  backgroundColor: treeHistoryIndex >= treeHistory.length - 1 ? '#d1d5db' : '#8b5cf6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: treeHistoryIndex >= treeHistory.length - 1 ? 'not-allowed' : 'pointer',
-                  whiteSpace: 'nowrap',
-                  lineHeight: '1.2'
-                }}
-                title="進む"
-              >
-                ↷
-              </button>
-              <button
-                onClick={() => setShowTemplateModal(true)}
-                style={{
-                  padding: '5px 8px',
-                  fontSize: '12px',
-                  backgroundColor: '#6366f1',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  lineHeight: '1.2'
+                  minWidth: '160px',
+                  maxWidth: '200px',
+                  flex: '0 0 auto',
+                  backgroundColor: '#f9fafb',
+                  borderRadius: '8px',
+                  padding: '8px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  maxHeight: '70vh'
                 }}
               >
-                ⚙️
-              </button>
-              <button
-                onClick={() => addTreeNode(null, undefined, 0)}
-                style={{
-                  padding: '5px 8px',
-                  fontSize: '12px',
-                  backgroundColor: '#10b981',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  lineHeight: '1.2'
-                }}
-              >
-                ➕
-              </button>
-            </div>
-          </div>
+                {/* カテゴリヘッダー */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginBottom: '8px',
+                  padding: '4px 8px',
+                  backgroundColor: `${category.color}20`,
+                  borderRadius: '6px',
+                  borderLeft: `3px solid ${category.color}`
+                }}>
+                  <span style={{ fontSize: '14px' }}>{category.icon}</span>
+                  <span style={{ 
+                    fontSize: '12px', 
+                    fontWeight: 'bold',
+                    color: category.color,
+                    flex: 1,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {category.name}
+                  </span>
+                  <span style={{
+                    fontSize: '10px',
+                    color: '#6b7280',
+                    backgroundColor: 'white',
+                    padding: '2px 6px',
+                    borderRadius: '10px'
+                  }}>
+                    {categoryMemos.length}
+                  </span>
+                </div>
 
-          {/* ツリーノードの表示（再帰的） */}
-          <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '6px 5px 10px 5px', minHeight: '300px' }}>
-            {treeNodes.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px 20px', color: '#999' }}>
-                <div style={{ fontSize: '48px', marginBottom: '10px' }}>🌲</div>
-                <p style={{ fontSize: '16px' }}>まだ項目がありません</p>
-                <p style={{ fontSize: '14px' }}>「大項目を追加」ボタンから始めましょう</p>
-              </div>
-            ) : (
-              <div>
-                {/* フラット配列のツリーノード表示 */}
-                {(() => {
-                  const renderNode = (node: TreeNode, index: number) => {
-                    const nodeLevel = node.level || 0
-                    // 次のノードが子要素かチェック
-                    const nextNode = treeNodes[index + 1]
-                    const hasChildren = nextNode && nextNode.level > nodeLevel
-                    const isCollapsed = node.collapsed
-
-                    return (
-                      <div key={node.id} style={{ marginBottom: '2px' }}>
-                        {/* Tree node with base indent */}
-                        <div
-                          draggable={editingNodeId !== node.id}
-                          onDragStart={(e) => {
-                            if (editingNodeId === node.id) {
-                              e.preventDefault()
-                              return
-                            }
-                            setDraggedNodeId(node.id)
-                            e.dataTransfer.effectAllowed = 'move'
-                          }}
-                          onDragOver={(e) => {
-                            e.preventDefault()
-                            e.dataTransfer.dropEffect = 'move'
-                            setDragOverNodeId(node.id)
-                          }}
-                          onDragLeave={() => {
-                            setDragOverNodeId(null)
-                          }}
-                          onDrop={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            if (draggedNodeId && draggedNodeId !== node.id) {
-                              // ドロップ位置を判定（上半分なら before、下半分なら after）
-                              const rect = e.currentTarget.getBoundingClientRect()
-                              const midpoint = rect.top + rect.height / 2
-                              const position = e.clientY < midpoint ? 'before' : 'after'
-                              moveTreeNode(draggedNodeId, node.id, position)
-                            }
-                            setDraggedNodeId(null)
-                            setDragOverNodeId(null)
-                          }}
-                          onDragEnd={() => {
-                            setDraggedNodeId(null)
-                            setDragOverNodeId(null)
-                          }}
-                          style={{
-                          display: 'flex',
-                          flexWrap: 'wrap',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '6px 8px 6px 4px',
-                          paddingLeft: `${10 + nodeLevel * 20}px`,
-                          backgroundColor: editingNodeId === node.id ? '#f0f9ff' : (dragOverNodeId === node.id ? '#fef3c7' : 'transparent'),
-                          borderRadius: '4px',
-                          borderLeft: nodeLevel > 0 ? '2px solid #e5e7eb' : 'none',
-                          marginLeft: nodeLevel > 0 ? '8px' : '10px',
-                          cursor: editingNodeId === node.id ? 'text' : 'move',
-                          opacity: draggedNodeId === node.id ? 0.5 : 1
-                        }}>
-                          {/* テンプレート名 + テキスト部分 */}
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            flex: '1 1 300px',
-                            minWidth: '200px'
-                          }}>
-                          {/* 折りたたみボタン */}
-                          <button
-                            onClick={() => {
-                              if (hasChildren) {
-                                updateTreeNode(node.id, { collapsed: !node.collapsed })
-                              }
-                            }}
-                            style={{
-                              marginRight: '6px',
-                              padding: '1px 3px',
-                              fontSize: '10px',
-                              backgroundColor: 'transparent',
-                              border: 'none',
-                              cursor: hasChildren ? 'pointer' : 'default',
-                              minWidth: '16px',
-                              color: hasChildren ? '#374151' : '#d1d5db',
-                              fontWeight: 'bold',
-                              lineHeight: '1'
-                            }}
-                          >
-                            {hasChildren ? (isCollapsed ? '+' : '-') : '-'}
-                          </button>
-
-                          {/* 大項目名（左側に表示） */}
-                          {(() => {
-                            // templateTypeでテンプレートを検索、見つからない場合はnodeLevel基準
-                            const template = treeTemplates.find(t => t.id === node.templateType) || treeTemplates[nodeLevel] || treeTemplates[0]
-                            return template ? (
-                              <span
-                                style={{
-                                  marginRight: '6px',
-                                  color: template.color || '#374151',
-                                  fontSize: '13px',
-                                  fontWeight: 'bold',
-                                  minWidth: '80px',
-                                  maxWidth: '120px',
-                                  flexShrink: 0,
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap'
-                                }}
-                              >
-                                {`【${template.name}】`}
-                              </span>
-                            ) : null
-                          })()}
-
-                          {/* テキスト入力/表示 */}
-                          {editingNodeId === node.id ? (
-                            <textarea
-                              value={node.text}
-                              onChange={(e) => {
-                                updateTreeNode(node.id, { text: e.target.value })
-                                // 高さを自動調整
-                                e.target.style.height = 'auto'
-                                e.target.style.height = e.target.scrollHeight + 'px'
-                              }}
-                              onBlur={() => setEditingNodeId(null)}
-                              onKeyDown={(e) => {
-                                // IME変換中のEnterは無視
-                                if (e.nativeEvent.isComposing) return
-
-                                if (e.key === 'Enter') {
-                                  if (e.shiftKey) {
-                                    // Shift+Enter: 同じ大項目テンプレートの新しい項目を同じレベルに追加
-                                    e.preventDefault()
-                                    setEditingNodeId(null)
-                                    const currentNodeTemplateIndex = treeTemplates.findIndex(t => t.id === node.templateType)
-                                    const sameIndex = currentNodeTemplateIndex >= 0 ? currentNodeTemplateIndex : 0
-                                    addSiblingAfterNode(node.id, sameIndex)
-                                  } else if (e.altKey) {
-                                    // Option+Enter: 改行を許可（デフォルト動作）
-                                    return
-                                  } else {
-                                    // 通常のEnter: 編集完了
-                                    e.preventDefault()
-                                    setEditingNodeId(null)
-                                  }
-                                } else if (e.key === 'Tab') {
-                                  e.preventDefault()
-                                  e.stopPropagation()
-
-                                  if (e.shiftKey) {
-                                    // Shift+Tab: 現在の行の階層を上げる（アンインデント）
-                                    if (nodeLevel > 0) {
-                                      unindentTreeNode(node.id)
-                                    }
-                                  } else {
-                                    // Tab: 現在の行の階層を下げる（インデント）
-                                    if (nodeLevel < treeTemplates.length - 1) {
-                                      indentTreeNode(node.id)
-                                    }
-                                  }
-                                }
-                              }}
-                              onInput={(e) => {
-                                // 高さを自動調整
-                                const target = e.target as HTMLTextAreaElement
-                                target.style.height = 'auto'
-                                target.style.height = target.scrollHeight + 'px'
-                              }}
-                              autoFocus
-                              placeholder="入力してください (Enter: 完了, Option+Enter: 改行, Shift+Enter: 次の項目)"
-                              style={{
-                                flex: 1,
-                                padding: '3px 6px',
-                                fontSize: '13px',
-                                color: '#374151',
-                                fontWeight: 'normal',
-                                border: '1px solid #3b82f6',
-                                borderRadius: '3px',
-                                resize: 'none',
-                                overflow: 'hidden',
-                                minHeight: '26px',
-                                lineHeight: '1.5',
-                                fontFamily: 'inherit'
-                              }}
-                            />
-                          ) : (
-                            <div
-                              onClick={() => setEditingNodeId(node.id)}
-                              style={{
-                                flex: 1,
-                                cursor: 'pointer',
-                                color: '#374151',
-                                fontSize: '13px',
-                                fontWeight: 'normal',
-                                whiteSpace: 'pre-wrap',
-                                wordBreak: 'break-word'
-                              }}
-                            >
-                              {node.text || '（空白）'}
-                            </div>
-                          )}
-                          </div>
-
-                          {/* 操作ボタン（PC: 同じ行、スマホ: 折り返し） */}
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '3px',
-                            flexShrink: 0
-                          }}>
-                          {/* 階層操作ボタン */}
-                          {nodeLevel > 0 && (
-                            <button
-                              onClick={() => unindentTreeNode(node.id)}
-                              style={{
-                                padding: '1px 4px',
-                                fontSize: '12px',
-                                backgroundColor: '#fef3c7',
-                                border: '1px solid #fcd34d',
-                                borderRadius: '3px',
-                                cursor: 'pointer',
-                                lineHeight: '1',
-                                flexShrink: 0
-                              }}
-                              title="階層を上げる"
-                            >
-                              ←
-                            </button>
-                          )}
-                          {nodeLevel < treeTemplates.length - 1 && (
-                            <button
-                              onClick={() => indentTreeNode(node.id)}
-                              style={{
-                                padding: '1px 4px',
-                                fontSize: '12px',
-                                backgroundColor: '#dbeafe',
-                                border: '1px solid #93c5fd',
-                                borderRadius: '3px',
-                                cursor: 'pointer',
-                                lineHeight: '1',
-                                flexShrink: 0
-                              }}
-                              title="階層を下げる"
-                            >
-                              →
-                            </button>
-                          )}
-
-                          {/* クイックメモ挿入ボタン */}
-                          <button
-                            onClick={() => setShowMemoPickerFor(node.id)}
-                            style={{
-                              padding: '1px 4px',
-                              fontSize: '12px',
-                              backgroundColor: '#eff6ff',
-                              border: '1px solid #bfdbfe',
-                              borderRadius: '3px',
-                              cursor: 'pointer',
-                              lineHeight: '1',
-                              flexShrink: 0
-                            }}
-                            title="メモ挿入"
-                          >
-                            📝
-                          </button>
-
-                          {/* 説明ボタン */}
-                          <button
-                            onClick={() => updateTreeNode(node.id, { showDescription: !node.showDescription })}
-                            style={{
-                              padding: '1px 4px',
-                              fontSize: '12px',
-                              backgroundColor: node.showDescription ? '#dcfce7' : '#f3f4f6',
-                              border: `1px solid ${node.showDescription ? '#86efac' : '#d1d5db'}`,
-                              borderRadius: '3px',
-                              cursor: 'pointer',
-                              lineHeight: '1',
-                              flexShrink: 0
-                            }}
-                            title="説明"
-                          >
-                            💬
-                          </button>
-
-                          {/* 削除ボタン */}
-                          <button
-                            onClick={() => deleteTreeNode(node.id)}
-                            style={{
-                              padding: '1px 4px',
-                              fontSize: '12px',
-                              backgroundColor: '#fee',
-                              border: '1px solid #fcc',
-                              borderRadius: '3px',
-                              cursor: 'pointer',
-                              lineHeight: '1',
-                              flexShrink: 0
-                            }}
-                            title="削除"
-                          >
-                            🗑️
-                          </button>
-                          </div>
-                        </div>
-
-                        {/* 説明欄（編集中） */}
-                        {node.showDescription && (
-                          <div style={{
-                            paddingLeft: `${30 + nodeLevel * 20}px`,
-                            paddingTop: '4px',
-                            paddingBottom: '4px'
-                          }}>
-                            <textarea
-                              value={node.description || ''}
-                              onChange={(e) => {
-                                updateTreeNode(node.id, { description: e.target.value })
-                                // 高さを自動調整
-                                e.target.style.height = 'auto'
-                                e.target.style.height = e.target.scrollHeight + 'px'
-                              }}
-                              onKeyDown={(e) => {
-                                // IME変換中のEnterは無視
-                                if (e.nativeEvent.isComposing) return
-
-                                if (e.key === 'Enter') {
-                                  if (e.altKey) {
-                                    // Option+Enter: 改行を許可（デフォルト動作）
-                                    return
-                                  } else {
-                                    // 通常のEnter: 説明欄を閉じる
-                                    e.preventDefault()
-                                    updateTreeNode(node.id, { showDescription: false })
-                                  }
-                                } else if (e.key === 'Escape') {
-                                  // Escキー → 説明欄を閉じる
-                                  e.preventDefault()
-                                  updateTreeNode(node.id, { showDescription: false })
-                                }
-                              }}
-                              onInput={(e) => {
-                                // 高さを自動調整
-                                const target = e.target as HTMLTextAreaElement
-                                target.style.height = 'auto'
-                                target.style.height = target.scrollHeight + 'px'
-                              }}
-                              placeholder="この項目の説明を入力... (Enter: 閉じる, Option+Enter: 改行, Esc: 閉じる)"
-                              style={{
-                                width: '100%',
-                                minHeight: '32px',
-                                maxHeight: '200px',
-                                padding: '6px 8px',
-                                fontSize: '12px',
-                                color: '#6b7280',
-                                backgroundColor: '#f9fafb',
-                                border: '1px solid #e5e7eb',
-                                borderRadius: '4px',
-                                resize: 'none',
-                                fontFamily: 'inherit',
-                                overflow: 'hidden',
-                                lineHeight: '1.5'
-                              }}
-                              autoFocus
-                            />
-                          </div>
-                        )}
-
-                        {/* 説明の表示（閉じている時） */}
-                        {!node.showDescription && node.description && (
-                          <div style={{
-                            paddingLeft: `${30 + nodeLevel * 20}px`,
-                            paddingTop: '4px',
-                            paddingBottom: '4px'
-                          }}>
-                            <div
-                              onClick={() => updateTreeNode(node.id, { showDescription: true })}
-                              style={{
-                                width: '100%',
-                                minHeight: '32px',
-                                padding: '6px 8px',
-                                fontSize: '12px',
-                                color: '#6b7280',
-                                backgroundColor: '#f9fafb',
-                                border: '1px solid #e5e7eb',
-                                borderRadius: '4px',
-                                whiteSpace: 'pre-wrap',
-                                wordBreak: 'break-word',
-                                cursor: 'pointer',
-                                lineHeight: '1.5',
-                                fontFamily: 'inherit',
-                                boxSizing: 'border-box'
-                              }}
-                              title="クリックして編集"
-                            >
-                              {node.description}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  }
-
-                  // フラットな配列を表示（折りたたみを考慮してスキップ）
-                  const result = []
-                  for (let i = 0; i < treeNodes.length; i++) {
-                    result.push(renderNode(treeNodes[i], i))
-                    // 折りたたまれている場合は子要素（levelが大きい連続したノード）をスキップ
-                    if (treeNodes[i].collapsed) {
-                      const currentLevel = treeNodes[i].level || 0
-                      while (i + 1 < treeNodes.length && (treeNodes[i + 1].level || 0) > currentLevel) {
-                        i++
-                      }
-                    }
-                  }
-                  return <>{result}</>
-                })()}
-              </div>
-            )}
-          </div>
-
-        </div>
-      )}
-
-      {/* クイックメモピッカーモーダル */}
-      {showMemoPickerFor && (
-        <div className="modal active">
-          <div className="modal-content" style={{ maxWidth: '600px', maxHeight: '80vh', overflow: 'auto' }}>
-            <div className="modal-header">
-              <h3 className="modal-title">クイックメモから挿入</h3>
-              <button
-                onClick={() => setShowMemoPickerFor(null)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                  color: '#666'
-                }}
-              >
-                ×
-              </button>
-            </div>
-            <div style={{ padding: '20px' }}>
-              <p style={{ fontSize: '14px', color: '#666', marginBottom: '15px' }}>
-                挿入したいメモを選択してください
-              </p>
-
-              {/* カテゴリー別にメモを表示 */}
-              {orderedCategories.map(([categoryKey, category]) => {
-                const categoryMemos = memos.filter(m => m.category === categoryKey && !m.deleted)
-                if (categoryMemos.length === 0) return null
-
-                const isCategoryCollapsed = collapsedCategories.has(categoryKey)
-
-                return (
-                  <div key={categoryKey} style={{ marginBottom: '15px', border: '1px solid #e5e7eb', borderRadius: '6px', overflow: 'hidden' }}>
-                    <div
-                      onClick={() => {
-                        const newCollapsed = new Set(collapsedCategories)
-                        if (isCategoryCollapsed) {
-                          newCollapsed.delete(categoryKey)
-                        } else {
-                          newCollapsed.add(categoryKey)
-                        }
-                        setCollapsedCategories(newCollapsed)
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: '12px',
-                        fontSize: '14px',
-                        fontWeight: 'bold',
-                        color: '#374151',
-                        backgroundColor: '#f9fafb',
-                        cursor: 'pointer',
-                        userSelect: 'none'
-                      }}
-                    >
-                      <span style={{ marginRight: '8px', fontSize: '12px', fontWeight: 'bold' }}>
-                        {isCategoryCollapsed ? '+' : '-'}
-                      </span>
-                      {category.icon} {category.name} ({categoryMemos.length})
+                {/* メモリスト */}
+                <div style={{
+                  flex: 1,
+                  overflowY: 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px'
+                }}>
+                  {categoryMemos.length === 0 ? (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '20px 8px',
+                      color: '#9ca3af',
+                      fontSize: '11px'
+                    }}>
+                      メモなし
                     </div>
-                    {!isCategoryCollapsed && (
-                      <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {categoryMemos.map(memo => (
-                          <button
-                            key={memo.id}
-                            onClick={() => {
-                              // メモのテキストを現在のノードに挿入
-                              updateTreeNode(showMemoPickerFor, { text: memo.text })
-                              setShowMemoPickerFor(null)
-                            }}
-                            style={{
-                              textAlign: 'left',
-                              padding: '10px 12px',
-                              fontSize: '14px',
-                              backgroundColor: '#fff',
-                              border: '1px solid #e5e7eb',
-                              borderRadius: '6px',
-                              cursor: 'pointer',
-                              transition: 'background-color 0.2s'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = '#eff6ff'
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = '#fff'
-                            }}
-                          >
-                            {memo.text}
-                          </button>
-                        ))}
+                  ) : (
+                    categoryMemos.map(memo => (
+                      <div
+                        key={memo.id}
+                        onClick={() => {
+                          setEditingMemo(memo.id)
+                          setViewMode('quick')
+                          setSelectedCategory(categoryKey)
+                        }}
+                        style={{
+                          padding: '6px 8px',
+                          backgroundColor: memo.completed ? '#f3f4f6' : 'white',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          color: memo.completed ? '#9ca3af' : '#374151',
+                          textDecoration: memo.completed ? 'line-through' : 'none',
+                          cursor: 'pointer',
+                          borderLeft: `2px solid ${category.color}`,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          transition: 'all 0.15s ease'
+                        }}
+                        title={memo.text}
+                      >
+                        {memo.text.length > 12 ? memo.text.slice(0, 12) + '...' : memo.text}
                       </div>
-                    )}
-                  </div>
-                )
-              })}
-
-              {memos.filter(m => !m.deleted).length === 0 && (
-                <p style={{ fontSize: '14px', color: '#999', textAlign: 'center', padding: '20px' }}>
-                  メモがありません
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 大項目設定モーダル */}
-      {showTemplateModal && (
-        <div className="modal active">
-          <div className="modal-content" style={{ maxWidth: '700px', maxHeight: '80vh', overflow: 'auto' }}>
-            <div className="modal-header">
-              <h3 className="modal-title">大項目テンプレート設定</h3>
-              <button
-                onClick={() => setShowTemplateModal(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                  color: '#666'
-                }}
-              >
-                ×
-              </button>
-            </div>
-            <div style={{ padding: '20px' }}>
-              <p style={{ fontSize: '14px', color: '#666', marginBottom: '15px' }}>
-                大項目テンプレートを設定します（最大10個）。Tabキーで順に切り替わります。
-              </p>
-
-              {/* テンプレート一覧 */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-                {treeTemplates.map((template, index) => (
-                  <div key={template.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', backgroundColor: '#f9fafb', borderRadius: '6px' }}>
-                    <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#666', minWidth: '30px' }}>
-                      {index + 1}.
-                    </span>
-                    <input
-                      type="text"
-                      value={template.name}
-                      onChange={(e) => {
-                        const newTemplates = [...treeTemplates]
-                        newTemplates[index] = { ...template, name: e.target.value }
-                        setTreeTemplates(newTemplates)
-                      }}
-                      style={{
-                        flex: 1,
-                        padding: '8px 12px',
-                        fontSize: '14px',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '4px'
-                      }}
-                      placeholder={`大項目 ${index + 1}`}
-                    />
-                    <input
-                      type="color"
-                      value={template.color}
-                      onChange={(e) => {
-                        const newTemplates = [...treeTemplates]
-                        newTemplates[index] = { ...template, color: e.target.value }
-                        setTreeTemplates(newTemplates)
-                      }}
-                      style={{
-                        width: '50px',
-                        height: '40px',
-                        border: '2px solid #e5e7eb',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
-                      }}
-                      title="色を選択"
-                    />
-                    <button
-                      onClick={() => {
-                        setTreeTemplates(treeTemplates.filter((_, i) => i !== index))
-                      }}
-                      style={{
-                        padding: '8px 12px',
-                        fontSize: '12px',
-                        backgroundColor: '#fee',
-                        border: '1px solid #fcc',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      削除
-                    </button>
-                  </div>
-                ))}
+                    ))
+                  )}
+                </div>
               </div>
-
-              {/* 新しいテンプレート追加 */}
-              {treeTemplates.length < 10 && (
-                <button
-                  onClick={() => {
-                    const newTemplate: TreeTemplate = {
-                      id: `template-${Date.now()}`,
-                      name: `大項目 ${treeTemplates.length + 1}`,
-                      order: treeTemplates.length + 1,
-                      prefix: '',
-                      color: templateColors[treeTemplates.length % templateColors.length]
-                    }
-                    setTreeTemplates([...treeTemplates, newTemplate])
-                  }}
-                  style={{
-                    padding: '10px 20px',
-                    fontSize: '14px',
-                    backgroundColor: '#10b981',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    width: '100%'
-                  }}
-                >
-                  ➕ 大項目を追加
-                </button>
-              )}
-
-              {/* 保存ボタン */}
-              <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                <button
-                  onClick={() => setShowTemplateModal(false)}
-                  style={{
-                    padding: '10px 20px',
-                    fontSize: '14px',
-                    backgroundColor: '#fff',
-                    color: '#374151',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '6px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  キャンセル
-                </button>
-                <button
-                  onClick={() => {
-                    saveTreeData(treeNodes, treeTemplates)
-                    setShowTemplateModal(false)
-                  }}
-                  style={{
-                    padding: '10px 20px',
-                    fontSize: '14px',
-                    backgroundColor: '#3b82f6',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  保存
-                </button>
-              </div>
-            </div>
-          </div>
+            )
+          })}
         </div>
       )}
 
