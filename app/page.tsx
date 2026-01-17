@@ -573,20 +573,12 @@ export default function QuickMemoApp() {
       // Undo: Cmd+Z / Ctrl+Z
       if (isCtrlOrCmd && e.key === 'z' && !e.shiftKey) {
         e.preventDefault()
-        if (viewMode === 'quick') {
-          undo()
-        } else {
-          undoTree()
-        }
+        undo()
       }
       // Redo: Cmd+Y / Ctrl+Y
       else if (isCtrlOrCmd && e.key === 'y') {
         e.preventDefault()
-        if (viewMode === 'quick') {
-          redo()
-        } else {
-          redoTree()
-        }
+        redo()
       }
     }
 
