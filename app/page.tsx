@@ -2342,23 +2342,86 @@ export default function QuickMemoApp() {
       {/* クイックメモ画面 */}
       {viewMode === 'quick' && (
       <div className="input-area">
+        {/* メモ入力欄（一番上） */}
+        <div className="input-row" style={{ marginBottom: '16px' }}>
+          <input
+            type="text"
+            value={memoInput}
+            onChange={(e) => setMemoInput(e.target.value)}
+            placeholder={`${categories[selectedCategory]?.name || 'メモ'}を入力...`}
+            onKeyPress={(e) => e.key === 'Enter' && addMemo()}
+            onFocus={() => {
+              memoInputFocusedRef.current = true
+            }}
+            onBlur={() => {
+              memoInputFocusedRef.current = false
+            }}
+          />
+          <button
+            className={`voice-btn ${isListening ? 'listening' : ''}`}
+            onClick={toggleVoice}
+          >
+            {isListening ? '🔴' : '🎤'}
+          </button>
+          <button className="add-btn" onClick={addMemo}>
+            追加
+          </button>
+        </div>
+
+        {/* 入力タグ選択セクション */}
+        <div className="input-tag-section" style={{
+          borderTop: '1px solid #e5e7eb',
+          paddingTop: '12px',
+          marginBottom: '12px'
+        }}>
+          <div style={{
+            fontSize: '12px',
+            color: '#6b7280',
+            marginBottom: '8px',
+            fontWeight: '500'
+          }}>
+            📌 入力タグを選択
+          </div>
+          <div className="input-category-buttons" style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '8px'
+          }}>
+            {orderedCategories.map(([key, cat]) => (
+              <button
+                key={key}
+                className={`input-category-btn ${key === selectedCategory ? 'active' : ''}`}
+                data-category={key}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease',
+                  backgroundColor: key === selectedCategory 
+                    ? cat.color 
+                    : `${cat.color}25`,
+                  color: key === selectedCategory 
+                    ? 'white' 
+                    : cat.color,
+                  boxShadow: key === selectedCategory 
+                    ? `0 2px 8px ${cat.color}40` 
+                    : 'none'
+                }}
+                onClick={() => setSelectedCategory(key)}
+              >
+                {cat.icon} {cat.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="category-section">
           <div className="category-header">
-            <div className="category-buttons">
-              {orderedCategories.map(([key, cat]) => (
-                <button
-                  key={key}
-                  className={`category-btn ${key === selectedCategory ? 'active' : ''}`}
-                  data-category={key}
-                  style={{
-                    backgroundColor: key === selectedCategory ? cat.color : '',
-                    color: key === selectedCategory ? 'white' : ''
-                  }}
-                  onClick={() => setSelectedCategory(key)}
-                >
-                  {cat.icon} {cat.name}
-                </button>
-              ))}
+            <div className="category-buttons" style={{ display: 'none' }}>
+              {/* 入力用カテゴリボタンは上に移動したので非表示 */}
             </div>
             <div className="category-actions">
               <div className="action-group-1">
@@ -2461,31 +2524,6 @@ export default function QuickMemoApp() {
               </div>
             </div>
           </div>
-        </div>
-
-        <div className="input-row">
-          <input
-            type="text"
-            value={memoInput}
-            onChange={(e) => setMemoInput(e.target.value)}
-            placeholder={`${categories[selectedCategory]?.name}を入力...`}
-            onKeyPress={(e) => e.key === 'Enter' && addMemo()}
-            onFocus={() => {
-              memoInputFocusedRef.current = true
-            }}
-            onBlur={() => {
-              memoInputFocusedRef.current = false
-            }}
-          />
-          <button
-            className={`voice-btn ${isListening ? 'listening' : ''}`}
-            onClick={toggleVoice}
-          >
-            {isListening ? '🔴' : '🎤'}
-          </button>
-          <button className="add-btn" onClick={addMemo}>
-            追加
-          </button>
         </div>
 
       <div className="controls">
