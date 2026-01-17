@@ -2001,17 +2001,10 @@ export default function QuickMemoApp() {
         <div className="input-tag-section" style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '8px',
+          gap: '6px',
           marginBottom: '8px',
           flexWrap: 'wrap'
         }}>
-          <span style={{
-            fontSize: '11px',
-            color: '#9ca3af',
-            whiteSpace: 'nowrap'
-          }}>
-            📌
-          </span>
           {orderedCategories.map(([key, cat]) => (
             <button
               key={key}
@@ -2657,7 +2650,7 @@ export default function QuickMemoApp() {
                   overflowY: 'auto',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '4px'
+                  gap: '6px'
                 }}>
                   {categoryMemos.length === 0 ? (
                     <div style={{
@@ -2678,22 +2671,30 @@ export default function QuickMemoApp() {
                           setSelectedCategory(categoryKey)
                         }}
                         style={{
-                          padding: '6px 8px',
+                          padding: '8px 10px',
                           backgroundColor: memo.completed ? '#f3f4f6' : 'white',
-                          borderRadius: '4px',
-                          fontSize: '11px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          lineHeight: '1.4',
+                          minHeight: '36px',
                           color: memo.completed ? '#9ca3af' : '#374151',
                           textDecoration: memo.completed ? 'line-through' : 'none',
                           cursor: 'pointer',
-                          borderLeft: `2px solid ${category.color}`,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          transition: 'all 0.15s ease'
+                          borderLeft: `3px solid ${category.color}`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          transition: 'all 0.15s ease',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
                         }}
                         title={memo.text}
                       >
-                        {memo.text.length > 12 ? memo.text.slice(0, 12) + '...' : memo.text}
+                        <span style={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {memo.text.length > 15 ? memo.text.slice(0, 15) + '...' : memo.text}
+                        </span>
                       </div>
                     ))
                   )}
