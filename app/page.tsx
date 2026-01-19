@@ -64,6 +64,7 @@ interface Memo {
   isEncrypted?: boolean
   updated_at?: string
   deleted?: boolean
+  hasReminder?: boolean
 }
 
 // デフォルトカテゴリー
