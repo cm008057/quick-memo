@@ -2735,14 +2735,23 @@ export default function QuickMemoApp() {
                           ) : (
                             <>
                               {/* テキスト表示 */}
-                              <div style={{
-                                whiteSpace: isHovered || isExpanded ? 'pre-wrap' : 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: isHovered || isExpanded ? 'clip' : 'ellipsis',
-                                wordBreak: 'break-word'
-                              }}>
-                                {isHovered || isExpanded ? memo.text : (memo.text.length > 15 ? memo.text.slice(0, 15) + '...' : memo.text)}
-                              </div>
+                              {isHovered || isExpanded ? (
+                                <div style={{
+                                  whiteSpace: 'pre-wrap',
+                                  wordBreak: 'break-word',
+                                  lineHeight: '1.6'
+                                }}>
+                                  {memo.text}
+                                </div>
+                              ) : (
+                                <div style={{
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis'
+                                }}>
+                                  {memo.text.length > 15 ? memo.text.slice(0, 15) + '...' : memo.text}
+                                </div>
+                              )}
                               
                               {/* ホバー時のボタン */}
                               {isHovered && (
