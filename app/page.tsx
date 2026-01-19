@@ -569,24 +569,33 @@ export default function QuickMemoApp() {
       const now = new Date()
       const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
       const currentDate = now.toISOString().split('T')[0]
-      const defaultReminderTime = '08:00' // デフォルト: 毎朝8時
+      const defaultReminderTimes = ['08:00', '13:00', '17:00'] // デフォルト: 8時、13時、17時
 
       const memosToNotify: Memo[] = []
 
       memos.forEach(memo => {
         if (!memo.hasReminder || memo.completed || memo.deleted) return
 
-        // 今日すでに通知済みかチェック
-        if (memo.lastNotified?.startsWith(currentDate)) return
-
-        const memoReminderTime = memo.reminderTime || defaultReminderTime
-        
         // 個別日付が設定されている場合、その日のみ通知
         if (memo.reminderDate && memo.reminderDate !== currentDate) return
 
-        // 時刻が一致したら通知
-        if (currentTime === memoReminderTime) {
-          memosToNotify.push(memo)
+        // 個別時刻が設定されている場合
+        if (memo.reminderTime) {
+          // 今日のこの時刻ですでに通知済みかチェック
+          const notifiedKey = `${currentDate}-${memo.reminderTime}`
+          if (memo.lastNotified === notifiedKey) return
+          
+          if (currentTime === memo.reminderTime) {
+            memosToNotify.push(memo)
+          }
+        } else {
+          // デフォルトの3回通知（8:00、13:00、17:00）
+          const notifiedKey = `${currentDate}-${currentTime}`
+          if (memo.lastNotified === notifiedKey) return
+          
+          if (defaultReminderTimes.includes(currentTime)) {
+            memosToNotify.push(memo)
+          }
         }
       })
 
@@ -601,10 +610,11 @@ export default function QuickMemoApp() {
           )
         }
 
-        // lastNotifiedを更新
+        // lastNotifiedを更新（日付-時刻の形式で重複通知を防止）
+        const notifiedKey = `${currentDate}-${currentTime}`
         const updatedMemos = memos.map(m => {
           if (memosToNotify.find(n => n.id === m.id)) {
-            return { ...m, lastNotified: now.toISOString() }
+            return { ...m, lastNotified: notifiedKey }
           }
           return m
         })
@@ -623,6 +633,22 @@ export default function QuickMemoApp() {
     return () => clearInterval(interval)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memos, notificationPermission, sendReminderNotification])
+
+  // バッジにリマインダー数を表示
+  useEffect(() => {
+    const reminderCount = memos.filter(m => m.hasReminder && !m.completed && !m.deleted).length
+    
+    // PWA Badge API（対応ブラウザのみ）
+    if ('setAppBadge' in navigator) {
+      if (reminderCount > 0) {
+        // @ts-expect-error - Badge API
+        navigator.setAppBadge(reminderCount)
+      } else {
+        // @ts-expect-error - Badge API
+        navigator.clearAppBadge()
+      }
+    }
+  }, [memos])
 
   // ユーザー操作の検出
   useEffect(() => {
@@ -3183,11 +3209,11 @@ export default function QuickMemoApp() {
                     {/* 通知時刻 */}
                     <div style={{ marginBottom: '16px' }}>
                       <label style={{ display: 'block', fontSize: '13px', color: '#666', marginBottom: '6px' }}>
-                        ⏰ 通知時刻（未設定の場合は毎朝8:00）
+                        ⏰ 通知時刻（未設定の場合は毎日8:00・13:00・17:00の3回）
                       </label>
                       <input
                         type="time"
-                        value={memo.reminderTime || '08:00'}
+                        value={memo.reminderTime || ''}
                         onChange={(e) => {
                           const updatedMemos = memos.map(m =>
                             m.id === memo.id ? { ...m, reminderTime: e.target.value, updated_at: new Date().toISOString() } : m
@@ -3262,8 +3288,10 @@ export default function QuickMemoApp() {
                       color: '#059669'
                     }}>
                       ✅ {memo.reminderDate 
-                        ? `${memo.reminderDate} の ${memo.reminderTime || '08:00'} に通知`
-                        : `毎日 ${memo.reminderTime || '08:00'} に通知`}
+                        ? `${memo.reminderDate} の ${memo.reminderTime || '8:00・13:00・17:00'} に通知`
+                        : memo.reminderTime 
+                          ? `毎日 ${memo.reminderTime} に通知`
+                          : '毎日 8:00・13:00・17:00 に通知'}
                     </div>
                   </>
                 )}
