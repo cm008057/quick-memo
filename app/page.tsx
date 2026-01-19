@@ -2708,7 +2708,8 @@ export default function QuickMemoApp() {
                               position: isHovered && !isExpanded ? 'absolute' : 'relative',
                               left: 0,
                               top: 0,
-                              width: isHovered && !isExpanded ? '320px' : '100%',
+                              width: isHovered && !isExpanded ? '400px' : '100%',
+                              maxWidth: isHovered && !isExpanded ? '90vw' : '100%',
                               minWidth: '100%',
                               zIndex: isHovered ? 1000 : 1
                             }}
