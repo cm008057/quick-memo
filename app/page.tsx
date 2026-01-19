@@ -2666,7 +2666,8 @@ export default function QuickMemoApp() {
                   overflowY: 'auto',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '6px'
+                  gap: '8px',
+                  alignItems: 'stretch'
                 }}>
                   {categoryMemos.length === 0 ? (
                     <div style={{
@@ -2690,18 +2691,19 @@ export default function QuickMemoApp() {
                             if (!isEditing) setHoveredMemoId(null)
                           }}
                           style={{
-                            padding: isHovered || isExpanded ? '10px 12px' : '8px 10px',
-                            backgroundColor: isHovered ? '#fefefe' : (memo.completed ? '#f3f4f6' : 'white'),
+                            padding: isHovered || isExpanded ? '12px 14px' : '8px 10px',
+                            backgroundColor: isHovered ? '#ffffff' : (memo.completed ? '#f3f4f6' : 'white'),
                             borderRadius: '6px',
                             fontSize: '12px',
                             lineHeight: '1.5',
-                            minHeight: '36px',
                             color: memo.completed ? '#9ca3af' : '#374151',
                             textDecoration: memo.completed ? 'line-through' : 'none',
                             borderLeft: `3px solid ${category.color}`,
-                            transition: 'all 0.15s ease',
-                            boxShadow: isHovered ? '0 4px 12px rgba(0,0,0,0.15)' : '0 1px 2px rgba(0,0,0,0.05)',
-                            border: isHovered ? `1px solid ${category.color}40` : '1px solid transparent'
+                            boxShadow: isHovered ? '0 4px 16px rgba(0,0,0,0.2)' : '0 1px 2px rgba(0,0,0,0.05)',
+                            border: isHovered ? `2px solid ${category.color}` : '1px solid #e5e7eb',
+                            width: '100%',
+                            boxSizing: 'border-box',
+                            flexShrink: 0
                           }}
                         >
                           {/* 編集モード */}
