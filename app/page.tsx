@@ -609,7 +609,8 @@ export default function QuickMemoApp() {
           return m
         })
         setMemos(updatedMemos)
-        saveMemos(updatedMemos)
+        // 直接localStorageに保存（saveMemos宣言前のため）
+        localStorage.setItem('quick-memo-data', JSON.stringify(updatedMemos))
       }
     }
 
@@ -620,7 +621,8 @@ export default function QuickMemoApp() {
     const interval = setInterval(checkReminders, 60000)
 
     return () => clearInterval(interval)
-  }, [memos, notificationPermission, sendReminderNotification, saveMemos])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [memos, notificationPermission, sendReminderNotification])
 
   // ユーザー操作の検出
   useEffect(() => {
