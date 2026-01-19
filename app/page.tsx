@@ -114,6 +114,10 @@ export default function QuickMemoApp() {
   const [hoveredMemoId, setHoveredMemoId] = useState<number | null>(null) // カンバンでホバー中のメモID
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null) // 展開中のカテゴリ
   const [kanbanEditingMemo, setKanbanEditingMemo] = useState<number | null>(null) // カンバンで編集中のメモID
+  const [categoryWidths, setCategoryWidths] = useState<Record<string, number>>({}) // カテゴリー列の幅
+  const [resizingCategory, setResizingCategory] = useState<string | null>(null) // リサイズ中のカテゴリ
+  const resizeStartX = useRef<number>(0)
+  const resizeStartWidth = useRef<number>(0)
 
   // 認証関連のstate
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -440,6 +444,63 @@ export default function QuickMemoApp() {
       }
     }
   }, [isDeleting, isImporting, isSaving, isSyncing, editingMemo]) // editingMemoを依存関係に追加
+
+  // カテゴリー幅をLocalStorageから読み込み
+  useEffect(() => {
+    const savedWidths = localStorage.getItem('quick-memo-category-widths')
+    if (savedWidths) {
+      try {
+        setCategoryWidths(JSON.parse(savedWidths))
+      } catch (e) {
+        console.error('Failed to load category widths:', e)
+      }
+    }
+  }, [])
+
+  // カテゴリー幅をLocalStorageに保存
+  const saveCategoryWidths = useCallback((widths: Record<string, number>) => {
+    localStorage.setItem('quick-memo-category-widths', JSON.stringify(widths))
+  }, [])
+
+  // リサイズ中のマウス移動ハンドラ
+  useEffect(() => {
+    if (!resizingCategory) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - resizeStartX.current
+      const newWidth = Math.max(150, Math.min(800, resizeStartWidth.current + deltaX))
+      setCategoryWidths(prev => {
+        const updated = { ...prev, [resizingCategory]: newWidth }
+        return updated
+      })
+    }
+
+    const handleMouseUp = () => {
+      if (resizingCategory) {
+        setCategoryWidths(prev => {
+          saveCategoryWidths(prev)
+          return prev
+        })
+      }
+      setResizingCategory(null)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [resizingCategory, saveCategoryWidths])
+
+  // リサイズ開始ハンドラ
+  const handleResizeStart = (categoryKey: string, currentWidth: number, e: React.MouseEvent) => {
+    e.preventDefault()
+    resizeStartX.current = e.clientX
+    resizeStartWidth.current = currentWidth
+    setResizingCategory(categoryKey)
+  }
 
   // Service Workerの登録（PWA対応）
   useEffect(() => {
@@ -2658,14 +2719,16 @@ export default function QuickMemoApp() {
       {viewMode === 'kanban' && (
         <div style={{ 
           display: 'flex', 
-          gap: '12px', 
+          gap: '0', 
           overflowX: 'auto', 
           padding: '8px 0',
-          minHeight: '400px'
+          minHeight: '400px',
+          userSelect: resizingCategory ? 'none' : 'auto'
         }}>
           {orderedCategories.map(([categoryKey, category]) => {
             const categoryMemos = memos.filter(m => m.category === categoryKey && !m.deleted)
             const isExpanded = expandedCategory === categoryKey
+            const columnWidth = categoryWidths[categoryKey] || 200
             
             // 展開中のカテゴリ以外は非表示
             if (expandedCategory && !isExpanded) {
@@ -2676,18 +2739,24 @@ export default function QuickMemoApp() {
               <div
                 key={categoryKey}
                 style={{
-                  minWidth: isExpanded ? '100%' : '160px',
-                  maxWidth: isExpanded ? '100%' : '200px',
-                  flex: isExpanded ? '1' : '0 0 auto',
-                  backgroundColor: '#f9fafb',
-                  borderRadius: '8px',
-                  padding: '8px',
                   display: 'flex',
-                  flexDirection: 'column',
-                  maxHeight: '70vh',
-                  transition: 'all 0.2s ease'
+                  flexShrink: 0
                 }}
               >
+                {/* カテゴリ列 */}
+                <div
+                  style={{
+                    width: isExpanded ? '100%' : `${columnWidth}px`,
+                    minWidth: isExpanded ? '100%' : '150px',
+                    backgroundColor: '#f9fafb',
+                    borderRadius: '8px',
+                    padding: '8px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    maxHeight: '70vh',
+                    transition: resizingCategory ? 'none' : 'all 0.2s ease'
+                  }}
+                >
                 {/* カテゴリヘッダー */}
                 <div 
                   onClick={() => setExpandedCategory(isExpanded ? null : categoryKey)}
@@ -2917,6 +2986,41 @@ export default function QuickMemoApp() {
                     })
                   )}
                 </div>
+              </div>
+              
+              {/* リサイズハンドル */}
+              {!isExpanded && (
+                <div
+                  onMouseDown={(e) => handleResizeStart(categoryKey, columnWidth, e)}
+                  style={{
+                    width: '12px',
+                    cursor: 'col-resize',
+                    backgroundColor: resizingCategory === categoryKey ? '#3b82f6' : 'transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    transition: 'background-color 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!resizingCategory) {
+                      (e.currentTarget as HTMLElement).style.backgroundColor = '#e5e7eb'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!resizingCategory) {
+                      (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'
+                    }
+                  }}
+                >
+                  <div style={{
+                    width: '2px',
+                    height: '30px',
+                    backgroundColor: resizingCategory === categoryKey ? 'white' : '#d1d5db',
+                    borderRadius: '1px'
+                  }} />
+                </div>
+              )}
               </div>
             )
           })}
