@@ -2705,13 +2705,9 @@ export default function QuickMemoApp() {
                               boxShadow: isHovered ? '0 8px 24px rgba(0,0,0,0.25)' : '0 1px 2px rgba(0,0,0,0.05)',
                               border: isHovered ? `2px solid ${category.color}` : '1px solid #e5e7eb',
                               boxSizing: 'border-box',
-                              position: isHovered && !isExpanded ? 'absolute' : 'relative',
-                              left: 0,
-                              top: 0,
-                              width: isHovered && !isExpanded ? '400px' : '100%',
-                              maxWidth: isHovered && !isExpanded ? '90vw' : '100%',
-                              minWidth: '100%',
-                              zIndex: isHovered ? 1000 : 1
+                              position: 'relative',
+                              width: '100%',
+                              zIndex: 1
                             }}
                           >
                           {/* 編集モード */}
@@ -2744,8 +2740,8 @@ export default function QuickMemoApp() {
                             </div>
                           ) : (
                             <>
-                              {/* テキスト表示 */}
-                              {isHovered || isExpanded ? (
+                              {/* テキスト表示（常に省略） */}
+                              {isExpanded ? (
                                 <div style={{
                                   whiteSpace: 'pre-wrap',
                                   wordBreak: 'break-word',
@@ -2762,74 +2758,6 @@ export default function QuickMemoApp() {
                                   {memo.text.length > 15 ? memo.text.slice(0, 15) + '...' : memo.text}
                                 </div>
                               )}
-                              
-                              {/* ホバー時のボタン */}
-                              {isHovered && (
-                                <div style={{
-                                  display: 'flex',
-                                  gap: '6px',
-                                  marginTop: '8px',
-                                  paddingTop: '8px',
-                                  borderTop: '1px solid #e5e7eb'
-                                }}>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      setKanbanEditingMemo(memo.id)
-                                    }}
-                                    style={{
-                                      padding: '4px 10px',
-                                      fontSize: '11px',
-                                      backgroundColor: '#3b82f6',
-                                      color: 'white',
-                                      border: 'none',
-                                      borderRadius: '4px',
-                                      cursor: 'pointer'
-                                    }}
-                                  >
-                                    ✏️ 編集
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      setSelectedCategory(categoryKey)
-                                      setViewMode('quick')
-                                    }}
-                                    style={{
-                                      padding: '4px 10px',
-                                      fontSize: '11px',
-                                      backgroundColor: '#10b981',
-                                      color: 'white',
-                                      border: 'none',
-                                      borderRadius: '4px',
-                                      cursor: 'pointer'
-                                    }}
-                                  >
-                                    📝 リストへ
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      const updatedMemos = memos.map(m =>
-                                        m.id === memo.id ? { ...m, completed: !m.completed, updated_at: new Date().toISOString() } : m
-                                      )
-                                      setMemos(updatedMemos)
-                                      saveMemos(updatedMemos)
-                                    }}
-                                    style={{
-                                      padding: '4px 10px',
-                                      fontSize: '11px',
-                                      backgroundColor: memo.completed ? '#f59e0b' : '#6b7280',
-                                      color: 'white',
-                                      border: 'none',
-                                      borderRadius: '4px',
-                                      cursor: 'pointer'
-                                    }}
-                                  >
-                                    {memo.completed ? '↩️ 戻す' : '✓ 完了'}
-                                  </button>
-                                </div>
-                              )}
                             </>
                           )}
                           </div>
@@ -2843,6 +2771,144 @@ export default function QuickMemoApp() {
           })}
         </div>
       )}
+
+      {/* カンバンホバーポップアップ */}
+      {viewMode === 'kanban' && hoveredMemoId && !kanbanEditingMemo && (() => {
+        const hoveredMemo = memos.find(m => m.id === hoveredMemoId)
+        if (!hoveredMemo) return null
+        const cat = categories[hoveredMemo.category]
+        
+        return (
+          <div
+            style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '20px',
+              width: '90%',
+              maxWidth: '500px',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+              border: `3px solid ${cat?.color || '#3b82f6'}`,
+              zIndex: 2000
+            }}
+            onMouseLeave={() => setHoveredMemoId(null)}
+          >
+            {/* ヘッダー */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: '12px',
+              paddingBottom: '12px',
+              borderBottom: '1px solid #e5e7eb'
+            }}>
+              <span style={{ fontSize: '18px' }}>{cat?.icon}</span>
+              <span style={{ 
+                fontSize: '14px', 
+                fontWeight: 'bold',
+                color: cat?.color
+              }}>
+                {cat?.name}
+              </span>
+            </div>
+            
+            {/* 全文テキスト */}
+            <div style={{
+              fontSize: '14px',
+              lineHeight: '1.8',
+              color: hoveredMemo.completed ? '#9ca3af' : '#374151',
+              textDecoration: hoveredMemo.completed ? 'line-through' : 'none',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              marginBottom: '16px'
+            }}>
+              {hoveredMemo.text}
+            </div>
+            
+            {/* ボタン */}
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              flexWrap: 'wrap'
+            }}>
+              <button
+                onClick={() => {
+                  setKanbanEditingMemo(hoveredMemoId)
+                }}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '13px',
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                ✏️ 編集
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedCategory(hoveredMemo.category)
+                  setViewMode('quick')
+                  setHoveredMemoId(null)
+                }}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '13px',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                📝 リストへ
+              </button>
+              <button
+                onClick={() => {
+                  const updatedMemos = memos.map(m =>
+                    m.id === hoveredMemoId ? { ...m, completed: !m.completed, updated_at: new Date().toISOString() } : m
+                  )
+                  setMemos(updatedMemos)
+                  saveMemos(updatedMemos)
+                }}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '13px',
+                  backgroundColor: hoveredMemo.completed ? '#f59e0b' : '#6b7280',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                {hoveredMemo.completed ? '↩️ 戻す' : '✓ 完了'}
+              </button>
+              <button
+                onClick={() => setHoveredMemoId(null)}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '13px',
+                  backgroundColor: '#e5e7eb',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  marginLeft: 'auto'
+                }}
+              >
+                ✕ 閉じる
+              </button>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* カテゴリー管理モーダル */}
       <div className={`modal ${showCategoryModal ? 'active' : ''}`}>
