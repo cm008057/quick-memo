@@ -2846,25 +2846,40 @@ export default function QuickMemoApp() {
         const cat = categories[hoveredMemo.category]
         
         return (
-          <div
-            style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              backgroundColor: 'white',
-              borderRadius: '12px',
-              padding: '20px',
-              width: '90%',
-              maxWidth: '500px',
-              maxHeight: '80vh',
-              overflowY: 'auto',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-              border: `3px solid ${cat?.color || '#3b82f6'}`,
-              zIndex: 2000
-            }}
-            onMouseLeave={() => setHoveredMemoId(null)}
-          >
+          <>
+            {/* 背景オーバーレイ */}
+            <div
+              onClick={() => setHoveredMemoId(null)}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.3)',
+                zIndex: 1999
+              }}
+            />
+            <div
+              style={{
+                position: 'fixed',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                backgroundColor: 'white',
+                borderRadius: '12px',
+                padding: '24px',
+                paddingBottom: '28px',
+                width: '90%',
+                maxWidth: '500px',
+                maxHeight: '70vh',
+                overflowY: 'auto',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+                border: `3px solid ${cat?.color || '#3b82f6'}`,
+                zIndex: 2000,
+                boxSizing: 'border-box'
+              }}
+            >
             {/* ヘッダー */}
             <div style={{
               display: 'flex',
@@ -2974,6 +2989,7 @@ export default function QuickMemoApp() {
               </button>
             </div>
           </div>
+          </>
         )
       })()}
 
