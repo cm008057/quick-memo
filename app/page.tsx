@@ -120,6 +120,7 @@ export default function QuickMemoApp() {
   const [user, setUser] = useState<any>(null)
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false)
   const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default')
   const [hasLocalData, setHasLocalData] = useState<boolean>(false)
   const [isDeleting, setIsDeleting] = useState<boolean>(false)
   const [isImporting, setIsImporting] = useState<boolean>(false)
@@ -439,6 +440,60 @@ export default function QuickMemoApp() {
       }
     }
   }, [isDeleting, isImporting, isSaving, isSyncing, editingMemo]) // editingMemoを依存関係に追加
+
+  // Service Workerの登録（PWA対応）
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then((registration) => {
+          console.log('Service Worker registered:', registration.scope)
+        })
+        .catch((error) => {
+          console.log('Service Worker registration failed:', error)
+        })
+    }
+    
+    // 通知許可の状態を確認
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission)
+    }
+  }, [])
+
+  // 通知許可をリクエスト
+  const requestNotificationPermission = async () => {
+    if (!('Notification' in window)) {
+      alert('このブラウザは通知に対応していません')
+      return
+    }
+
+    const permission = await Notification.requestPermission()
+    setNotificationPermission(permission)
+    
+    if (permission === 'granted') {
+      // テスト通知を送信
+      sendTestNotification()
+    }
+  }
+
+  // テスト通知を送信
+  const sendTestNotification = () => {
+    if (Notification.permission === 'granted') {
+      new Notification('クイックメモ 📝', {
+        body: '通知が有効になりました！',
+        icon: '/icons/icon-192.svg'
+      })
+    }
+  }
+
+  // リマインダー通知を送信
+  const sendReminderNotification = (message: string) => {
+    if (Notification.permission === 'granted') {
+      new Notification('クイックメモ リマインダー', {
+        body: message,
+        icon: '/icons/icon-192.svg'
+      })
+    }
+  }
 
   // ユーザー操作の検出
   useEffect(() => {
@@ -2071,6 +2126,18 @@ export default function QuickMemoApp() {
                     <span className="btn-label">ログイン</span>
                   </button>
                 )}
+                <button 
+                  className="export-btn" 
+                  onClick={requestNotificationPermission} 
+                  title={notificationPermission === 'granted' ? '通知ON' : '通知を有効にする'}
+                  style={{
+                    backgroundColor: notificationPermission === 'granted' ? '#dcfce7' : undefined,
+                    borderColor: notificationPermission === 'granted' ? '#86efac' : undefined
+                  }}
+                >
+                  <span className="btn-icon">{notificationPermission === 'granted' ? '🔔' : '🔕'}</span>
+                  <span className="btn-label">通知</span>
+                </button>
                 <button className="export-btn" onClick={exportData} title="データをエクスポート">
                   <span className="btn-icon">💾</span>
                   <span className="btn-label">保存</span>
