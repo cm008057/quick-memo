@@ -65,6 +65,9 @@ interface Memo {
   updated_at?: string
   deleted?: boolean
   hasReminder?: boolean
+  reminderTime?: string  // 個別通知時刻 (HH:MM形式)
+  reminderDate?: string  // 個別通知日 (YYYY-MM-DD形式、省略時は毎日)
+  lastNotified?: string  // 最後に通知した日時
 }
 
 // デフォルトカテゴリー
@@ -116,6 +119,7 @@ export default function QuickMemoApp() {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null) // 展開中のカテゴリ
   const [kanbanEditingMemo, setKanbanEditingMemo] = useState<number | null>(null) // カンバンで編集中のメモID
   const [categoryWidths, setCategoryWidths] = useState<Record<string, number>>({}) // カテゴリー列の幅
+  const [reminderSettingMemo, setReminderSettingMemo] = useState<number | null>(null) // リマインダー設定中のメモID
   const [resizingCategory, setResizingCategory] = useState<string | null>(null) // リサイズ中のカテゴリ
   const resizeStartX = useRef<number>(0)
   const resizeStartWidth = useRef<number>(0)
@@ -548,14 +552,75 @@ export default function QuickMemoApp() {
   }
 
   // リマインダー通知を送信
-  const sendReminderNotification = (message: string) => {
+  const sendReminderNotification = useCallback((title: string, message: string) => {
     if (Notification.permission === 'granted') {
-      new Notification('クイックメモ リマインダー', {
+      new Notification(title, {
         body: message,
         icon: '/icons/icon-192.svg'
       })
     }
-  }
+  }, [])
+
+  // リマインダーチェック（毎分実行）
+  useEffect(() => {
+    if (notificationPermission !== 'granted') return
+
+    const checkReminders = () => {
+      const now = new Date()
+      const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+      const currentDate = now.toISOString().split('T')[0]
+      const defaultReminderTime = '08:00' // デフォルト: 毎朝8時
+
+      const memosToNotify: Memo[] = []
+
+      memos.forEach(memo => {
+        if (!memo.hasReminder || memo.completed || memo.deleted) return
+
+        // 今日すでに通知済みかチェック
+        if (memo.lastNotified?.startsWith(currentDate)) return
+
+        const memoReminderTime = memo.reminderTime || defaultReminderTime
+        
+        // 個別日付が設定されている場合、その日のみ通知
+        if (memo.reminderDate && memo.reminderDate !== currentDate) return
+
+        // 時刻が一致したら通知
+        if (currentTime === memoReminderTime) {
+          memosToNotify.push(memo)
+        }
+      })
+
+      if (memosToNotify.length > 0) {
+        // 通知を送信
+        if (memosToNotify.length === 1) {
+          sendReminderNotification('🔔 リマインダー', memosToNotify[0].text)
+        } else {
+          sendReminderNotification(
+            `🔔 リマインダー (${memosToNotify.length}件)`,
+            memosToNotify.map(m => `• ${m.text.slice(0, 20)}${m.text.length > 20 ? '...' : ''}`).join('\n')
+          )
+        }
+
+        // lastNotifiedを更新
+        const updatedMemos = memos.map(m => {
+          if (memosToNotify.find(n => n.id === m.id)) {
+            return { ...m, lastNotified: now.toISOString() }
+          }
+          return m
+        })
+        setMemos(updatedMemos)
+        saveMemos(updatedMemos)
+      }
+    }
+
+    // 初回チェック
+    checkReminders()
+
+    // 毎分チェック
+    const interval = setInterval(checkReminders, 60000)
+
+    return () => clearInterval(interval)
+  }, [memos, notificationPermission, sendReminderNotification, saveMemos])
 
   // ユーザー操作の検出
   useEffect(() => {
@@ -2557,20 +2622,10 @@ export default function QuickMemoApp() {
                             await requestNotificationPermission()
                           }
                           if (Notification.permission === 'granted') {
-                            const updatedMemos = memos.map(m =>
-                              m.id === memo.id ? { ...m, hasReminder: !m.hasReminder, updated_at: new Date().toISOString() } : m
-                            )
-                            setMemos(updatedMemos)
-                            saveMemos(updatedMemos)
-                            if (!memo.hasReminder) {
-                              new Notification('クイックメモ', {
-                                body: `リマインダー設定: ${memo.text.slice(0, 30)}...`,
-                                icon: '/icons/icon-192.svg'
-                              })
-                            }
+                            setReminderSettingMemo(memo.id)
                           }
                         }}
-                        title={memo.hasReminder ? 'リマインダーOFF' : 'リマインダーON'}
+                        title={memo.hasReminder ? 'リマインダー設定' : 'リマインダーON'}
                         style={{ 
                           padding: '2px 4px',
                           fontSize: '12px',
@@ -3001,11 +3056,7 @@ export default function QuickMemoApp() {
                                         await requestNotificationPermission()
                                       }
                                       if (Notification.permission === 'granted') {
-                                        const updatedMemos = memos.map(m =>
-                                          m.id === memo.id ? { ...m, hasReminder: !m.hasReminder, updated_at: new Date().toISOString() } : m
-                                        )
-                                        setMemos(updatedMemos)
-                                        saveMemos(updatedMemos)
+                                        setReminderSettingMemo(memo.id)
                                       }
                                     }}
                                     style={{
@@ -3014,7 +3065,7 @@ export default function QuickMemoApp() {
                                       opacity: memo.hasReminder ? 1 : 0.4,
                                       flexShrink: 0
                                     }}
-                                    title={memo.hasReminder ? 'リマインダーOFF' : 'リマインダーON'}
+                                    title={memo.hasReminder ? 'リマインダー設定' : 'リマインダーON'}
                                   >
                                     {memo.hasReminder ? '🔔' : '🔕'}
                                   </span>
@@ -3076,6 +3127,165 @@ export default function QuickMemoApp() {
           })}
         </div>
       )}
+
+      {/* リマインダー設定モーダル */}
+      {reminderSettingMemo && (() => {
+        const memo = memos.find(m => m.id === reminderSettingMemo)
+        if (!memo) return null
+        
+        return (
+          <div className="modal active">
+            <div className="modal-content" style={{ maxWidth: '400px' }}>
+              <div className="modal-header">
+                <h2 className="modal-title">🔔 リマインダー設定</h2>
+                <button className="close-btn" onClick={() => setReminderSettingMemo(null)}>
+                  &times;
+                </button>
+              </div>
+              
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ 
+                  fontSize: '13px', 
+                  color: '#666',
+                  padding: '10px',
+                  backgroundColor: '#f3f4f6',
+                  borderRadius: '6px',
+                  marginBottom: '16px'
+                }}>
+                  {memo.text.length > 50 ? memo.text.slice(0, 50) + '...' : memo.text}
+                </div>
+                
+                {/* リマインダーON/OFF */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={memo.hasReminder || false}
+                      onChange={(e) => {
+                        const updatedMemos = memos.map(m =>
+                          m.id === memo.id ? { ...m, hasReminder: e.target.checked, updated_at: new Date().toISOString() } : m
+                        )
+                        setMemos(updatedMemos)
+                        saveMemos(updatedMemos)
+                      }}
+                      style={{ width: '18px', height: '18px' }}
+                    />
+                    <span style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                      リマインダーを有効にする
+                    </span>
+                  </label>
+                </div>
+
+                {memo.hasReminder && (
+                  <>
+                    {/* 通知時刻 */}
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', fontSize: '13px', color: '#666', marginBottom: '6px' }}>
+                        ⏰ 通知時刻（未設定の場合は毎朝8:00）
+                      </label>
+                      <input
+                        type="time"
+                        value={memo.reminderTime || '08:00'}
+                        onChange={(e) => {
+                          const updatedMemos = memos.map(m =>
+                            m.id === memo.id ? { ...m, reminderTime: e.target.value, updated_at: new Date().toISOString() } : m
+                          )
+                          setMemos(updatedMemos)
+                          saveMemos(updatedMemos)
+                        }}
+                        style={{
+                          padding: '8px 12px',
+                          fontSize: '16px',
+                          border: '1px solid #ddd',
+                          borderRadius: '6px',
+                          width: '100%'
+                        }}
+                      />
+                    </div>
+
+                    {/* 通知日（オプション） */}
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', fontSize: '13px', color: '#666', marginBottom: '6px' }}>
+                        📅 特定の日に通知（省略すると毎日通知）
+                      </label>
+                      <input
+                        type="date"
+                        value={memo.reminderDate || ''}
+                        onChange={(e) => {
+                          const updatedMemos = memos.map(m =>
+                            m.id === memo.id ? { ...m, reminderDate: e.target.value || undefined, updated_at: new Date().toISOString() } : m
+                          )
+                          setMemos(updatedMemos)
+                          saveMemos(updatedMemos)
+                        }}
+                        style={{
+                          padding: '8px 12px',
+                          fontSize: '16px',
+                          border: '1px solid #ddd',
+                          borderRadius: '6px',
+                          width: '100%'
+                        }}
+                      />
+                      {memo.reminderDate && (
+                        <button
+                          onClick={() => {
+                            const updatedMemos = memos.map(m =>
+                              m.id === memo.id ? { ...m, reminderDate: undefined, updated_at: new Date().toISOString() } : m
+                            )
+                            setMemos(updatedMemos)
+                            saveMemos(updatedMemos)
+                          }}
+                          style={{
+                            marginTop: '6px',
+                            padding: '4px 8px',
+                            fontSize: '12px',
+                            color: '#666',
+                            backgroundColor: '#f3f4f6',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          日付をクリア（毎日通知に戻す）
+                        </button>
+                      )}
+                    </div>
+
+                    {/* 現在の設定表示 */}
+                    <div style={{
+                      padding: '10px',
+                      backgroundColor: '#ecfdf5',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      color: '#059669'
+                    }}>
+                      ✅ {memo.reminderDate 
+                        ? `${memo.reminderDate} の ${memo.reminderTime || '08:00'} に通知`
+                        : `毎日 ${memo.reminderTime || '08:00'} に通知`}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <button
+                onClick={() => setReminderSettingMemo(null)}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  fontSize: '14px',
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                閉じる
+              </button>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* カテゴリー管理モーダル */}
       <div className={`modal ${showCategoryModal ? 'active' : ''}`}>
