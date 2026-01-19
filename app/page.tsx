@@ -2686,26 +2686,33 @@ export default function QuickMemoApp() {
                       return (
                         <div
                           key={memo.id}
-                          onMouseEnter={() => setHoveredMemoId(memo.id)}
-                          onMouseLeave={() => {
-                            if (!isEditing) setHoveredMemoId(null)
-                          }}
-                          style={{
-                            padding: isHovered || isExpanded ? '12px 14px' : '8px 10px',
-                            backgroundColor: isHovered ? '#ffffff' : (memo.completed ? '#f3f4f6' : 'white'),
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            lineHeight: '1.5',
-                            color: memo.completed ? '#9ca3af' : '#374151',
-                            textDecoration: memo.completed ? 'line-through' : 'none',
-                            borderLeft: `3px solid ${category.color}`,
-                            boxShadow: isHovered ? '0 4px 16px rgba(0,0,0,0.2)' : '0 1px 2px rgba(0,0,0,0.05)',
-                            border: isHovered ? `2px solid ${category.color}` : '1px solid #e5e7eb',
-                            width: '100%',
-                            boxSizing: 'border-box',
-                            flexShrink: 0
-                          }}
+                          style={{ position: 'relative', minHeight: '36px' }}
                         >
+                          <div
+                            onMouseEnter={() => setHoveredMemoId(memo.id)}
+                            onMouseLeave={() => {
+                              if (!isEditing) setHoveredMemoId(null)
+                            }}
+                            style={{
+                              padding: isHovered || isExpanded ? '12px 14px' : '8px 10px',
+                              backgroundColor: isHovered ? '#ffffff' : (memo.completed ? '#f3f4f6' : 'white'),
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              lineHeight: '1.5',
+                              color: memo.completed ? '#9ca3af' : '#374151',
+                              textDecoration: memo.completed ? 'line-through' : 'none',
+                              borderLeft: `3px solid ${category.color}`,
+                              boxShadow: isHovered ? '0 8px 24px rgba(0,0,0,0.25)' : '0 1px 2px rgba(0,0,0,0.05)',
+                              border: isHovered ? `2px solid ${category.color}` : '1px solid #e5e7eb',
+                              boxSizing: 'border-box',
+                              position: isHovered && !isExpanded ? 'absolute' : 'relative',
+                              left: 0,
+                              top: 0,
+                              width: isHovered && !isExpanded ? '320px' : '100%',
+                              minWidth: '100%',
+                              zIndex: isHovered ? 1000 : 1
+                            }}
+                          >
                           {/* 編集モード */}
                           {isEditing ? (
                             <div>
@@ -2824,6 +2831,7 @@ export default function QuickMemoApp() {
                               )}
                             </>
                           )}
+                          </div>
                         </div>
                       )
                     })
