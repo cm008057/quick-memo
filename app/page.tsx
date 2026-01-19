@@ -2691,7 +2691,7 @@ export default function QuickMemoApp() {
                           }}
                           style={{
                             padding: isHovered || isExpanded ? '10px 12px' : '8px 10px',
-                            backgroundColor: memo.completed ? '#f3f4f6' : 'white',
+                            backgroundColor: isHovered ? '#fefefe' : (memo.completed ? '#f3f4f6' : 'white'),
                             borderRadius: '6px',
                             fontSize: '12px',
                             lineHeight: '1.5',
@@ -2700,10 +2700,8 @@ export default function QuickMemoApp() {
                             textDecoration: memo.completed ? 'line-through' : 'none',
                             borderLeft: `3px solid ${category.color}`,
                             transition: 'all 0.15s ease',
-                            boxShadow: isHovered ? '0 4px 12px rgba(0,0,0,0.1)' : '0 1px 2px rgba(0,0,0,0.05)',
-                            transform: isHovered && !isExpanded ? 'scale(1.02)' : 'none',
-                            zIndex: isHovered ? 10 : 1,
-                            position: 'relative'
+                            boxShadow: isHovered ? '0 4px 12px rgba(0,0,0,0.15)' : '0 1px 2px rgba(0,0,0,0.05)',
+                            border: isHovered ? `1px solid ${category.color}40` : '1px solid transparent'
                           }}
                         >
                           {/* 編集モード */}
@@ -2739,7 +2737,7 @@ export default function QuickMemoApp() {
                               {/* テキスト表示 */}
                               <div style={{
                                 whiteSpace: isHovered || isExpanded ? 'pre-wrap' : 'nowrap',
-                                overflow: isHovered || isExpanded ? 'visible' : 'hidden',
+                                overflow: 'hidden',
                                 textOverflow: isHovered || isExpanded ? 'clip' : 'ellipsis',
                                 wordBreak: 'break-word'
                               }}>
