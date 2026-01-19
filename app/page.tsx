@@ -641,11 +641,9 @@ export default function QuickMemoApp() {
     // PWA Badge API（対応ブラウザのみ）
     if ('setAppBadge' in navigator) {
       if (reminderCount > 0) {
-        // @ts-expect-error - Badge API
-        navigator.setAppBadge(reminderCount)
+        (navigator as Navigator & { setAppBadge: (count: number) => void }).setAppBadge(reminderCount)
       } else {
-        // @ts-expect-error - Badge API
-        navigator.clearAppBadge()
+        (navigator as Navigator & { clearAppBadge: () => void }).clearAppBadge()
       }
     }
   }, [memos])
