@@ -2187,18 +2187,6 @@ export default function QuickMemoApp() {
                     <span className="btn-label">ログイン</span>
                   </button>
                 )}
-                <button 
-                  className="export-btn" 
-                  onClick={requestNotificationPermission} 
-                  title={notificationPermission === 'granted' ? '通知ON' : '通知を有効にする'}
-                  style={{
-                    backgroundColor: notificationPermission === 'granted' ? '#dcfce7' : undefined,
-                    borderColor: notificationPermission === 'granted' ? '#86efac' : undefined
-                  }}
-                >
-                  <span className="btn-icon">{notificationPermission === 'granted' ? '🔔' : '🔕'}</span>
-                  <span className="btn-label">通知</span>
-                </button>
                 <button className="export-btn" onClick={exportData} title="データをエクスポート">
                   <span className="btn-icon">💾</span>
                   <span className="btn-label">保存</span>
@@ -2559,6 +2547,36 @@ export default function QuickMemoApp() {
                         title="カテゴリ移動・コピー"
                       >
                         📁
+                      </button>
+                      <button
+                        className="action-btn"
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          if (notificationPermission !== 'granted') {
+                            await requestNotificationPermission()
+                          }
+                          if (Notification.permission === 'granted') {
+                            const updatedMemos = memos.map(m =>
+                              m.id === memo.id ? { ...m, hasReminder: !m.hasReminder, updated_at: new Date().toISOString() } : m
+                            )
+                            setMemos(updatedMemos)
+                            saveMemos(updatedMemos)
+                            if (!memo.hasReminder) {
+                              new Notification('クイックメモ', {
+                                body: `リマインダー設定: ${memo.text.slice(0, 30)}...`,
+                                icon: '/icons/icon-192.svg'
+                              })
+                            }
+                          }
+                        }}
+                        title={memo.hasReminder ? 'リマインダーOFF' : 'リマインダーON'}
+                        style={{ 
+                          padding: '2px 4px',
+                          fontSize: '12px',
+                          minWidth: 'auto'
+                        }}
+                      >
+                        {memo.hasReminder ? '🔔' : '🔕'}
                       </button>
                       <button
                         className={`action-btn complete-btn ${memo.completed ? 'completed' : ''}`}
@@ -2969,13 +2987,44 @@ export default function QuickMemoApp() {
                                   </div>
                                 </>
                               ) : (
-                                // 通常時は省略表示
+                                // 通常時は省略表示 + ベルマーク
                                 <div style={{
-                                  whiteSpace: 'nowrap',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis'
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
                                 }}>
-                                  {memo.text.length > 15 ? memo.text.slice(0, 15) + '...' : memo.text}
+                                  <span
+                                    onClick={async (e) => {
+                                      e.stopPropagation()
+                                      if (notificationPermission !== 'granted') {
+                                        await requestNotificationPermission()
+                                      }
+                                      if (Notification.permission === 'granted') {
+                                        const updatedMemos = memos.map(m =>
+                                          m.id === memo.id ? { ...m, hasReminder: !m.hasReminder, updated_at: new Date().toISOString() } : m
+                                        )
+                                        setMemos(updatedMemos)
+                                        saveMemos(updatedMemos)
+                                      }
+                                    }}
+                                    style={{
+                                      cursor: 'pointer',
+                                      fontSize: '10px',
+                                      opacity: memo.hasReminder ? 1 : 0.4,
+                                      flexShrink: 0
+                                    }}
+                                    title={memo.hasReminder ? 'リマインダーOFF' : 'リマインダーON'}
+                                  >
+                                    {memo.hasReminder ? '🔔' : '🔕'}
+                                  </span>
+                                  <span style={{
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    flex: 1
+                                  }}>
+                                    {memo.text.length > 12 ? memo.text.slice(0, 12) + '...' : memo.text}
+                                  </span>
                                 </div>
                               )}
                             </>
